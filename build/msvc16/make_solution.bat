@@ -1,0 +1,14 @@
+@echo off
+
+set "CONFIGURATION=%1"
+set "SOLUTION_DIR=..\solutions\graphics_msvc16_%CONFIGURATION%"
+
+@pushd ..
+@mkdir %SOLUTION_DIR%
+@pushd %SOLUTION_DIR%
+CMake -G "Visual Studio 16 2019" -A Win32 "%CD%\..\.." -DCMAKE_CONFIGURATION_TYPES:STRING=%CONFIGURATION% -DCMAKE_BUILD_TYPE:STRING=%CONFIGURATION% -DGRAPHICS_BUILD_TEST:BOOL=TRUE
+@popd
+@popd
+
+@echo on
+@pause
