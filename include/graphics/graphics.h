@@ -48,14 +48,17 @@ typedef struct gp_mesh_t
 
     gp_color_t color;
 
-    float * positions_buffer;
+    void * positions_buffer;
     size_t positions_offset;
     size_t positions_stride;
 
-    uint32_t * colors_buffer;
+    void * colors_buffer;
     size_t colors_offset;
     size_t colors_stride;
 
+    void * indices_buffer;
+    uint16_t indices_offset;
+    uint16_t indices_stride;
 } gp_mesh_t;
 
 gp_result_t gp_calculate_mesh_size( const gp_canvas_t * _canvas, gp_mesh_t * _mesh );

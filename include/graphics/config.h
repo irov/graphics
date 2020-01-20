@@ -37,4 +37,8 @@ typedef struct gp_color_t
 #define GP_COLOR_B(X) b
 #define GP_COLOR_A(X) a
 
+#ifndef GP_LINE_POINTS_MAX
+#define GP_LINE_POINTS_MAX 1024
+#endif
+
 #endif

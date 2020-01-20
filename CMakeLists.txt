@@ -42,6 +42,7 @@ set(GRAPHICS_SOURCES
     ${SOURCE_DIR}/graphics.c
     ${SOURCE_DIR}/struct.h
     ${SOURCE_DIR}/detail.h
+    ${SOURCE_DIR}/detail.c
 )
 
 set(GRAPHICS_HEADERS
