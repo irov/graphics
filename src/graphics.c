@@ -23,15 +23,20 @@ static void __canvas_default_setup( gp_canvas_t * _canvas )
     _canvas->ellipse_quality = 32;
 }
 //////////////////////////////////////////////////////////////////////////
-gp_result_t gp_canvas_create( gp_canvas_t ** _canvas, gp_malloc_t _malloc, gp_free_t _free, gp_realloc_t _realloc )
+gp_result_t gp_canvas_create( gp_canvas_t ** _canvas, gp_malloc_t _malloc, gp_free_t _free, void * _ud )
 {
-    gp_canvas_t * canvas = (gp_canvas_t *)(*_malloc)(sizeof( gp_canvas_t ));
+    gp_canvas_t * canvas = (gp_canvas_t *)(*_malloc)(sizeof( gp_canvas_t ), _ud);
+
+    canvas->lines = GP_NULLPTR;
+    canvas->rects = GP_NULLPTR;
+    canvas->rounded_rects = GP_NULLPTR;
+    canvas->ellipses = GP_NULLPTR;
 
     __canvas_default_setup( canvas );
 
     canvas->malloc = _malloc;
     canvas->free = _free;
-    canvas->realloc = _realloc;
+    canvas->ud = _ud;
 
     *_canvas = canvas;
 
@@ -40,7 +45,7 @@ gp_result_t gp_canvas_create( gp_canvas_t ** _canvas, gp_malloc_t _malloc, gp_fr
 //////////////////////////////////////////////////////////////////////////
 gp_result_t gp_canvas_destroy( gp_canvas_t * _canvas )
 {
-    (*_canvas->free)(_canvas);
+    GP_FREE( _canvas, _canvas );
 
     return GP_SUCCESSFUL;
 }
@@ -150,7 +155,9 @@ gp_result_t gp_move_to( gp_canvas_t * _canvas, float _x, float _y )
     p->prev = GP_NULLPTR;
 
     gp_line_t * l = GP_NEW( _canvas, gp_line_t );
-    l->points = p;
+    l->points = GP_NULLPTR;
+    GP_LIST_PUSHBACK( gp_point_t, l->points, p );
+    l->edges = GP_NULLPTR;
     l->penumbra = _canvas->line_penumbra;
     l->next = GP_NULLPTR;
     l->prev = GP_NULLPTR;
@@ -162,6 +169,11 @@ gp_result_t gp_move_to( gp_canvas_t * _canvas, float _x, float _y )
 //////////////////////////////////////////////////////////////////////////
 gp_result_t gp_line_to( gp_canvas_t * _canvas, float _x, float _y )
 {
+    if( _canvas->lines == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
+
     gp_line_t * l = GP_LIST_BACK( _canvas->lines );
 
     gp_point_t * p = GP_NEW( _canvas, gp_point_t );
@@ -179,6 +191,8 @@ gp_result_t gp_line_to( gp_canvas_t * _canvas, float _x, float _y )
     e->dt = 1.f;
     e->line_width = _canvas->line_width;
     e->line_color = _canvas->line_color;
+    e->next = GP_NULLPTR;
+    e->prev = GP_NULLPTR;
 
     GP_LIST_PUSHBACK( gp_line_edge_t, l->edges, e );
 
@@ -305,8 +319,8 @@ gp_result_t gp_draw_ellipse( gp_canvas_t * _canvas, float _x, float _y, float _w
 //////////////////////////////////////////////////////////////////////////
 gp_result_t gp_calculate_mesh_size( const gp_canvas_t * _canvas, gp_mesh_t * _mesh )
 {
-    uint32_t vertex_size = 0;
-    uint32_t index_size = 0;
+    uint32_t vertex_count = 0;
+    uint16_t index_count = 0;
 
     for( const gp_line_t * l = _canvas->lines; l != GP_NULLPTR; l = l->next )
     {
@@ -326,13 +340,13 @@ gp_result_t gp_calculate_mesh_size( const gp_canvas_t * _canvas, gp_mesh_t * _me
 
         if( l->penumbra > 0.f )
         {
-            vertex_size += point_count * 4;
-            index_size += (point_count - 1) * 18;
+            vertex_count += point_count * 4;
+            index_count += (point_count - 1) * 18;
         }
         else
         {
-            vertex_size += point_count * 2;
-            index_size += (point_count - 1) * 6;
+            vertex_count += point_count * 2;
+            index_count += (point_count - 1) * 6;
         }
     }
 
@@ -340,19 +354,19 @@ gp_result_t gp_calculate_mesh_size( const gp_canvas_t * _canvas, gp_mesh_t * _me
     {
         if( r->line_penumbra > 0.f )
         {
-            vertex_size += 16;
-            index_size += 72;
+            vertex_count += 16;
+            index_count += 72;
         }
         else
         {
-            vertex_size += 8;
-            index_size += 24;
+            vertex_count += 8;
+            index_count += 24;
         }
 
         if( r->fill == GP_TRUE )
         {
-            vertex_size += 4;
-            index_size += 6;
+            vertex_count += 4;
+            index_count += 6;
         }
     }
 
@@ -360,24 +374,24 @@ gp_result_t gp_calculate_mesh_size( const gp_canvas_t * _canvas, gp_mesh_t * _me
     {
         if( r->line_penumbra > 0.f )
         {
-            vertex_size += 32;
-            index_size += 72;
+            vertex_count += 32;
+            index_count += 72;
 
             for( uint32_t index = 0; index != 4; ++index )
             {
-                vertex_size += (r->quality + 1) * 4;
-                index_size += r->quality * 6 * 3;
+                vertex_count += (r->quality + 1) * 4;
+                index_count += r->quality * 6 * 3;
             }
         }
         else
         {
-            vertex_size += 16;
-            index_size += 24;
+            vertex_count += 16;
+            index_count += 24;
 
             for( uint32_t index = 0; index != 4; ++index )
             {
-                vertex_size += (r->quality + 1) * 2;
-                index_size += r->quality * 6;
+                vertex_count += (r->quality + 1) * 2;
+                index_count += r->quality * 6;
             }
         }
 
@@ -385,12 +399,12 @@ gp_result_t gp_calculate_mesh_size( const gp_canvas_t * _canvas, gp_mesh_t * _me
         {
             for( uint32_t index = 0; index != 4; ++index )
             {
-                vertex_size += (r->quality + 1) + 1;
-                index_size += r->quality * 3;
+                vertex_count += (r->quality + 1) + 1;
+                index_count += r->quality * 3;
             }
 
-            vertex_size += 12;
-            index_size += 6 * 5;
+            vertex_count += 12;
+            index_count += 6 * 5;
         }
     }
 
@@ -398,26 +412,35 @@ gp_result_t gp_calculate_mesh_size( const gp_canvas_t * _canvas, gp_mesh_t * _me
     {
         if( e->line_penumbra > 0.f )
         {
-            vertex_size += e->quality * 4;
-            index_size += e->quality * 18;
+            vertex_count += e->quality * 4;
+            index_count += e->quality * 18;
         }
         else
         {
-            vertex_size += e->quality * 2;
-            index_size += e->quality * 6;
+            vertex_count += e->quality * 2;
+            index_count += e->quality * 6;
         }
 
         if( e->fill == GP_TRUE )
         {
-            vertex_size += 1;
-            vertex_size += e->quality;
+            vertex_count += 1;
+            vertex_count += e->quality;
 
-            index_size += e->quality * 3;
+            index_count += e->quality * 3;
         }
     }
 
-    _mesh->vertex_size = vertex_size;
-    _mesh->index_size = index_size;
+    _mesh->vertex_count = vertex_count;
+    _mesh->index_count = index_count;
+
+    _mesh->color.r = 1.f;
+    _mesh->color.g = 1.f;
+    _mesh->color.b = 1.f;
+    _mesh->color.a = 1.f;
+    
+    _mesh->positions_buffer = GP_NULLPTR;
+    _mesh->colors_buffer = GP_NULLPTR;
+    _mesh->indices_buffer = GP_NULLPTR;
 
     return GP_SUCCESSFUL;
 }
@@ -586,8 +609,9 @@ gp_result_t gp_render( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh )
 
         for( const gp_line_edge_t * e = l->edges; e != GP_NULLPTR; e = e->next )
         {
-            const gp_point_t * p0 = point_iterator++;
-            const gp_point_t * p1 = point_iterator++;
+            const gp_point_t * p0 = point_iterator;
+            point_iterator = point_iterator->next;
+            const gp_point_t * p1 = point_iterator;
 
             gp_color_t line_color;
             gp_color_mul( &line_color, &_mesh->color, &e->line_color );

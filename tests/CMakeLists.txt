@@ -15,6 +15,7 @@ include_directories(
 add_executable(${PROJECT_NAME} graphics_test.c)
 
 target_link_libraries(${PROJECT_NAME}
+    graphics
     glad
     glfw
 )

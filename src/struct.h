@@ -131,7 +131,8 @@ typedef struct gp_canvas_t
 
     gp_malloc_t malloc;
     gp_free_t free;
-    gp_realloc_t realloc;
+
+    void * ud;
 } gp_canvas_t;
 
 #endif

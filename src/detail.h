@@ -3,8 +3,8 @@
 
 #include "graphics/config.h"
 
-#define GP_NEW(c, t) ((t*)(*c->malloc)(sizeof(t)))
-#define GP_FREE(c, o) (*c->free)(o)
+#define GP_NEW(c, t) ((t*)(*c->malloc)(sizeof(t), c->ud))
+#define GP_FREE(c, o) (*c->free)(o, c->ud)
 
 #define GP_LIST_PUSHBACK(t, list, e) {if( list == GP_NULLPTR ){list = e; list->prev = e;}else{e->prev = list->prev; e->next = GP_NULLPTR; list->prev->next = e; list->prev = e;}}
 #define GP_LIST_BACK(list) (list->prev)

@@ -5,11 +5,10 @@
 
 typedef struct gp_canvas_t gp_canvas_t;
 
-typedef void * (*gp_malloc_t)(size_t _size);
-typedef void (*gp_free_t)(void *);
-typedef void (*gp_realloc_t)(void *, size_t _size);
+typedef void * (*gp_malloc_t)(size_t _size, void * _ud);
+typedef void (*gp_free_t)(void * _ptr, void * _ud);
 
-gp_result_t gp_canvas_create( gp_canvas_t ** _canvas, gp_malloc_t _malloc, gp_free_t _free, gp_realloc_t _realloc );
+gp_result_t gp_canvas_create( gp_canvas_t ** _canvas, gp_malloc_t _malloc, gp_free_t _free, void * _ud );
 gp_result_t gp_canvas_destroy( gp_canvas_t * _canvas );
 gp_result_t gp_canvas_clear( gp_canvas_t * _canvas );
 
@@ -43,8 +42,8 @@ gp_result_t gp_draw_ellipse( gp_canvas_t * _canvas, float _x, float _y, float _w
 
 typedef struct gp_mesh_t
 {
-    uint32_t vertex_size;
-    uint32_t index_size;
+    uint32_t vertex_count;
+    uint16_t index_count;
 
     gp_color_t color;
 
@@ -57,8 +56,8 @@ typedef struct gp_mesh_t
     size_t colors_stride;
 
     void * indices_buffer;
-    uint16_t indices_offset;
-    uint16_t indices_stride;
+    size_t indices_offset;
+    size_t indices_stride;
 } gp_mesh_t;
 
 gp_result_t gp_calculate_mesh_size( const gp_canvas_t * _canvas, gp_mesh_t * _mesh );
