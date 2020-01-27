@@ -114,9 +114,11 @@ int main( int argc, char ** argv )
     gp_set_line_penumbra( canvas, 2.f );
 
     gp_move_to( canvas, 100.f, 100.f );
-    gp_line_to( canvas, 200.f, 200.f );
-    gp_line_to( canvas, 300.f, 100.f );
+    gp_quadratic_curve_to( canvas, 150.f, 200.f, 200.f, 200.f );
+    gp_bezier_curve_to( canvas, 225.f, 300.f, 275.f, 250.f, 300.f, 100.f );
     gp_line_to( canvas, 400.f, 200.f );
+
+    gp_draw_rect( canvas, 300.f, 300.f, 200.f, 100.f );
 
     GLint vertexShader = glCreateShader( GL_VERTEX_SHADER );
     glShaderSource( vertexShader, 1, &vertexShaderSource, NULL );

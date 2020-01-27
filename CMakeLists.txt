@@ -40,6 +40,14 @@ SET(INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 set(GRAPHICS_SOURCES
     ${SOURCE_DIR}/graphics.c
+    ${SOURCE_DIR}/ellipse.c
+    ${SOURCE_DIR}/ellipse.h
+    ${SOURCE_DIR}/rect.c
+    ${SOURCE_DIR}/rect.h
+    ${SOURCE_DIR}/rounded_rect.c
+    ${SOURCE_DIR}/rounded_rect.h
+    ${SOURCE_DIR}/line.c
+    ${SOURCE_DIR}/line.h
     ${SOURCE_DIR}/struct.h
     ${SOURCE_DIR}/detail.h
     ${SOURCE_DIR}/detail.c

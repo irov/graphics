@@ -2,6 +2,7 @@
 #define GP_DETAIL_H_
 
 #include "graphics/config.h"
+#include "graphics/graphics.h"
 
 #define GP_NEW(c, t) ((t*)(*c->malloc)(sizeof(t), c->ud))
 #define GP_FREE(c, o) (*c->free)(o, c->ud)
@@ -14,5 +15,9 @@
 
 void gp_color_mul( gp_color_t * _c, const gp_color_t * _c0, const gp_color_t * _c1 );
 uint32_t gp_color_argb( const gp_color_t * _c );
+
+void gp_mesh_index( const gp_mesh_t * _mesh, uint16_t _iterator, uint16_t _index );
+void gp_mesh_position( const gp_mesh_t * _mesh, uint16_t _iterator, float _x, float _y );
+void gp_mesh_color( const gp_mesh_t * _mesh, uint16_t _iterator, uint32_t _c );
 
 #endif
