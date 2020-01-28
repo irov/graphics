@@ -81,7 +81,9 @@ typedef struct gp_rounded_rect_t
     float width;
     float height;
     float radius;
+
     uint8_t quality;
+    float quality_inv;
 
     float line_width;
     float line_penumbra;
@@ -101,6 +103,7 @@ typedef struct gp_ellipse_t
     float height;
 
     uint8_t quality;
+    float quality_inv;
 
     float line_width;
     float line_penumbra;

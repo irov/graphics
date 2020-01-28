@@ -13,6 +13,11 @@
 
 #define GP_EQUAL_F(f, eps) (((f) >= -(eps)) && ((f) <= (eps)))
 
+static const float gp_constant_pi = 3.1415926535897932384626433832795f;
+static const float gp_constant_half_pi = 1.5707963267948966192313216916398f;
+static const float gp_constant_one_and_a_half_pi = 4.7123889803846898576939650749193f;
+static const float gp_constant_two_pi = 6.283185307179586476925286766559f;
+
 void gp_color_mul( gp_color_t * _c, const gp_color_t * _c0, const gp_color_t * _c1 );
 uint32_t gp_color_argb( const gp_color_t * _c );
 

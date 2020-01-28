@@ -22,7 +22,20 @@ gp_result_t gp_calculate_mesh_line_size( const gp_canvas_t * _canvas, gp_mesh_t 
 
         for( const gp_line_edge_t * e = l->edges; e != GP_NULLPTR; e = e->next )
         {
-            point_count += e->quality - 1;
+            switch( e->controls )
+            {
+            case 0:
+                point_count += 1;
+                break;
+            case 1:
+                point_count += e->quality - 1;
+                break;
+            case 2:
+                point_count += e->quality - 1;
+                break;
+            default:
+                return GP_FAILURE;
+            }
         }
 
         point_count += 1;
@@ -574,8 +587,8 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
         }
     }
 
-    *_vertex_iterator += vertex_iterator;
-    *_index_iterator += index_iterator;
+    *_vertex_iterator = vertex_iterator;
+    *_index_iterator = index_iterator;
 
     return GP_SUCCESSFUL;
 }

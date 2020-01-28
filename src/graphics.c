@@ -24,8 +24,8 @@ static void __canvas_default_setup( gp_canvas_t * _canvas )
     _canvas->fill_color.b = 1.f;
     _canvas->fill_color.a = 1.f;
     _canvas->fill = GP_FALSE;
-    _canvas->curve_quality = 20;
-    _canvas->ellipse_quality = 32;
+    _canvas->curve_quality = 32;
+    _canvas->ellipse_quality = 64;
 }
 //////////////////////////////////////////////////////////////////////////
 gp_result_t gp_canvas_create( gp_canvas_t ** _canvas, gp_malloc_t _malloc, gp_free_t _free, void * _ud )
@@ -168,7 +168,7 @@ gp_result_t gp_move_to( gp_canvas_t * _canvas, float _x, float _y )
     GP_LIST_PUSHBACK( gp_point_t, l->points, p );
     l->edges = GP_NULLPTR;
     l->penumbra = _canvas->line_penumbra;
-    
+
     GP_LIST_PUSHBACK( gp_line_t, _canvas->lines, l );
 
     return GP_SUCCESSFUL;
@@ -244,7 +244,7 @@ gp_result_t gp_bezier_curve_to( gp_canvas_t * _canvas, float _p0x, float _p0y, f
 
     p->p.x = _x;
     p->p.y = _y;
-    
+
     gp_line_t * line_back = GP_LIST_BACK( _canvas->lines );
     GP_LIST_PUSHBACK( gp_point_t, line_back->points, p );
 
@@ -300,6 +300,7 @@ gp_result_t gp_draw_rounded_rect( gp_canvas_t * _canvas, float _x, float _y, flo
     rr->height = _height;
     rr->radius = _radius;
     rr->quality = (_canvas->ellipse_quality + 3) / 4;
+    rr->quality_inv = 1.f / (float)rr->quality;
     rr->line_width = _canvas->line_width;
     rr->line_penumbra = _canvas->line_penumbra;
     rr->line_color = _canvas->line_color;
@@ -327,6 +328,7 @@ gp_result_t gp_draw_ellipse( gp_canvas_t * _canvas, float _x, float _y, float _w
     e->width = _width;
     e->height = _height;
     e->quality = _canvas->ellipse_quality;
+    e->quality_inv = 1.f / (float)e->quality;
     e->line_width = _canvas->line_width;
     e->line_penumbra = _canvas->line_penumbra;
     e->line_color = _canvas->line_color;
@@ -367,7 +369,7 @@ gp_result_t gp_calculate_mesh_size( const gp_canvas_t * _canvas, gp_mesh_t * _me
     _mesh->color.g = 1.f;
     _mesh->color.b = 1.f;
     _mesh->color.a = 1.f;
-    
+
     _mesh->positions_buffer = GP_NULLPTR;
     _mesh->colors_buffer = GP_NULLPTR;
     _mesh->indices_buffer = GP_NULLPTR;
@@ -388,6 +390,164 @@ gp_result_t gp_render( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh )
     if( gp_render_rect( _canvas, _mesh, &vertex_iterator, &index_iterator ) == GP_FAILURE )
     {
         return GP_FAILURE;
+    }
+
+    if( gp_render_rounded_rect( _canvas, _mesh, &vertex_iterator, &index_iterator ) == GP_FAILURE )
+    {
+        return GP_FAILURE;
+    }
+
+    for( const gp_ellipse_t * e = _canvas->ellipses; e != GP_NULLPTR; e = e->next )
+    {
+        gp_color_t line_color;
+        gp_color_mul( &line_color, &_mesh->color, &e->line_color );
+        uint32_t argb = gp_color_argb( &line_color );
+
+        uint8_t quality = e->quality;
+        float line_penumbra = e->line_penumbra;
+
+        if( line_penumbra > 0.f )
+        {
+            uint32_t ellipse_quality2 = quality * 4;
+
+            for( uint16_t index = 0; index != quality; ++index )
+            {
+                gp_mesh_index( _mesh, index_iterator + 0, vertex_iterator + (index * 4 + 0) % ellipse_quality2 );
+                gp_mesh_index( _mesh, index_iterator + 1, vertex_iterator + (index * 4 + 1) % ellipse_quality2 );
+                gp_mesh_index( _mesh, index_iterator + 2, vertex_iterator + (index * 4 + 4) % ellipse_quality2 );
+                gp_mesh_index( _mesh, index_iterator + 3, vertex_iterator + (index * 4 + 4) % ellipse_quality2 );
+                gp_mesh_index( _mesh, index_iterator + 4, vertex_iterator + (index * 4 + 1) % ellipse_quality2 );
+                gp_mesh_index( _mesh, index_iterator + 5, vertex_iterator + (index * 4 + 5) % ellipse_quality2 );
+
+                index_iterator += 6;
+
+                gp_mesh_index( _mesh, index_iterator + 0, vertex_iterator + (index * 4 + 1) % ellipse_quality2 );
+                gp_mesh_index( _mesh, index_iterator + 1, vertex_iterator + (index * 4 + 2) % ellipse_quality2 );
+                gp_mesh_index( _mesh, index_iterator + 2, vertex_iterator + (index * 4 + 5) % ellipse_quality2 );
+                gp_mesh_index( _mesh, index_iterator + 3, vertex_iterator + (index * 4 + 5) % ellipse_quality2 );
+                gp_mesh_index( _mesh, index_iterator + 4, vertex_iterator + (index * 4 + 2) % ellipse_quality2 );
+                gp_mesh_index( _mesh, index_iterator + 5, vertex_iterator + (index * 4 + 6) % ellipse_quality2 );
+
+                index_iterator += 6;
+
+                gp_mesh_index( _mesh, index_iterator + 0, vertex_iterator + (index * 4 + 2) % ellipse_quality2 );
+                gp_mesh_index( _mesh, index_iterator + 1, vertex_iterator + (index * 4 + 3) % ellipse_quality2 );
+                gp_mesh_index( _mesh, index_iterator + 2, vertex_iterator + (index * 4 + 6) % ellipse_quality2 );
+                gp_mesh_index( _mesh, index_iterator + 3, vertex_iterator + (index * 4 + 6) % ellipse_quality2 );
+                gp_mesh_index( _mesh, index_iterator + 4, vertex_iterator + (index * 4 + 3) % ellipse_quality2 );
+                gp_mesh_index( _mesh, index_iterator + 5, vertex_iterator + (index * 4 + 7) % ellipse_quality2 );
+
+                index_iterator += 6;
+            }
+        }
+        else
+        {
+            uint32_t ellipse_quality2 = quality * 2;
+
+            for( uint16_t index = 0; index != quality; ++index )
+            {
+                gp_mesh_index( _mesh, index_iterator + 0, vertex_iterator + (index * 2 + 0) % ellipse_quality2 );
+                gp_mesh_index( _mesh, index_iterator + 1, vertex_iterator + (index * 2 + 1) % ellipse_quality2 );
+                gp_mesh_index( _mesh, index_iterator + 2, vertex_iterator + (index * 2 + 2) % ellipse_quality2 );
+                gp_mesh_index( _mesh, index_iterator + 3, vertex_iterator + (index * 2 + 2) % ellipse_quality2 );
+                gp_mesh_index( _mesh, index_iterator + 4, vertex_iterator + (index * 2 + 1) % ellipse_quality2 );
+                gp_mesh_index( _mesh, index_iterator + 5, vertex_iterator + (index * 2 + 3) % ellipse_quality2 );
+
+                index_iterator += 6;
+            }
+        }
+
+        float line_width = e->line_width;
+
+        float line_half_width = line_width * 0.5f;
+
+        float dt = gp_constant_two_pi * e->quality_inv;
+
+        float t = 0.f;
+
+        for( uint32_t index = 0; index != quality; ++index, t += dt )
+        {
+            float ct = cosf( t );
+            float st = sinf( t );
+
+            float x0 = e->point.x + (e->width + line_half_width) * ct;
+            float y0 = e->point.y + (e->height + line_half_width) * st;
+
+            float x1 = e->point.x + (e->width - line_half_width) * ct;
+            float y1 = e->point.y + (e->height - line_half_width) * st;
+
+            if( line_penumbra > 0.f )
+            {
+                float line_width_soft = (line_width - line_penumbra * 2.f) * 0.5f;
+
+                float x0_soft = e->point.x + (e->width + line_width_soft) * ct;
+                float y0_soft = e->point.y + (e->height + line_width_soft) * st;
+
+                float x1_soft = e->point.x + (e->width - line_width_soft) * ct;
+                float y1_soft = e->point.y + (e->height - line_width_soft) * st;
+
+                gp_mesh_position( _mesh, vertex_iterator + 0, x0, y0 );
+                gp_mesh_color( _mesh, vertex_iterator + 0, argb & 0x00ffffff );
+
+                gp_mesh_position( _mesh, vertex_iterator + 1, x0_soft, y0_soft );
+                gp_mesh_color( _mesh, vertex_iterator + 1, argb );
+
+                gp_mesh_position( _mesh, vertex_iterator + 2, x1_soft, y1_soft );
+                gp_mesh_color( _mesh, vertex_iterator + 2, argb );
+
+                gp_mesh_position( _mesh, vertex_iterator + 3, x1, y1 );
+                gp_mesh_color( _mesh, vertex_iterator + 3, argb & 0x00ffffff );
+
+                vertex_iterator += 4;
+            }
+            else
+            {
+                gp_mesh_position( _mesh, vertex_iterator + 0, x0, y0 );
+                gp_mesh_color( _mesh, vertex_iterator + 0, argb );
+
+                gp_mesh_position( _mesh, vertex_iterator + 1, x1, y1 );
+                gp_mesh_color( _mesh, vertex_iterator + 1, argb );
+
+                vertex_iterator += 2;
+            }
+        }
+
+        if( e->fill == GP_TRUE )
+        {
+            gp_color_t fill_color;
+            gp_color_mul( &fill_color, &_mesh->color, &e->fill_color );
+            uint32_t fill_argb = gp_color_argb( &fill_color );
+
+            for( uint16_t index = 0; index != quality; ++index )
+            {
+                gp_mesh_index( _mesh, index_iterator + 0, vertex_iterator + (index + 0) % quality + 1 );
+                gp_mesh_index( _mesh, index_iterator + 1, vertex_iterator + (index + 1) % quality + 1 );
+                gp_mesh_index( _mesh, index_iterator + 2, vertex_iterator );
+
+                index_iterator += 3;
+            }
+
+            gp_mesh_position( _mesh, vertex_iterator + 0, e->point.x, e->point.y );
+            gp_mesh_color( _mesh, vertex_iterator + 0, fill_argb );
+
+            vertex_iterator += 1;
+
+            float tf = 0.f;
+
+            for( uint32_t index = 0; index != quality; ++index, tf += dt )
+            {
+                float ct = cosf( tf );
+                float st = sinf( tf );
+
+                float x = e->point.x + e->width * ct;
+                float y = e->point.y + e->height * st;
+
+                gp_mesh_position( _mesh, vertex_iterator + 0, x, y );
+                gp_mesh_color( _mesh, vertex_iterator + 0, fill_argb );
+
+                vertex_iterator += 1;
+            }
+        }
     }
 
     return GP_SUCCESSFUL;

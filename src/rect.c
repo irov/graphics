@@ -237,8 +237,8 @@ gp_result_t gp_render_rect( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
         }
     }
 
-    *_vertex_iterator += vertex_iterator;
-    *_index_iterator += index_iterator;
+    *_vertex_iterator = vertex_iterator;
+    *_index_iterator = index_iterator;
 
     return GP_SUCCESSFUL;
  }

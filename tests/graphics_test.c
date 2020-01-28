@@ -119,6 +119,10 @@ int main( int argc, char ** argv )
     gp_line_to( canvas, 400.f, 200.f );
 
     gp_draw_rect( canvas, 300.f, 300.f, 200.f, 100.f );
+    gp_draw_rounded_rect( canvas, 300.f, 500.f, 200.f, 100.f, 20.f );
+
+    gp_draw_circle( canvas, 700.f, 200.f, 100.f );
+    gp_draw_ellipse( canvas, 700.f, 400.f, 100.f, 50.f );
 
     GLint vertexShader = glCreateShader( GL_VERTEX_SHADER );
     glShaderSource( vertexShader, 1, &vertexShaderSource, NULL );
