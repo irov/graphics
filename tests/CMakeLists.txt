@@ -24,7 +24,7 @@ if(UNIX AND NOT ANDROID)
     MESSAGE("LIBRT: ${LIBRT_FOUND}")
 
     find_library(MATH m)
-    target_link_libraries(${PROJECT_NAME} ${MATH})
+    target_link_libraries(${PROJECT_NAME} m)
     MESSAGE("MATH: ${MATH_FOUND}")
 
     target_link_libraries(${PROJECT_NAME} ${CMAKE_DL_LIBS})
