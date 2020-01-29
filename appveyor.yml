@@ -15,7 +15,7 @@ environment:
   matrix:
   # Comilers matrix
   - env_cmake_generator: "Visual Studio 16 2019"
-    env_cmake_architecture: x32
+    env_cmake_architecture: Win32
   - env_cmake_generator: "Visual Studio 16 2019"
     env_cmake_architecture: x64
 
