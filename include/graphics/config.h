@@ -2,6 +2,7 @@
 #define GP_CONFIG_H_
 
 #include <stdint.h>
+#include <stddef.h>
 
 typedef enum gp_result_e
 {
@@ -32,7 +33,7 @@ typedef struct gp_color_t
 
 #ifndef GP_UNUSED
 #define GP_UNUSED(X) ((void)(X))
-#endif GP_UNUSED
+#endif
 
 #define GP_NULLPTR (0)
 
