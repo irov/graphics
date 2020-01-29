@@ -14,7 +14,11 @@ include_directories(
 
 add_executable(${PROJECT_NAME} graphics_test.c)
 
-if(UNIX AND NOT APPLE)
+message("UNIX: ${UNIX}")
+message("APPLE: ${APPLE}")
+message("ANDROID: ${ANDROID}")
+
+if(UNIX AND NOT ANDROID)
     find_library(RT_LIBRARY rt)
     target_link_libraries(${PROJECT_NAME} ${RT_LIBRARY})
 
