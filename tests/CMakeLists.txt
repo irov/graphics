@@ -19,32 +19,14 @@ message("APPLE: ${APPLE}")
 message("ANDROID: ${ANDROID}")
 
 if(UNIX AND NOT ANDROID)
-    find_library(LIBRT rt)
-    target_link_libraries(${PROJECT_NAME} ${LIBRT})
-    MESSAGE("LIBRT: ${LIBRT_FOUND}")
-
-    find_library(MATH m)
     target_link_libraries(${PROJECT_NAME} m)
-    MESSAGE("MATH: ${MATH_FOUND}")
-
-    target_link_libraries(${PROJECT_NAME} ${CMAKE_DL_LIBS})
-    MESSAGE("CMAKE_DL_LIBS: ${CMAKE_DL_LIBS}")
-
-    find_package(X11 REQUIRED)
-    target_link_libraries(${PROJECT_NAME} ${X11_X11_LIB} ${X11_Xrandr_LIB} ${X11_Xinerama_LIB} ${X11_Xcursor_LIB})
-    MESSAGE("X11: ${X11_FOUND}")
-    MESSAGE("X11_xf86vmode_FOUND: ${X11_xf86vmode_FOUND}")
-
-    if(X11_xf86vmode_FOUND)
-        target_link_libraries(${PROJECT_NAME} ${X11_Xxf86vm_LIB})
-    endif()
-
-    find_package(Threads)
-    target_link_libraries(${PROJECT_NAME} ${CMAKE_THREAD_LIBS_INIT})
-    MESSAGE("Threads: ${Threads}")
-
-    target_link_libraries(${PROJECT_NAME} ${GTK3_LIBRARIES})
-    MESSAGE("GTK3_LIBRARIES: ${GTK3_LIBRARIES}")
+    target_link_libraries(${PROJECT_NAME} c)    
+    target_link_libraries(${PROJECT_NAME} dl)
+    target_link_libraries(${PROJECT_NAME} X11)
+    target_link_libraries(${PROJECT_NAME} Xxf86vm)
+    target_link_libraries(${PROJECT_NAME} Xrandr)
+    target_link_libraries(${PROJECT_NAME} rt)
+    target_link_libraries(${PROJECT_NAME} GL)
 endif()
 
 if(APPLE)
