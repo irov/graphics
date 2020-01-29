@@ -30,9 +30,9 @@ add_dependencies(${PROJECT_NAME}
     glfw_download
 )
 
-if(UNIX AND NOT ANDROID)
+if(UNIX AND NOT ANDROID AND NOT APPLE)
     target_link_libraries(${PROJECT_NAME} m)
-    target_link_libraries(${PROJECT_NAME} c)    
+    target_link_libraries(${PROJECT_NAME} c)
     target_link_libraries(${PROJECT_NAME} dl)
     target_link_libraries(${PROJECT_NAME} X11)
     target_link_libraries(${PROJECT_NAME} Xxf86vm)
