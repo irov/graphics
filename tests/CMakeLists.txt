@@ -1,5 +1,6 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 3.2)
 
+include(cmake/macro.cmake)
 include(cmake/glad_download.cmake)
 include(cmake/glfw_download.cmake)
 
@@ -18,6 +19,17 @@ message("UNIX: ${UNIX}")
 message("APPLE: ${APPLE}")
 message("ANDROID: ${ANDROID}")
 
+target_link_libraries(${PROJECT_NAME}
+    graphics
+    glad
+    glfw
+)
+
+add_dependencies(${PROJECT_NAME}
+    glad_download
+    glfw_download
+)
+
 if(UNIX AND NOT ANDROID)
     target_link_libraries(${PROJECT_NAME} m)
     target_link_libraries(${PROJECT_NAME} c)    
@@ -30,19 +42,8 @@ if(UNIX AND NOT ANDROID)
 endif()
 
 if(APPLE)
-    add_apple_framework(${PROJECT_NAME} Cocoa)
-    add_apple_framework(${PROJECT_NAME} IOKit)
-    add_apple_framework(${PROJECT_NAME} CoreVideo)
-    add_apple_framework(${PROJECT_NAME} OpenAL)
+    ADD_APPLE_FRAMEWORK(${PROJECT_NAME} Cocoa)
+    ADD_APPLE_FRAMEWORK(${PROJECT_NAME} IOKit)
+    ADD_APPLE_FRAMEWORK(${PROJECT_NAME} CoreVideo)
+    ADD_APPLE_FRAMEWORK(${PROJECT_NAME} OpenAL)
 endif()
-
-target_link_libraries(${PROJECT_NAME}
-    graphics
-    glad
-    glfw
-)
-
-add_dependencies(${PROJECT_NAME}
-    glad_download
-    glfw_download
-)
