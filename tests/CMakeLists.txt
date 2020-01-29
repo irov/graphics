@@ -39,6 +39,7 @@ if(UNIX AND NOT ANDROID)
     target_link_libraries(${PROJECT_NAME} Xrandr)
     target_link_libraries(${PROJECT_NAME} rt)
     target_link_libraries(${PROJECT_NAME} GL)
+    target_link_libraries(${PROJECT_NAME} pthread)
 endif()
 
 if(APPLE)
