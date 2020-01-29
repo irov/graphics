@@ -1,7 +1,11 @@
 dist: trusty
 sudo: required 
 
-language: cpp
+language: c
+
+branches:
+  only:
+  - master
 
 addons:
   apt:
@@ -26,10 +30,8 @@ before_install:
     - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get install build-essential libgtk-3-dev; fi    
 
 env:
-    - TARGET_CPU=amd64 BUILD_CONFIGURATION=Debug
-    - TARGET_CPU=amd64 BUILD_CONFIGURATION=Release
-    - TARGET_CPU=x86 BUILD_CONFIGURATION=Debug
-    - TARGET_CPU=x86 BUILD_CONFIGURATION=Release
+    - BUILD_CONFIGURATION=Debug
+    - BUILD_CONFIGURATION=Release
 
 matrix:
     exclude:
@@ -48,6 +50,6 @@ script:
     # run
     - mkdir build_cmake
     - cd build_cmake
-    - cmake .. -DCMAKE_BUILD_TYPE=$BUILD_CONFIGURATION -DTARGET_CPU=$TARGET_CPU
+    - cmake .. -DCMAKE_BUILD_TYPE=$BUILD_CONFIGURATION
     - cmake --build . --config $BUILD_CONFIGURATION
     - ctest --output-on-failure
