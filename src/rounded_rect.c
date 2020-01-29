@@ -3,13 +3,11 @@
 #include "struct.h"
 #include "detail.h"
 
-#include <math.h>
-
 //////////////////////////////////////////////////////////////////////////
 gp_result_t gp_calculate_mesh_rounded_rect_size( const gp_canvas_t * _canvas, gp_mesh_t * _mesh )
 {
-    uint32_t vertex_count = 0;
-    uint16_t index_count = 0;
+    gp_uint32_t vertex_count = 0;
+    gp_uint16_t index_count = 0;
 
     for( const gp_rounded_rect_t * r = _canvas->rounded_rects; r != GP_NULLPTR; r = r->next )
     {
@@ -18,7 +16,7 @@ gp_result_t gp_calculate_mesh_rounded_rect_size( const gp_canvas_t * _canvas, gp
             vertex_count += 32;
             index_count += 72;
 
-            for( uint32_t index = 0; index != 4; ++index )
+            for( gp_uint32_t index = 0; index != 4; ++index )
             {
                 vertex_count += (r->quality + 1) * 4;
                 index_count += r->quality * 6 * 3;
@@ -29,7 +27,7 @@ gp_result_t gp_calculate_mesh_rounded_rect_size( const gp_canvas_t * _canvas, gp
             vertex_count += 16;
             index_count += 24;
 
-            for( uint32_t index = 0; index != 4; ++index )
+            for( gp_uint32_t index = 0; index != 4; ++index )
             {
                 vertex_count += (r->quality + 1) * 2;
                 index_count += r->quality * 6;
@@ -38,7 +36,7 @@ gp_result_t gp_calculate_mesh_rounded_rect_size( const gp_canvas_t * _canvas, gp
 
         if( r->fill == GP_TRUE )
         {
-            for( uint32_t index = 0; index != 4; ++index )
+            for( gp_uint32_t index = 0; index != 4; ++index )
             {
                 vertex_count += (r->quality + 1) + 1;
                 index_count += r->quality * 3;
@@ -55,20 +53,20 @@ gp_result_t gp_calculate_mesh_rounded_rect_size( const gp_canvas_t * _canvas, gp
     return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
-gp_result_t gp_render_rounded_rect( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh, uint16_t * _vertex_iterator, uint16_t * _index_iterator )
+gp_result_t gp_render_rounded_rect( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh, gp_uint16_t * _vertex_iterator, gp_uint16_t * _index_iterator )
 {
-    uint16_t vertex_iterator = *_vertex_iterator;
-    uint16_t index_iterator = *_index_iterator;
+    gp_uint16_t vertex_iterator = *_vertex_iterator;
+    gp_uint16_t index_iterator = *_index_iterator;
 
     for( const gp_rounded_rect_t * rr = _canvas->rounded_rects; rr != GP_NULLPTR; rr = rr->next )
     {
         gp_color_t line_color;
         gp_color_mul( &line_color, &_mesh->color, &rr->line_color );
-        uint32_t argb = gp_color_argb( &line_color );
+        gp_uint32_t argb = gp_color_argb( &line_color );
 
         if( rr->line_penumbra > 0.f )
         {
-            for( uint16_t index = 0; index != 4; ++index )
+            for( gp_uint16_t index = 0; index != 4; ++index )
             {
                 gp_mesh_index( _mesh, index_iterator + 0, vertex_iterator + (index * 8 + 0) );
                 gp_mesh_index( _mesh, index_iterator + 1, vertex_iterator + (index * 8 + 1) );
@@ -100,7 +98,7 @@ gp_result_t gp_render_rounded_rect( const gp_canvas_t * _canvas, const gp_mesh_t
         }
         else
         {
-            for( uint16_t index = 0; index != 4; ++index )
+            for( gp_uint16_t index = 0; index != 4; ++index )
             {
                 gp_mesh_index( _mesh, index_iterator + 0, vertex_iterator + (index * 4 + 0) );
                 gp_mesh_index( _mesh, index_iterator + 1, vertex_iterator + (index * 4 + 1) );
@@ -317,13 +315,13 @@ gp_result_t gp_render_rounded_rect( const gp_canvas_t * _canvas, const gp_mesh_t
             vertex_iterator += 2;
         }
 
-        uint8_t quality = rr->quality;
+        gp_uint8_t quality = rr->quality;
 
         if( line_penumbra > 0.f )
         {
-            for( uint16_t index_arc = 0; index_arc != 4; ++index_arc )
+            for( gp_uint16_t index_arc = 0; index_arc != 4; ++index_arc )
             {
-                for( uint16_t index = 0; index != quality; ++index )
+                for( gp_uint16_t index = 0; index != quality; ++index )
                 {
                     gp_mesh_index( _mesh, index_iterator + 0, vertex_iterator + index_arc * (quality + 1) * 4 + (index * 4 + 0) );
                     gp_mesh_index( _mesh, index_iterator + 1, vertex_iterator + index_arc * (quality + 1) * 4 + (index * 4 + 1) );
@@ -356,9 +354,9 @@ gp_result_t gp_render_rounded_rect( const gp_canvas_t * _canvas, const gp_mesh_t
         }
         else
         {
-            for( uint16_t index_arc = 0; index_arc != 4; ++index_arc )
+            for( gp_uint16_t index_arc = 0; index_arc != 4; ++index_arc )
             {
-                for( uint16_t index = 0; index != quality; ++index )
+                for( gp_uint16_t index = 0; index != quality; ++index )
                 {
                     gp_mesh_index( _mesh, index_iterator + 0, vertex_iterator + index_arc * (quality + 1) * 2 + (index * 2 + 0) );
                     gp_mesh_index( _mesh, index_iterator + 1, vertex_iterator + index_arc * (quality + 1) * 2 + (index * 2 + 1) );
@@ -376,10 +374,10 @@ gp_result_t gp_render_rounded_rect( const gp_canvas_t * _canvas, const gp_mesh_t
 
         float t0 = gp_constant_half_pi;
 
-        for( uint8_t index = 0; index != quality + 1; ++index, t0 += dt )
+        for( gp_uint8_t index = 0; index != quality + 1; ++index, t0 += dt )
         {
-            float ct = cosf( t0 );
-            float st = sinf( t0 );
+            float ct = GP_MATH_COSF( t0 );
+            float st = GP_MATH_SINF( t0 );
 
             float x0 = p0.x + radius + (radius + line_half_width) * ct;
             float y0 = p0.y + radius - (radius + line_half_width) * st;
@@ -425,10 +423,10 @@ gp_result_t gp_render_rounded_rect( const gp_canvas_t * _canvas, const gp_mesh_t
 
         float t1 = 0.f;
 
-        for( uint8_t index = 0; index != quality + 1; ++index, t1 += dt )
+        for( gp_uint8_t index = 0; index != quality + 1; ++index, t1 += dt )
         {
-            float ct = cosf( t1 );
-            float st = sinf( t1 );
+            float ct = GP_MATH_COSF( t1 );
+            float st = GP_MATH_SINF( t1 );
 
             float x0 = p1.x - radius + (radius + line_half_width) * ct;
             float y0 = p1.y + radius - (radius + line_half_width) * st;
@@ -474,10 +472,10 @@ gp_result_t gp_render_rounded_rect( const gp_canvas_t * _canvas, const gp_mesh_t
 
         float t2 = gp_constant_one_and_a_half_pi;
 
-        for( uint8_t index = 0; index != quality + 1; ++index, t2 += dt )
+        for( gp_uint8_t index = 0; index != quality + 1; ++index, t2 += dt )
         {
-            float ct = cosf( t2 );
-            float st = sinf( t2 );
+            float ct = GP_MATH_COSF( t2 );
+            float st = GP_MATH_SINF( t2 );
 
             float x0 = p2.x - radius + (radius + line_half_width) * ct;
             float y0 = p2.y - radius - (radius + line_half_width) * st;
@@ -523,10 +521,10 @@ gp_result_t gp_render_rounded_rect( const gp_canvas_t * _canvas, const gp_mesh_t
 
         float t3 = gp_constant_pi;
 
-        for( uint8_t index = 0; index != quality + 1; ++index, t3 += dt )
+        for( gp_uint8_t index = 0; index != quality + 1; ++index, t3 += dt )
         {
-            float ct = cosf( t3 );
-            float st = sinf( t3 );
+            float ct = GP_MATH_COSF( t3 );
+            float st = GP_MATH_SINF( t3 );
 
             float x0 = p3.x + radius + (radius + line_half_width) * ct;
             float y0 = p3.y - radius - (radius + line_half_width) * st;
@@ -572,9 +570,9 @@ gp_result_t gp_render_rounded_rect( const gp_canvas_t * _canvas, const gp_mesh_t
 
         if( rr->fill == GP_TRUE )
         {
-            for( uint16_t index_arc = 0; index_arc != 4; ++index_arc )
+            for( gp_uint16_t index_arc = 0; index_arc != 4; ++index_arc )
             {
-                for( uint16_t index = 0; index != quality; ++index )
+                for( gp_uint16_t index = 0; index != quality; ++index )
                 {
                     gp_mesh_index( _mesh, index_iterator + 0, vertex_iterator + index_arc * (quality + 1 + 1) + (index + 0) + 1 );
                     gp_mesh_index( _mesh, index_iterator + 1, vertex_iterator + index_arc * (quality + 1 + 1) + (index + 1) + 1 );
@@ -586,7 +584,7 @@ gp_result_t gp_render_rounded_rect( const gp_canvas_t * _canvas, const gp_mesh_t
 
             gp_color_t fill_color;
             gp_color_mul( &fill_color, &_mesh->color, &rr->fill_color );
-            uint32_t fill_argb = gp_color_argb( &fill_color );
+            gp_uint32_t fill_argb = gp_color_argb( &fill_color );
 
             gp_mesh_position( _mesh, vertex_iterator + 0, p0.x + radius, p0.y + radius );
             gp_mesh_color( _mesh, vertex_iterator + 0, fill_argb );
@@ -595,10 +593,10 @@ gp_result_t gp_render_rounded_rect( const gp_canvas_t * _canvas, const gp_mesh_t
 
             float tf0 = gp_constant_half_pi;
 
-            for( uint8_t index = 0; index != quality + 1; ++index, tf0 += dt )
+            for( gp_uint8_t index = 0; index != quality + 1; ++index, tf0 += dt )
             {
-                float ct = cosf( tf0 );
-                float st = sinf( tf0 );
+                float ct = GP_MATH_COSF( tf0 );
+                float st = GP_MATH_SINF( tf0 );
 
                 float x = p0.x + radius + radius * ct;
                 float y = p0.y + radius - radius * st;
@@ -616,10 +614,10 @@ gp_result_t gp_render_rounded_rect( const gp_canvas_t * _canvas, const gp_mesh_t
 
             float tf1 = 0.f;
 
-            for( uint8_t index = 0; index != quality + 1; ++index, tf1 += dt )
+            for( gp_uint8_t index = 0; index != quality + 1; ++index, tf1 += dt )
             {
-                float ct = cosf( tf1 );
-                float st = sinf( tf1 );
+                float ct = GP_MATH_COSF( tf1 );
+                float st = GP_MATH_SINF( tf1 );
 
                 float x = p1.x - radius + radius * ct;
                 float y = p1.y + radius - radius * st;
@@ -637,10 +635,10 @@ gp_result_t gp_render_rounded_rect( const gp_canvas_t * _canvas, const gp_mesh_t
 
             float tf2 = gp_constant_one_and_a_half_pi;
 
-            for( uint8_t index = 0; index != quality + 1; ++index, tf2 += dt )
+            for( gp_uint8_t index = 0; index != quality + 1; ++index, tf2 += dt )
             {
-                float ct = cosf( tf2 );
-                float st = sinf( tf2 );
+                float ct = GP_MATH_COSF( tf2 );
+                float st = GP_MATH_SINF( tf2 );
 
                 float x = p2.x - radius + radius * ct;
                 float y = p2.y - radius - radius * st;
@@ -658,10 +656,10 @@ gp_result_t gp_render_rounded_rect( const gp_canvas_t * _canvas, const gp_mesh_t
 
             float tf3 = gp_constant_pi;
 
-            for( uint8_t index = 0; index != quality + 1; ++index, tf3 += dt )
+            for( gp_uint8_t index = 0; index != quality + 1; ++index, tf3 += dt )
             {
-                float ct = cosf( tf3 );
-                float st = sinf( tf3 );
+                float ct = GP_MATH_COSF( tf3 );
+                float st = GP_MATH_SINF( tf3 );
 
                 float x = p3.x + radius + radius * ct;
                 float y = p3.y - radius - radius * st;

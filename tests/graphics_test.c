@@ -7,22 +7,22 @@
 #include <stdio.h>
 
 //////////////////////////////////////////////////////////////////////////
-static void __make_ortho( float left, float right, float top, float bottom, float zNear, float zFar, float mat[16] )
+static void __make_ortho( float _l, float _r, float _t, float _b, float _n, float _f, float _m[16] )
 {
-    mat[0] = 2.f / (right - left);
-    mat[5] = 2.f / (top - bottom);
-    mat[10] = -2.f / (zFar - zNear);
-    mat[12] = -(right + left) / (right - left);
-    mat[13] = -(top + bottom) / (top - bottom);
-    mat[14] = -(zFar + zNear) / (zFar - zNear);
-    mat[15] = 1.f;
+    _m[0] = 2.f / (_r - _l);
+    _m[5] = 2.f / (_t - _b);
+    _m[10] = -2.f / (_f - _n);
+    _m[12] = -(_r + _l) / (_r - _l);
+    _m[13] = -(_t + _b) / (_t - _b);
+    _m[14] = -(_f + _n) / (_f - _n);
+    _m[15] = 1.f;
 
-    mat[1] = mat[2] = mat[3] = mat[4] = mat[6] = mat[7] = mat[8] = mat[9] = mat[11] = 0.f;
+    _m[1] = _m[2] = _m[3] = _m[4] = _m[6] = _m[7] = _m[8] = _m[9] = _m[11] = 0.f;
 }
 //////////////////////////////////////////////////////////////////////////
 static void framebuffer_size_callback( GLFWwindow * _window, int _width, int _height )
 {
-    (void)_window;
+    GP_UNUSED( _window );
 
     glViewport( 0, 0, _width, _height );
 }
@@ -47,15 +47,16 @@ const char * fragmentShaderSource = "#version 330 core\n"
 "   oColor = v2fColor;\n"
 "}\n\0";
 //////////////////////////////////////////////////////////////////////////
-static void * gp_malloc( size_t _size, void * _ud )
+static void * gp_malloc( gp_size_t _size, void * _ud )
 {
-    (void)_ud;
+    GP_UNUSED( _ud );
+
     return malloc( _size );
 }
 //////////////////////////////////////////////////////////////////////////
 static void gp_free( void * _ptr, void * _ud )
 {
-    (void)_ud;
+    GP_UNUSED( _ud );
 
     free( _ptr );
 }
@@ -64,15 +65,15 @@ typedef struct gl_vertex_t
 {
     float x;
     float y;
-    uint32_t c;
+    gp_uint32_t c;
 } gl_vertex_t;
 //////////////////////////////////////////////////////////////////////////
-typedef uint16_t gl_index_t;
+typedef gp_uint16_t gl_index_t;
 //////////////////////////////////////////////////////////////////////////
 int main( int argc, char ** argv )
 {
-    (void)argc;
-    (void)argv;
+    GP_UNUSED( argc );
+    GP_UNUSED( argv );
 
     if( glfwInit() == 0 )
     {
@@ -212,7 +213,7 @@ int main( int argc, char ** argv )
     glBindBuffer( GL_ARRAY_BUFFER, VBO );
 
     glVertexAttribPointer( 0, 2, GL_FLOAT, GL_FALSE, sizeof( gl_vertex_t ), (void *)0 );
-    glVertexAttribPointer( 1, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof( gl_vertex_t ), (uint8_t *)0 + offsetof( gl_vertex_t, c ) );
+    glVertexAttribPointer( 1, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof( gl_vertex_t ), (gp_uint8_t *)0 + offsetof( gl_vertex_t, c ) );
     glEnableVertexAttribArray( 0 );
     glEnableVertexAttribArray( 1 );
 
@@ -253,7 +254,7 @@ int main( int argc, char ** argv )
 
         mesh.indices_buffer = indices;
         mesh.indices_offset = 0;
-        mesh.indices_stride = sizeof( uint16_t );
+        mesh.indices_stride = sizeof( gp_uint16_t );
 
         gp_render( canvas, &mesh );
 

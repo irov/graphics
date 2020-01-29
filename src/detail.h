@@ -19,10 +19,10 @@ static const float gp_constant_one_and_a_half_pi = 4.712388980384689857693965074
 static const float gp_constant_two_pi = 6.283185307179586476925286766559f;
 
 void gp_color_mul( gp_color_t * _c, const gp_color_t * _c0, const gp_color_t * _c1 );
-uint32_t gp_color_argb( const gp_color_t * _c );
+gp_uint32_t gp_color_argb( const gp_color_t * _c );
 
-void gp_mesh_index( const gp_mesh_t * _mesh, uint16_t _iterator, uint16_t _index );
-void gp_mesh_position( const gp_mesh_t * _mesh, uint16_t _iterator, float _x, float _y );
-void gp_mesh_color( const gp_mesh_t * _mesh, uint16_t _iterator, uint32_t _c );
+void gp_mesh_index( const gp_mesh_t * _mesh, gp_uint16_t _iterator, gp_uint16_t _index );
+void gp_mesh_position( const gp_mesh_t * _mesh, gp_uint16_t _iterator, float _x, float _y );
+void gp_mesh_color( const gp_mesh_t * _mesh, gp_uint16_t _iterator, gp_uint32_t _c );
 
 #endif

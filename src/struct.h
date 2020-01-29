@@ -29,15 +29,15 @@ typedef struct gp_line_points_t
 {
     gp_vec2f_t p;
     float width;
-    uint32_t argb;
+    gp_uint32_t argb;
 } gp_line_points_t;
 //////////////////////////////////////////////////////////////////////////
 typedef struct gp_line_edge_t
 {
-    uint32_t controls;
+    gp_uint32_t controls;
     gp_vec2f_t p[3];
 
-    uint8_t quality;
+    gp_uint8_t quality;
     float dt;
 
     float line_width;
@@ -82,7 +82,7 @@ typedef struct gp_rounded_rect_t
     float height;
     float radius;
 
-    uint8_t quality;
+    gp_uint8_t quality;
     float quality_inv;
 
     float line_width;
@@ -102,7 +102,7 @@ typedef struct gp_ellipse_t
     float width;
     float height;
 
-    uint8_t quality;
+    gp_uint8_t quality;
     float quality_inv;
 
     float line_width;
@@ -124,8 +124,8 @@ typedef struct gp_canvas_t
     gp_color_t fill_color;
     gp_bool_t fill;
 
-    uint8_t curve_quality;
-    uint8_t ellipse_quality;
+    gp_uint8_t curve_quality;
+    gp_uint8_t ellipse_quality;
 
     gp_line_t * lines;
     gp_rect_t * rects;

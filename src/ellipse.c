@@ -4,8 +4,8 @@
 
 gp_result_t gp_calculate_mesh_ellipse_size( const gp_canvas_t * _canvas, gp_mesh_t * _mesh )
 {
-    uint32_t vertex_count = 0;
-    uint16_t index_count = 0;
+    gp_uint32_t vertex_count = 0;
+    gp_uint16_t index_count = 0;
 
     for( const gp_ellipse_t * e = _canvas->ellipses; e != GP_NULLPTR; e = e->next )
     {

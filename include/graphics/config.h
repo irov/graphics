@@ -17,6 +17,10 @@ typedef enum gp_boolean_e
 
 typedef gp_result_e gp_result_t;
 typedef uint32_t gp_bool_t;
+typedef uint8_t gp_uint8_t;
+typedef uint16_t gp_uint16_t;
+typedef uint32_t gp_uint32_t;
+typedef size_t gp_size_t;
 
 typedef struct gp_color_t
 {
@@ -39,6 +43,21 @@ typedef struct gp_color_t
 
 #ifndef GP_LINE_POINTS_MAX
 #define GP_LINE_POINTS_MAX 1024
+#endif
+
+#ifndef GP_MATH_SQRTF
+#include <math.h>
+#define GP_MATH_SQRTF (sqrtf)
+#endif
+
+#ifndef GP_MATH_COSF
+#include <math.h>
+#define GP_MATH_COSF (cosf)
+#endif
+
+#ifndef GP_MATH_SINF
+#include <math.h>
+#define GP_MATH_SINF (sinf)
 #endif
 
 #endif

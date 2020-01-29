@@ -8,8 +8,6 @@
 #include "struct.h"
 #include "detail.h"
 
-#include <math.h>
-
 //////////////////////////////////////////////////////////////////////////
 static void __canvas_default_setup( gp_canvas_t * _canvas )
 {
@@ -109,28 +107,28 @@ gp_result_t gp_get_line_color( gp_canvas_t * _canvas, gp_color_t * _color )
     return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
-gp_result_t gp_set_curve_quality( gp_canvas_t * _canvas, uint8_t _quality )
+gp_result_t gp_set_curve_quality( gp_canvas_t * _canvas, gp_uint8_t _quality )
 {
     _canvas->curve_quality = _quality;
 
     return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
-gp_result_t gp_get_curve_quality( gp_canvas_t * _canvas, uint8_t * _quality )
+gp_result_t gp_get_curve_quality( gp_canvas_t * _canvas, gp_uint8_t * _quality )
 {
     *_quality = _canvas->curve_quality;
 
     return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
-gp_result_t gp_set_ellipse_quality( gp_canvas_t * _canvas, uint8_t _quality )
+gp_result_t gp_set_ellipse_quality( gp_canvas_t * _canvas, gp_uint8_t _quality )
 {
     _canvas->ellipse_quality = _quality;
 
     return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
-gp_result_t gp_get_ellipse_quality( gp_canvas_t * _canvas, uint8_t * _quality )
+gp_result_t gp_get_ellipse_quality( gp_canvas_t * _canvas, gp_uint8_t * _quality )
 {
     *_quality = _canvas->ellipse_quality;
 
@@ -379,8 +377,8 @@ gp_result_t gp_calculate_mesh_size( const gp_canvas_t * _canvas, gp_mesh_t * _me
 //////////////////////////////////////////////////////////////////////////
 gp_result_t gp_render( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh )
 {
-    uint16_t vertex_iterator = 0;
-    uint16_t index_iterator = 0;
+    gp_uint16_t vertex_iterator = 0;
+    gp_uint16_t index_iterator = 0;
 
     if( gp_render_line( _canvas, _mesh, &vertex_iterator, &index_iterator ) == GP_FAILURE )
     {
@@ -401,16 +399,16 @@ gp_result_t gp_render( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh )
     {
         gp_color_t line_color;
         gp_color_mul( &line_color, &_mesh->color, &e->line_color );
-        uint32_t argb = gp_color_argb( &line_color );
+        gp_uint32_t argb = gp_color_argb( &line_color );
 
-        uint8_t quality = e->quality;
+        gp_uint8_t quality = e->quality;
         float line_penumbra = e->line_penumbra;
 
         if( line_penumbra > 0.f )
         {
-            uint32_t ellipse_quality2 = quality * 4;
+            gp_uint32_t ellipse_quality2 = quality * 4;
 
-            for( uint16_t index = 0; index != quality; ++index )
+            for( gp_uint16_t index = 0; index != quality; ++index )
             {
                 gp_mesh_index( _mesh, index_iterator + 0, vertex_iterator + (index * 4 + 0) % ellipse_quality2 );
                 gp_mesh_index( _mesh, index_iterator + 1, vertex_iterator + (index * 4 + 1) % ellipse_quality2 );
@@ -442,9 +440,9 @@ gp_result_t gp_render( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh )
         }
         else
         {
-            uint32_t ellipse_quality2 = quality * 2;
+            gp_uint32_t ellipse_quality2 = quality * 2;
 
-            for( uint16_t index = 0; index != quality; ++index )
+            for( gp_uint16_t index = 0; index != quality; ++index )
             {
                 gp_mesh_index( _mesh, index_iterator + 0, vertex_iterator + (index * 2 + 0) % ellipse_quality2 );
                 gp_mesh_index( _mesh, index_iterator + 1, vertex_iterator + (index * 2 + 1) % ellipse_quality2 );
@@ -465,10 +463,10 @@ gp_result_t gp_render( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh )
 
         float t = 0.f;
 
-        for( uint32_t index = 0; index != quality; ++index, t += dt )
+        for( gp_uint32_t index = 0; index != quality; ++index, t += dt )
         {
-            float ct = cosf( t );
-            float st = sinf( t );
+            float ct = GP_MATH_COSF( t );
+            float st = GP_MATH_SINF( t );
 
             float x0 = e->point.x + (e->width + line_half_width) * ct;
             float y0 = e->point.y + (e->height + line_half_width) * st;
@@ -516,9 +514,9 @@ gp_result_t gp_render( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh )
         {
             gp_color_t fill_color;
             gp_color_mul( &fill_color, &_mesh->color, &e->fill_color );
-            uint32_t fill_argb = gp_color_argb( &fill_color );
+            gp_uint32_t fill_argb = gp_color_argb( &fill_color );
 
-            for( uint16_t index = 0; index != quality; ++index )
+            for( gp_uint16_t index = 0; index != quality; ++index )
             {
                 gp_mesh_index( _mesh, index_iterator + 0, vertex_iterator + (index + 0) % quality + 1 );
                 gp_mesh_index( _mesh, index_iterator + 1, vertex_iterator + (index + 1) % quality + 1 );
@@ -534,10 +532,10 @@ gp_result_t gp_render( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh )
 
             float tf = 0.f;
 
-            for( uint32_t index = 0; index != quality; ++index, tf += dt )
+            for( gp_uint32_t index = 0; index != quality; ++index, tf += dt )
             {
-                float ct = cosf( tf );
-                float st = sinf( tf );
+                float ct = GP_MATH_COSF( tf );
+                float st = GP_MATH_SINF( tf );
 
                 float x = e->point.x + e->width * ct;
                 float y = e->point.y + e->height * st;

@@ -3,13 +3,11 @@
 #include "struct.h"
 #include "detail.h"
 
-#include <math.h>
-
 //////////////////////////////////////////////////////////////////////////
 gp_result_t gp_calculate_mesh_line_size( const gp_canvas_t * _canvas, gp_mesh_t * _mesh )
 {
-    uint32_t vertex_count = 0;
-    uint16_t index_count = 0;
+    gp_uint32_t vertex_count = 0;
+    gp_uint16_t index_count = 0;
 
     for( const gp_line_t * l = _canvas->lines; l != GP_NULLPTR; l = l->next )
     {
@@ -18,7 +16,7 @@ gp_result_t gp_calculate_mesh_line_size( const gp_canvas_t * _canvas, gp_mesh_t 
             continue;
         }
 
-        uint16_t point_count = 0;
+        gp_uint16_t point_count = 0;
 
         for( const gp_line_edge_t * e = l->edges; e != GP_NULLPTR; e = e->next )
         {
@@ -67,7 +65,7 @@ static float __vec2f_length( const gp_vec2f_t * _p )
 {
     float l = __vec2f_sqrlength( _p );
 
-    return sqrtf( l );
+    return GP_MATH_SQRTF( l );
 }
 //////////////////////////////////////////////////////////////////////////
 static void __vec2f_normalize( gp_vec2f_t * _o, const gp_vec2f_t * _p )
@@ -98,7 +96,7 @@ static void __make_line_perp( gp_vec2f_t * _perp, const gp_vec2f_t * _from, cons
     __vec2f_perp( _perp, &dir_norm );
 }
 //////////////////////////////////////////////////////////////////////////
-static float __integral_powf( float _value, uint32_t _count )
+static float __integral_powf( float _value, gp_uint32_t _count )
 {
     if( _count == 0 )
     {
@@ -107,7 +105,7 @@ static float __integral_powf( float _value, uint32_t _count )
 
     float f = _value;
 
-    for( uint32_t i = 1; i != _count; ++i )
+    for( gp_uint32_t i = 1; i != _count; ++i )
     {
         f *= _value;
     }
@@ -115,7 +113,7 @@ static float __integral_powf( float _value, uint32_t _count )
     return f;
 }
 //////////////////////////////////////////////////////////////////////////
-static float __factorialf( uint32_t _value )
+static float __factorialf( gp_uint32_t _value )
 {
     if( _value == 0 )
     {
@@ -125,7 +123,7 @@ static float __factorialf( uint32_t _value )
     float f = 1.f;
     float d = 0.f;
 
-    for( uint32_t i = 0; i != _value; ++i )
+    for( gp_uint32_t i = 0; i != _value; ++i )
     {
         d += 1.f;
 
@@ -135,9 +133,9 @@ static float __factorialf( uint32_t _value )
     return f;
 }
 //////////////////////////////////////////////////////////////////////////
-static void __calculate_bezier_position( gp_vec2f_t * _out, const gp_vec2f_t * _p0, const gp_vec2f_t * _p1, const gp_vec2f_t * _v, uint32_t _n, float _dt )
+static void __calculate_bezier_position( gp_vec2f_t * _out, const gp_vec2f_t * _p0, const gp_vec2f_t * _p1, const gp_vec2f_t * _v, gp_uint32_t _n, float _dt )
 {
-    uint32_t n = _n + 1;
+    gp_uint32_t n = _n + 1;
 
     float t0 = __integral_powf( 1.f - _dt, n );
     float tn = __integral_powf( _dt, n );
@@ -147,7 +145,7 @@ static void __calculate_bezier_position( gp_vec2f_t * _out, const gp_vec2f_t * _
 
     float f_count = __factorialf( n );
 
-    for( uint32_t i = 1; i != n; ++i )
+    for( gp_uint32_t i = 1; i != n; ++i )
     {
         float c = f_count / (__factorialf( i ) * __factorialf( n - i ));
         float t = __integral_powf( _dt, i ) * __integral_powf( 1.f - _dt, n - i );
@@ -188,10 +186,10 @@ static gp_bool_t __intersect_line( const gp_linef_t * _l1, const gp_linef_t * _l
     return GP_TRUE;
 }
 //////////////////////////////////////////////////////////////////////////
-gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh, uint16_t * _vertex_iterator, uint16_t * _index_iterator )
+gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh, gp_uint16_t * _vertex_iterator, gp_uint16_t * _index_iterator )
 {
-    uint16_t vertex_iterator = *_vertex_iterator;
-    uint16_t index_iterator = *_index_iterator;
+    gp_uint16_t vertex_iterator = *_vertex_iterator;
+    gp_uint16_t index_iterator = *_index_iterator;
 
     for( const gp_line_t * l = _canvas->lines; l != GP_NULLPTR; l = l->next )
     {
@@ -201,7 +199,7 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
         }
 
         gp_line_points_t points[GP_LINE_POINTS_MAX];
-        uint16_t points_size = 0;
+        gp_uint16_t points_size = 0;
 
         const gp_point_t * point_iterator = l->points;
 
@@ -213,7 +211,7 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
 
             gp_color_t line_color;
             gp_color_mul( &line_color, &_mesh->color, &e->line_color );
-            uint32_t argb = gp_color_argb( &line_color );
+            gp_uint32_t argb = gp_color_argb( &line_color );
 
             switch( e->controls )
             {
@@ -230,7 +228,7 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
                 {
                     float t = 0.f;
 
-                    for( uint8_t index = 0; index != e->quality - 1; ++index )
+                    for( gp_uint8_t index = 0; index != e->quality - 1; ++index )
                     {
                         gp_vec2f_t bp;
                         __calculate_bezier_position( &bp, &p0->p, &p1->p, e->p, 1, t );
@@ -249,7 +247,7 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
                 {
                     float t = 0.f;
 
-                    for( uint8_t index = 0; index != e->quality - 1; ++index )
+                    for( gp_uint8_t index = 0; index != e->quality - 1; ++index )
                     {
                         gp_vec2f_t bp;
                         __calculate_bezier_position( &bp, &p0->p, &p1->p, e->p, 2, t );
@@ -280,7 +278,7 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
 
             gp_color_t line_color;
             gp_color_mul( &line_color, &_mesh->color, &edge_back->line_color );
-            uint32_t argb = gp_color_argb( &line_color );
+            gp_uint32_t argb = gp_color_argb( &line_color );
 
             p->argb = argb;
 
@@ -291,7 +289,7 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
 
         if( penumbra > 0.f )
         {
-            for( uint16_t index = 0; index != points_size - 1; ++index )
+            for( gp_uint16_t index = 0; index != points_size - 1; ++index )
             {
                 gp_mesh_index( _mesh, index_iterator + 0, vertex_iterator + index * 4 + 0 );
                 gp_mesh_index( _mesh, index_iterator + 1, vertex_iterator + index * 4 + 1 );
@@ -323,7 +321,7 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
         }
         else
         {
-            for( uint16_t index = 0; index != points_size - 1; ++index )
+            for( gp_uint16_t index = 0; index != points_size - 1; ++index )
             {
                 gp_mesh_index( _mesh, index_iterator + 0, vertex_iterator + index * 2 + 0 );
                 gp_mesh_index( _mesh, index_iterator + 1, vertex_iterator + index * 2 + 1 );
@@ -341,7 +339,7 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
             gp_line_points_t * point1 = points + 1;
 
             float width = point0->width;
-            uint32_t argb = point0->argb;
+            gp_uint32_t argb = point0->argb;
 
             const gp_vec2f_t * p0 = &point0->p;
             const gp_vec2f_t * p1 = &point1->p;
@@ -381,10 +379,10 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
             }
         }
 
-        for( uint16_t index = 1; index != points_size - 1; ++index )
+        for( gp_uint16_t index = 1; index != points_size - 1; ++index )
         {
             float width = points[index + 0].width;
-            uint32_t argb = points[index + 0].argb;
+            gp_uint32_t argb = points[index + 0].argb;
 
             const gp_vec2f_t * p0 = &points[index - 1].p;
             const gp_vec2f_t * p1 = &points[index + 0].p;
@@ -546,7 +544,7 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
 
         {
             float width = points[points_size - 2].width;
-            uint32_t argb = points[points_size - 2].argb;
+            gp_uint32_t argb = points[points_size - 2].argb;
 
             const gp_vec2f_t * p0 = &points[points_size - 2].p;
             const gp_vec2f_t * p1 = &points[points_size - 1].p;

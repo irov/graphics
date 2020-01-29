@@ -6,8 +6,8 @@
 //////////////////////////////////////////////////////////////////////////
 gp_result_t gp_calculate_mesh_rect_size( const gp_canvas_t * _canvas, gp_mesh_t * _mesh )
 {
-    uint32_t vertex_count = 0;
-    uint16_t index_count = 0;
+    gp_uint32_t vertex_count = 0;
+    gp_uint16_t index_count = 0;
 
     for( const gp_rect_t * r = _canvas->rects; r != GP_NULLPTR; r = r->next )
     {
@@ -35,20 +35,20 @@ gp_result_t gp_calculate_mesh_rect_size( const gp_canvas_t * _canvas, gp_mesh_t 
     return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
-gp_result_t gp_render_rect( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh, uint16_t * _vertex_iterator, uint16_t * _index_iterator )
+gp_result_t gp_render_rect( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh, gp_uint16_t * _vertex_iterator, gp_uint16_t * _index_iterator )
 {
-    uint16_t vertex_iterator = *_vertex_iterator;
-    uint16_t index_iterator = *_index_iterator;
+    gp_uint16_t vertex_iterator = *_vertex_iterator;
+    gp_uint16_t index_iterator = *_index_iterator;
 
     for( const gp_rect_t * r = _canvas->rects; r != GP_NULLPTR; r = r->next )
     {
         gp_color_t line_color;
         gp_color_mul( &line_color, &_mesh->color, &r->line_color );
-        uint32_t argb = gp_color_argb( &line_color );
+        gp_uint32_t argb = gp_color_argb( &line_color );
 
         if( r->line_penumbra > 0.f )
         {
-            for( uint16_t index = 0; index != 4; ++index )
+            for( gp_uint16_t index = 0; index != 4; ++index )
             {
                 gp_mesh_index( _mesh, index_iterator + 0, vertex_iterator + (index * 4 + 0) % 16 );
                 gp_mesh_index( _mesh, index_iterator + 1, vertex_iterator + (index * 4 + 1) % 16 );
@@ -80,7 +80,7 @@ gp_result_t gp_render_rect( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
         }
         else
         {
-            for( uint16_t index = 0; index != 4; ++index )
+            for( gp_uint16_t index = 0; index != 4; ++index )
             {
                 gp_mesh_index( _mesh, index_iterator + 0, vertex_iterator + (index * 2 + 0) % 8 );
                 gp_mesh_index( _mesh, index_iterator + 1, vertex_iterator + (index * 2 + 1) % 8 );
@@ -219,7 +219,7 @@ gp_result_t gp_render_rect( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
 
             gp_color_t fill_color;
             gp_color_mul( &fill_color, &_mesh->color, &r->fill_color );
-            uint32_t fill_argb = gp_color_argb( &fill_color );
+            gp_uint32_t fill_argb = gp_color_argb( &fill_color );
 
             gp_mesh_position( _mesh, vertex_iterator + 0, p0.x, p0.y );
             gp_mesh_color( _mesh, vertex_iterator + 0, fill_argb );
@@ -241,4 +241,4 @@ gp_result_t gp_render_rect( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
     *_index_iterator = index_iterator;
 
     return GP_SUCCESSFUL;
- }
+}
