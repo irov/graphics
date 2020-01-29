@@ -93,9 +93,9 @@ gp_result_t gp_get_line_penumbra( gp_canvas_t * _canvas, float * _penumbra )
     return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
-gp_result_t gp_set_line_color( gp_canvas_t * _canvas, gp_color_t _color )
+gp_result_t gp_set_line_color( gp_canvas_t * _canvas, const gp_color_t * _color )
 {
-    _canvas->line_color = _color;
+    _canvas->line_color = *_color;
 
     return GP_SUCCESSFUL;
 }
@@ -131,6 +131,20 @@ gp_result_t gp_set_ellipse_quality( gp_canvas_t * _canvas, gp_uint8_t _quality )
 gp_result_t gp_get_ellipse_quality( gp_canvas_t * _canvas, gp_uint8_t * _quality )
 {
     *_quality = _canvas->ellipse_quality;
+
+    return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
+gp_result_t gp_set_fill_color( gp_canvas_t * _canvas, const gp_color_t * _color )
+{
+    _canvas->fill_color = *_color;
+
+    return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
+gp_result_t gp_get_fill_color( gp_canvas_t * _canvas, gp_color_t * _color )
+{
+    *_color = _canvas->fill_color;
 
     return GP_SUCCESSFUL;
 }
