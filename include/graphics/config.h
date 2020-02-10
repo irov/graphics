@@ -31,6 +31,10 @@ typedef struct gp_color_t
     float a;
 } gp_color_t;
 
+#ifndef NDEBUG
+#define GP_DEBUG
+#endif
+
 #ifndef GP_UNUSED
 #define GP_UNUSED(X) ((void)(X))
 #endif

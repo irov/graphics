@@ -66,9 +66,8 @@ typedef struct gp_rect_t
 
     float line_width;
     float line_penumbra;
-    gp_color_t line_color;
+    gp_color_t color;
 
-    gp_color_t fill_color;
     gp_bool_t fill;
 
     struct gp_rect_t * next;
@@ -87,9 +86,8 @@ typedef struct gp_rounded_rect_t
 
     float line_width;
     float line_penumbra;
-    gp_color_t line_color;
+    gp_color_t color;
 
-    gp_color_t fill_color;
     gp_bool_t fill;
 
     struct gp_rounded_rect_t * next;
@@ -107,9 +105,8 @@ typedef struct gp_ellipse_t
 
     float line_width;
     float line_penumbra;
-    gp_color_t line_color;
+    gp_color_t color;
 
-    gp_color_t fill_color;
     gp_bool_t fill;
 
     struct gp_ellipse_t * next;
@@ -120,8 +117,7 @@ typedef struct gp_canvas_t
 {
     float line_width;
     float line_penumbra;
-    gp_color_t line_color;
-    gp_color_t fill_color;
+    gp_color_t color;
     gp_bool_t fill;
 
     gp_uint8_t curve_quality;

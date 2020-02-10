@@ -1,17 +1,23 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 3.2)
 
+set(GRAPHICS_DEPENDENCIES_DIR ${CMAKE_CURRENT_SOURCE_DIR}/dependencies)
+set(GRAPHICS_CONTENT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/content)
+
 include(cmake/macro.cmake)
 include(cmake/glad_download.cmake)
 include(cmake/glfw_download.cmake)
+include(cmake/stb_libs_download.cmake)
+include(cmake/content_download.cmake)
 
 project(graphics_test C)
 
-include_directories(
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
-    ${GLFW_INCLUDE_DIR}
-    ${IMGUI_INCLUDE_DIR}
-    ${GLAD_INCLUDE_DIR}
-)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
+include_directories(${GRAPHICS_DEPENDENCIES_DIR})
+include_directories(${GLFW_INCLUDE_DIR})
+include_directories(${IMGUI_INCLUDE_DIR})
+include_directories(${GLAD_INCLUDE_DIR})
+
+ADD_DEFINITIONS(-DGRAPHICS_CONTENT_PATH="${GRAPHICS_CONTENT_DIR}")
 
 add_executable(${PROJECT_NAME} graphics_test.c)
 

@@ -4,9 +4,9 @@
 #include "detail.h"
 
 //////////////////////////////////////////////////////////////////////////
-gp_result_t gp_calculate_mesh_line_size( const gp_canvas_t * _canvas, gp_mesh_t * _mesh )
+static gp_result_t __calculate_mesh_line_size( const gp_canvas_t * _canvas, gp_uint16_t * _vertex_count, gp_uint16_t * _index_count )
 {
-    gp_uint32_t vertex_count = 0;
+    gp_uint16_t vertex_count = 0;
     gp_uint16_t index_count = 0;
 
     for( const gp_line_t * l = _canvas->lines; l != GP_NULLPTR; l = l->next )
@@ -48,6 +48,22 @@ gp_result_t gp_calculate_mesh_line_size( const gp_canvas_t * _canvas, gp_mesh_t 
             vertex_count += point_count * 2;
             index_count += (point_count - 1) * 6;
         }
+    }
+
+    *_vertex_count = vertex_count;
+    *_index_count = index_count;
+
+    return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
+gp_result_t gp_calculate_mesh_line_size( const gp_canvas_t * _canvas, gp_mesh_t * _mesh )
+{
+    gp_uint16_t vertex_count = 0;
+    gp_uint16_t index_count = 0;
+
+    if( __calculate_mesh_line_size( _canvas, &vertex_count, &index_count ) == GP_FAILURE )
+    {
+        return GP_FAILURE;
     }
 
     _mesh->vertex_count += vertex_count;
@@ -335,7 +351,7 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
         }
 
         {
-            gp_line_points_t * point0 = points;
+            gp_line_points_t * point0 = points + 0;
             gp_line_points_t * point1 = points + 1;
 
             float width = point0->width;
@@ -351,19 +367,24 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
 
             if( penumbra > 0.f )
             {
-                float line_width_soft = (width - penumbra * 2.f) * 0.5f;
+                float line_width_soft = line_width - penumbra;
+                float uv_soft_offset = line_width_soft / line_width * 0.5f;
 
                 gp_mesh_position( _mesh, vertex_iterator + 0, p0->x - perp.x * line_width, p0->y - perp.y * line_width );
                 gp_mesh_color( _mesh, vertex_iterator + 0, argb & 0x00ffffff );
+                gp_mesh_uv( _mesh, vertex_iterator + 0, 0.f, 0.f );
 
                 gp_mesh_position( _mesh, vertex_iterator + 1, p0->x - perp.x * line_width_soft, p0->y - perp.y * line_width_soft );
                 gp_mesh_color( _mesh, vertex_iterator + 1, argb );
+                gp_mesh_uv( _mesh, vertex_iterator + 1, 0.f, 0.5f - uv_soft_offset );
 
                 gp_mesh_position( _mesh, vertex_iterator + 2, p0->x + perp.x * line_width_soft, p0->y + perp.y * line_width_soft );
                 gp_mesh_color( _mesh, vertex_iterator + 2, argb );
+                gp_mesh_uv( _mesh, vertex_iterator + 2, 0.f, 0.5f + uv_soft_offset );
 
                 gp_mesh_position( _mesh, vertex_iterator + 3, p0->x + perp.x * line_width, p0->y + perp.y * line_width );
                 gp_mesh_color( _mesh, vertex_iterator + 3, argb & 0x00ffffff );
+                gp_mesh_uv( _mesh, vertex_iterator + 2, 0.f, 1.f );
 
                 vertex_iterator += 4;
             }
@@ -371,9 +392,11 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
             {
                 gp_mesh_position( _mesh, vertex_iterator + 0, p0->x - perp.x * line_width, p0->y - perp.y * line_width );
                 gp_mesh_color( _mesh, vertex_iterator + 0, argb );
+                gp_mesh_uv( _mesh, vertex_iterator + 0, 0.f, 0.f );
 
                 gp_mesh_position( _mesh, vertex_iterator + 1, p0->x + perp.x * line_width, p0->y + perp.y * line_width );
                 gp_mesh_color( _mesh, vertex_iterator + 1, argb );
+                gp_mesh_uv( _mesh, vertex_iterator + 1, 0.f, 1.f );
 
                 vertex_iterator += 2;
             }
@@ -456,7 +479,8 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
 
             if( penumbra > 0.f )
             {
-                float line_width_soft = (width - penumbra * 2.f) * 0.5f;
+                float line_width_soft = line_width - penumbra;
+                float uv_soft_offset = line_width_soft / line_width * 0.5f;
 
                 gp_vec2f_t linep40;
                 linep40.x = p0->x - perp01.x * line_width_soft;
@@ -518,15 +542,19 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
 
                 gp_mesh_position( _mesh, vertex_iterator + 0, pl.x, pl.y );
                 gp_mesh_color( _mesh, vertex_iterator + 0, argb & 0x00ffffff );
+                gp_mesh_uv( _mesh, vertex_iterator + 0, (float)index / (float)points_size, 0.f );
 
                 gp_mesh_position( _mesh, vertex_iterator + 1, pl_soft.x, pl_soft.y );
                 gp_mesh_color( _mesh, vertex_iterator + 1, argb );
+                gp_mesh_uv( _mesh, vertex_iterator + 1, (float)index / (float)points_size, 0.5f - uv_soft_offset );
 
                 gp_mesh_position( _mesh, vertex_iterator + 2, pr_soft.x, pr_soft.y );
                 gp_mesh_color( _mesh, vertex_iterator + 2, argb );
+                gp_mesh_uv( _mesh, vertex_iterator + 2, (float)index / (float)points_size, 0.5f + uv_soft_offset );
 
                 gp_mesh_position( _mesh, vertex_iterator + 3, pr.x, pr.y );
                 gp_mesh_color( _mesh, vertex_iterator + 3, argb & 0x00ffffff );
+                gp_mesh_uv( _mesh, vertex_iterator + 3, (float)index / (float)points_size, 1.f );
 
                 vertex_iterator += 4;
             }
@@ -534,9 +562,11 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
             {
                 gp_mesh_position( _mesh, vertex_iterator + 0, pl.x, pl.y );
                 gp_mesh_color( _mesh, vertex_iterator + 0, argb );
+                gp_mesh_uv( _mesh, vertex_iterator + 0, (float)index / (float)points_size, 0.f );
 
                 gp_mesh_position( _mesh, vertex_iterator + 1, pr.x, pr.y );
                 gp_mesh_color( _mesh, vertex_iterator + 1, argb );
+                gp_mesh_uv( _mesh, vertex_iterator + 1, (float)index / (float)points_size, 1.f );
 
                 vertex_iterator += 2;
             }
@@ -556,19 +586,24 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
 
             if( penumbra > 0.f )
             {
-                float line_width_soft = (width - penumbra * 2.f) * 0.5f;
+                float line_width_soft = line_width - penumbra;
+                float uv_soft_offset = line_width_soft / line_width * 0.5f;
 
                 gp_mesh_position( _mesh, vertex_iterator + 0, p1->x - perp.x * line_width, p1->y - perp.y * line_width );
                 gp_mesh_color( _mesh, vertex_iterator + 0, argb & 0x00ffffff );
+                gp_mesh_uv( _mesh, vertex_iterator + 0, 1.f, 0.f );
 
                 gp_mesh_position( _mesh, vertex_iterator + 1, p1->x - perp.x * line_width_soft, p1->y - perp.y * line_width_soft );
                 gp_mesh_color( _mesh, vertex_iterator + 1, argb );
+                gp_mesh_uv( _mesh, vertex_iterator + 1, 1.f, 0.5f - uv_soft_offset );
 
                 gp_mesh_position( _mesh, vertex_iterator + 2, p1->x + perp.x * line_width_soft, p1->y + perp.y * line_width_soft );
                 gp_mesh_color( _mesh, vertex_iterator + 2, argb );
+                gp_mesh_uv( _mesh, vertex_iterator + 2, 1.f, 0.5f + uv_soft_offset );
 
                 gp_mesh_position( _mesh, vertex_iterator + 3, p1->x + perp.x * line_width, p1->y + perp.y * line_width );
                 gp_mesh_color( _mesh, vertex_iterator + 3, argb & 0x00ffffff );
+                gp_mesh_uv( _mesh, vertex_iterator + 3, 1.f, 1.f );
 
                 vertex_iterator += 4;
             }
@@ -576,14 +611,36 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
             {
                 gp_mesh_position( _mesh, vertex_iterator + 0, p1->x - perp.x * line_width, p1->y - perp.y * line_width );
                 gp_mesh_color( _mesh, vertex_iterator + 0, argb );
+                gp_mesh_uv( _mesh, vertex_iterator + 0, 1.f, 0.f );
 
                 gp_mesh_position( _mesh, vertex_iterator + 1, p1->x + perp.x * line_width, p1->y + perp.y * line_width );
                 gp_mesh_color( _mesh, vertex_iterator + 1, argb );
+                gp_mesh_uv( _mesh, vertex_iterator + 1, 1.f, 1.f );
 
                 vertex_iterator += 2;
             }
         }
     }
+
+#ifdef GP_DEBUG
+    gp_uint16_t test_vertex_count;
+    gp_uint16_t test_index_count;
+
+    if( __calculate_mesh_line_size( _canvas, &test_vertex_count, &test_index_count ) == GP_FAILURE )
+    {
+        return GP_FAILURE;
+    }
+
+    if( test_vertex_count != vertex_iterator - *_vertex_iterator )
+    {
+        return GP_FAILURE;
+    }
+
+    if( test_index_count != index_iterator - *_index_iterator )
+    {
+        return GP_FAILURE;
+    }
+#endif
 
     *_vertex_iterator = vertex_iterator;
     *_index_iterator = index_iterator;
