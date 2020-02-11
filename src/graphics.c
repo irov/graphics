@@ -11,15 +11,21 @@
 //////////////////////////////////////////////////////////////////////////
 static void __canvas_default_setup( gp_canvas_t * _canvas )
 {
-    _canvas->line_width = 2.f;
-    _canvas->line_penumbra = 1.f;
-    _canvas->color.r = 1.f;
-    _canvas->color.g = 1.f;
-    _canvas->color.b = 1.f;
-    _canvas->color.a = 1.f;
-    _canvas->fill = GP_FALSE;
-    _canvas->curve_quality = 32;
-    _canvas->ellipse_quality = 64;
+    _canvas->state.line_width = 3.f;
+    _canvas->state.penumbra = 1.f;
+    _canvas->state.color.r = 1.f;
+    _canvas->state.color.g = 1.f;
+    _canvas->state.color.b = 1.f;
+    _canvas->state.color.a = 1.f;
+    _canvas->state.fill = GP_FALSE;
+    _canvas->state.uv_ox = 0.f;
+    _canvas->state.uv_oy = 0.f;
+    _canvas->state.uv_su = 1.f;
+    _canvas->state.uv_sv = 1.f;
+    _canvas->state.curve_quality = 32;
+    _canvas->state.curve_quality_inv = 1.f / 32.f;
+    _canvas->state.ellipse_quality = 64;
+    _canvas->state.ellipse_quality_inv = 1.f / 64.f;
 }
 //////////////////////////////////////////////////////////////////////////
 gp_result_t gp_canvas_create( gp_canvas_t ** _canvas, gp_malloc_t _malloc, gp_free_t _free, void * _ud )
@@ -63,89 +69,120 @@ gp_result_t gp_canvas_clear( gp_canvas_t * _canvas )
 //////////////////////////////////////////////////////////////////////////
 gp_result_t gp_set_line_width( gp_canvas_t * _canvas, float _width )
 {
-    _canvas->line_width = _width;
+    _canvas->state.line_width = _width;
 
     return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
 gp_result_t gp_get_line_width( gp_canvas_t * _canvas, float * _width )
 {
-    *_width = _canvas->line_width;
+    *_width = _canvas->state.line_width;
 
     return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
-gp_result_t gp_set_line_penumbra( gp_canvas_t * _canvas, float _penumbra )
+gp_result_t gp_set_penumbra( gp_canvas_t * _canvas, float _penumbra )
 {
-    if( _penumbra >= _canvas->line_width * 0.5f )
+    if( _penumbra >= _canvas->state.line_width * 0.5f )
     {
         return GP_FAILURE;
     }
 
-    _canvas->line_penumbra = _penumbra;
+    _canvas->state.penumbra = _penumbra;
 
     return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
-gp_result_t gp_get_line_penumbra( gp_canvas_t * _canvas, float * _penumbra )
+gp_result_t gp_get_penumbra( gp_canvas_t * _canvas, float * _penumbra )
 {
-    *_penumbra = _canvas->line_penumbra;
+    *_penumbra = _canvas->state.penumbra;
 
     return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
 gp_result_t gp_set_color( gp_canvas_t * _canvas, const gp_color_t * _color )
 {
-    _canvas->color = *_color;
+    _canvas->state.color = *_color;
 
     return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
 gp_result_t gp_get_color( gp_canvas_t * _canvas, gp_color_t * _color )
 {
-    *_color = _canvas->color;
+    *_color = _canvas->state.color;
+
+    return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
+gp_result_t gp_set_uv_offset( gp_canvas_t * _canvas, float _ox, float _oy, float _su, float _sv )
+{
+    _canvas->state.uv_ox = _ox;
+    _canvas->state.uv_oy = _oy;
+    _canvas->state.uv_su = _su;
+    _canvas->state.uv_sv = _sv;
+
+    return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
+gp_result_t gp_get_uv_offset( gp_canvas_t * _canvas, float * _ox, float * _oy, float * _su, float * _sv )
+{
+    *_ox = _canvas->state.uv_ox;
+    *_oy = _canvas->state.uv_oy;
+    *_su = _canvas->state.uv_su;
+    *_sv = _canvas->state.uv_sv;
 
     return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
 gp_result_t gp_set_curve_quality( gp_canvas_t * _canvas, gp_uint8_t _quality )
 {
-    _canvas->curve_quality = _quality;
+    _canvas->state.curve_quality = _quality;
 
     return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
 gp_result_t gp_get_curve_quality( gp_canvas_t * _canvas, gp_uint8_t * _quality )
 {
-    *_quality = _canvas->curve_quality;
+    *_quality = _canvas->state.curve_quality;
 
     return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
 gp_result_t gp_set_ellipse_quality( gp_canvas_t * _canvas, gp_uint8_t _quality )
 {
-    _canvas->ellipse_quality = _quality;
+    _canvas->state.ellipse_quality = (_quality + 3) / 4;
+    _canvas->state.ellipse_quality_inv = 1.f / (float)_canvas->state.ellipse_quality;
 
     return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
 gp_result_t gp_get_ellipse_quality( gp_canvas_t * _canvas, gp_uint8_t * _quality )
 {
-    *_quality = _canvas->ellipse_quality;
+    *_quality = _canvas->state.ellipse_quality;
 
     return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
 gp_result_t gp_begin_fill( gp_canvas_t * _canvas )
 {
-    _canvas->fill = GP_TRUE;
+    if( _canvas->state.fill == GP_TRUE )
+    {
+        return GP_FAILURE;
+    }
+
+    _canvas->state.fill = GP_TRUE;
 
     return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
 gp_result_t gp_end_fill( gp_canvas_t * _canvas )
 {
-    _canvas->fill = GP_FALSE;
+    if( _canvas->state.fill == GP_FALSE )
+    {
+        return GP_FAILURE;
+    }
+
+    _canvas->state.fill = GP_FALSE;
 
     return GP_SUCCESSFUL;
 }
@@ -166,7 +203,7 @@ gp_result_t gp_move_to( gp_canvas_t * _canvas, float _x, float _y )
     l->points = GP_NULLPTR;
     GP_LIST_PUSHBACK( gp_point_t, l->points, p );
     l->edges = GP_NULLPTR;
-    l->penumbra = _canvas->line_penumbra;
+    l->state = _canvas->state;
 
     GP_LIST_PUSHBACK( gp_line_t, _canvas->lines, l );
 
@@ -196,10 +233,6 @@ gp_result_t gp_line_to( gp_canvas_t * _canvas, float _x, float _y )
     e->prev = GP_NULLPTR;
 
     e->controls = 0;
-    e->quality = 2;
-    e->dt = 1.f;
-    e->line_width = _canvas->line_width;
-    e->line_color = _canvas->color;
 
     GP_LIST_PUSHBACK( gp_line_edge_t, l->edges, e );
 
@@ -225,10 +258,6 @@ gp_result_t gp_quadratic_curve_to( gp_canvas_t * _canvas, float _p0x, float _p0y
     e->controls = 1;
     e->p[0].x = _p0x;
     e->p[0].y = _p0y;
-    e->quality = _canvas->curve_quality;
-    e->dt = 1.f / (float)(_canvas->curve_quality - 1);
-    e->line_width = _canvas->line_width;
-    e->line_color = _canvas->color;
 
     GP_LIST_PUSHBACK( gp_line_edge_t, line_back->edges, e );
 
@@ -256,10 +285,6 @@ gp_result_t gp_bezier_curve_to( gp_canvas_t * _canvas, float _p0x, float _p0y, f
     e->p[0].y = _p0y;
     e->p[1].x = _p1x;
     e->p[1].y = _p1y;
-    e->quality = _canvas->curve_quality;
-    e->dt = 1.f / (float)(_canvas->curve_quality - 1);
-    e->line_width = _canvas->line_width;
-    e->line_color = _canvas->color;
 
     GP_LIST_PUSHBACK( gp_line_edge_t, line_back->edges, e );
 
@@ -276,10 +301,8 @@ gp_result_t gp_draw_rect( gp_canvas_t * _canvas, float _x, float _y, float _widt
     r->point.y = _y;
     r->width = _width;
     r->height = _height;
-    r->line_width = _canvas->line_width;
-    r->line_penumbra = _canvas->line_penumbra;
-    r->color = _canvas->color;
-    r->fill = _canvas->fill;
+
+    r->state = _canvas->state;
 
     GP_LIST_PUSHBACK( gp_rect_t, _canvas->rects, r );
 
@@ -297,12 +320,8 @@ gp_result_t gp_draw_rounded_rect( gp_canvas_t * _canvas, float _x, float _y, flo
     rr->width = _width;
     rr->height = _height;
     rr->radius = _radius;
-    rr->quality = (_canvas->ellipse_quality + 3) / 4;
-    rr->quality_inv = 1.f / (float)rr->quality;
-    rr->line_width = _canvas->line_width;
-    rr->line_penumbra = _canvas->line_penumbra;
-    rr->color = _canvas->color;
-    rr->fill = _canvas->fill;
+
+    rr->state = _canvas->state;
 
     GP_LIST_PUSHBACK( gp_rounded_rect_t, _canvas->rounded_rects, rr );
 
@@ -324,12 +343,8 @@ gp_result_t gp_draw_ellipse( gp_canvas_t * _canvas, float _x, float _y, float _w
     e->point.y = _y;
     e->width = _width;
     e->height = _height;
-    e->quality = _canvas->ellipse_quality;
-    e->quality_inv = 1.f / (float)e->quality;
-    e->line_width = _canvas->line_width;
-    e->line_penumbra = _canvas->line_penumbra;
-    e->color = _canvas->color;
-    e->fill = _canvas->fill;
+
+    e->state = _canvas->state;
 
     GP_LIST_PUSHBACK( gp_ellipse_t, _canvas->ellipses, e );
 

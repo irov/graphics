@@ -17,6 +17,27 @@ typedef struct gp_linef_t
     float c;
 } gp_linef_t;
 //////////////////////////////////////////////////////////////////////////
+typedef struct gp_state_t
+{
+    gp_bool_t fill;
+
+    float line_width;
+    float penumbra;
+
+    gp_color_t color;
+
+    float uv_ox;
+    float uv_oy;
+    float uv_su;
+    float uv_sv;
+
+    gp_uint8_t curve_quality;
+    gp_uint8_t ellipse_quality;
+
+    float curve_quality_inv;
+    float ellipse_quality_inv;
+} gp_state_t;
+//////////////////////////////////////////////////////////////////////////
 typedef struct gp_point_t
 {
     gp_vec2f_t p;
@@ -28,7 +49,6 @@ typedef struct gp_point_t
 typedef struct gp_line_points_t
 {
     gp_vec2f_t p;
-    float width;
     gp_uint32_t argb;
 } gp_line_points_t;
 //////////////////////////////////////////////////////////////////////////
@@ -36,12 +56,6 @@ typedef struct gp_line_edge_t
 {
     gp_uint32_t controls;
     gp_vec2f_t p[3];
-
-    gp_uint8_t quality;
-    float dt;
-
-    float line_width;
-    gp_color_t line_color;
 
     struct gp_line_edge_t * next;
     struct gp_line_edge_t * prev;
@@ -52,7 +66,7 @@ typedef struct gp_line_t
     gp_point_t * points;
     gp_line_edge_t * edges;
 
-    float penumbra;
+    gp_state_t state;
 
     struct gp_line_t * next;
     struct gp_line_t * prev;
@@ -64,11 +78,7 @@ typedef struct gp_rect_t
     float width;
     float height;
 
-    float line_width;
-    float line_penumbra;
-    gp_color_t color;
-
-    gp_bool_t fill;
+    gp_state_t state;
 
     struct gp_rect_t * next;
     struct gp_rect_t * prev;
@@ -81,14 +91,7 @@ typedef struct gp_rounded_rect_t
     float height;
     float radius;
 
-    gp_uint8_t quality;
-    float quality_inv;
-
-    float line_width;
-    float line_penumbra;
-    gp_color_t color;
-
-    gp_bool_t fill;
+    gp_state_t state;
 
     struct gp_rounded_rect_t * next;
     struct gp_rounded_rect_t * prev;
@@ -100,14 +103,7 @@ typedef struct gp_ellipse_t
     float width;
     float height;
 
-    gp_uint8_t quality;
-    float quality_inv;
-
-    float line_width;
-    float line_penumbra;
-    gp_color_t color;
-
-    gp_bool_t fill;
+    gp_state_t state;
 
     struct gp_ellipse_t * next;
     struct gp_ellipse_t * prev;
@@ -115,13 +111,7 @@ typedef struct gp_ellipse_t
 //////////////////////////////////////////////////////////////////////////
 typedef struct gp_canvas_t
 {
-    float line_width;
-    float line_penumbra;
-    gp_color_t color;
-    gp_bool_t fill;
-
-    gp_uint8_t curve_quality;
-    gp_uint8_t ellipse_quality;
+    gp_state_t state;
 
     gp_line_t * lines;
     gp_rect_t * rects;

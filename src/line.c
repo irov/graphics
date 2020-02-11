@@ -16,6 +16,8 @@ static gp_result_t __calculate_mesh_line_size( const gp_canvas_t * _canvas, gp_u
             continue;
         }
 
+        uint8_t curve_quality = l->state.curve_quality;
+
         gp_uint16_t point_count = 0;
 
         for( const gp_line_edge_t * e = l->edges; e != GP_NULLPTR; e = e->next )
@@ -26,10 +28,10 @@ static gp_result_t __calculate_mesh_line_size( const gp_canvas_t * _canvas, gp_u
                 point_count += 1;
                 break;
             case 1:
-                point_count += e->quality - 1;
+                point_count += curve_quality;
                 break;
             case 2:
-                point_count += e->quality - 1;
+                point_count += curve_quality;
                 break;
             default:
                 return GP_FAILURE;
@@ -38,7 +40,7 @@ static gp_result_t __calculate_mesh_line_size( const gp_canvas_t * _canvas, gp_u
 
         point_count += 1;
 
-        if( l->penumbra > 0.f )
+        if( l->state.penumbra > 0.f )
         {
             vertex_count += point_count * 4;
             index_count += (point_count - 1) * 18;
@@ -214,6 +216,11 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
             continue;
         }
 
+        float line_width = l->state.line_width;
+        float half_line_width = line_width * 0.5f;
+        uint8_t curve_quality = l->state.curve_quality;
+        float curve_quality_inv = l->state.curve_quality_inv;
+
         gp_line_points_t points[GP_LINE_POINTS_MAX];
         gp_uint16_t points_size = 0;
 
@@ -226,7 +233,7 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
             const gp_point_t * p1 = point_iterator;
 
             gp_color_t line_color;
-            gp_color_mul( &line_color, &_mesh->color, &e->line_color );
+            gp_color_mul( &line_color, &_mesh->color, &l->state.color );
             gp_uint32_t argb = gp_color_argb( &line_color );
 
             switch( e->controls )
@@ -235,7 +242,6 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
                 {
                     gp_line_points_t * p = points + points_size;
                     p->p = p0->p;
-                    p->width = e->line_width;
                     p->argb = argb;
 
                     ++points_size;
@@ -244,16 +250,15 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
                 {
                     float t = 0.f;
 
-                    for( gp_uint8_t index = 0; index != e->quality - 1; ++index )
+                    for( gp_uint8_t index = 0; index != curve_quality; ++index )
                     {
                         gp_vec2f_t bp;
                         __calculate_bezier_position( &bp, &p0->p, &p1->p, e->p, 1, t );
 
-                        t += e->dt;
+                        t += curve_quality_inv;
 
                         gp_line_points_t * p = points + points_size;
                         p->p = bp;
-                        p->width = e->line_width;
                         p->argb = argb;
 
                         ++points_size;
@@ -263,16 +268,15 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
                 {
                     float t = 0.f;
 
-                    for( gp_uint8_t index = 0; index != e->quality - 1; ++index )
+                    for( gp_uint8_t index = 0; index != curve_quality; ++index )
                     {
                         gp_vec2f_t bp;
                         __calculate_bezier_position( &bp, &p0->p, &p1->p, e->p, 2, t );
 
-                        t += e->dt;
+                        t += curve_quality_inv;
 
                         gp_line_points_t * p = points + points_size;
                         p->p = bp;
-                        p->width = e->line_width;
                         p->argb = argb;
 
                         ++points_size;
@@ -289,11 +293,8 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
             gp_line_points_t * p = points + points_size;
             p->p = p1->p;
 
-            gp_line_edge_t * edge_back = GP_LIST_BACK( l->edges );
-            p->width = edge_back->line_width;
-
             gp_color_t line_color;
-            gp_color_mul( &line_color, &_mesh->color, &edge_back->line_color );
+            gp_color_mul( &line_color, &_mesh->color, &l->state.color );
             gp_uint32_t argb = gp_color_argb( &line_color );
 
             p->argb = argb;
@@ -301,7 +302,7 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
             ++points_size;
         }
 
-        float penumbra = l->penumbra;
+        float penumbra = l->state.penumbra;
 
         if( penumbra > 0.f )
         {
@@ -354,7 +355,6 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
             gp_line_points_t * point0 = points + 0;
             gp_line_points_t * point1 = points + 1;
 
-            float width = point0->width;
             gp_uint32_t argb = point0->argb;
 
             const gp_vec2f_t * p0 = &point0->p;
@@ -363,14 +363,12 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
             gp_vec2f_t perp;
             __make_line_perp( &perp, p0, p1 );
 
-            float line_width = width * 0.5f;
-
             if( penumbra > 0.f )
             {
-                float line_width_soft = line_width - penumbra;
-                float uv_soft_offset = line_width_soft / line_width * 0.5f;
+                float line_width_soft = half_line_width - penumbra;
+                float uv_soft_offset = line_width_soft / half_line_width * 0.5f;
 
-                gp_mesh_position( _mesh, vertex_iterator + 0, p0->x - perp.x * line_width, p0->y - perp.y * line_width );
+                gp_mesh_position( _mesh, vertex_iterator + 0, p0->x - perp.x * half_line_width, p0->y - perp.y * half_line_width );
                 gp_mesh_color( _mesh, vertex_iterator + 0, argb & 0x00ffffff );
                 gp_mesh_uv( _mesh, vertex_iterator + 0, 0.f, 0.f );
 
@@ -382,7 +380,7 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
                 gp_mesh_color( _mesh, vertex_iterator + 2, argb );
                 gp_mesh_uv( _mesh, vertex_iterator + 2, 0.f, 0.5f + uv_soft_offset );
 
-                gp_mesh_position( _mesh, vertex_iterator + 3, p0->x + perp.x * line_width, p0->y + perp.y * line_width );
+                gp_mesh_position( _mesh, vertex_iterator + 3, p0->x + perp.x * half_line_width, p0->y + perp.y * half_line_width );
                 gp_mesh_color( _mesh, vertex_iterator + 3, argb & 0x00ffffff );
                 gp_mesh_uv( _mesh, vertex_iterator + 2, 0.f, 1.f );
 
@@ -390,11 +388,11 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
             }
             else
             {
-                gp_mesh_position( _mesh, vertex_iterator + 0, p0->x - perp.x * line_width, p0->y - perp.y * line_width );
+                gp_mesh_position( _mesh, vertex_iterator + 0, p0->x - perp.x * half_line_width, p0->y - perp.y * half_line_width );
                 gp_mesh_color( _mesh, vertex_iterator + 0, argb );
                 gp_mesh_uv( _mesh, vertex_iterator + 0, 0.f, 0.f );
 
-                gp_mesh_position( _mesh, vertex_iterator + 1, p0->x + perp.x * line_width, p0->y + perp.y * line_width );
+                gp_mesh_position( _mesh, vertex_iterator + 1, p0->x + perp.x * half_line_width, p0->y + perp.y * half_line_width );
                 gp_mesh_color( _mesh, vertex_iterator + 1, argb );
                 gp_mesh_uv( _mesh, vertex_iterator + 1, 0.f, 1.f );
 
@@ -404,14 +402,11 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
 
         for( gp_uint16_t index = 1; index != points_size - 1; ++index )
         {
-            float width = points[index + 0].width;
             gp_uint32_t argb = points[index + 0].argb;
 
             const gp_vec2f_t * p0 = &points[index - 1].p;
             const gp_vec2f_t * p1 = &points[index + 0].p;
             const gp_vec2f_t * p2 = &points[index + 1].p;
-
-            float line_width = width * 0.5f;
 
             gp_vec2f_t perp01;
             __make_line_perp( &perp01, p0, p1 );
@@ -420,23 +415,23 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
             __make_line_perp( &perp12, p1, p2 );
 
             gp_vec2f_t linep00;
-            linep00.x = p0->x - perp01.x * line_width;
-            linep00.y = p0->y - perp01.y * line_width;
+            linep00.x = p0->x - perp01.x * half_line_width;
+            linep00.y = p0->y - perp01.y * half_line_width;
 
             gp_vec2f_t linep01;
-            linep01.x = p1->x - perp01.x * line_width;
-            linep01.y = p1->y - perp01.y * line_width;
+            linep01.x = p1->x - perp01.x * half_line_width;
+            linep01.y = p1->y - perp01.y * half_line_width;
 
             gp_linef_t line01l;
             __make_line_from_two_point_v2( &line01l, &linep00, &linep01 );
 
             gp_vec2f_t linep10;
-            linep10.x = p1->x - perp12.x * line_width;
-            linep10.y = p1->y - perp12.y * line_width;
+            linep10.x = p1->x - perp12.x * half_line_width;
+            linep10.y = p1->y - perp12.y * half_line_width;
 
             gp_vec2f_t linep11;
-            linep11.x = p2->x - perp12.x * line_width;
-            linep11.y = p2->y - perp12.y * line_width;
+            linep11.x = p2->x - perp12.x * half_line_width;
+            linep11.y = p2->y - perp12.y * half_line_width;
 
             gp_linef_t line12l;
             __make_line_from_two_point_v2( &line12l, &linep10, &linep11 );
@@ -444,28 +439,28 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
             gp_vec2f_t pl;
             if( __intersect_line( &line01l, &line12l, &pl ) == GP_FALSE )
             {
-                pl.x = p1->x - perp01.x * line_width;
-                pl.y = p1->y - perp01.y * line_width;
+                pl.x = p1->x - perp01.x * half_line_width;
+                pl.y = p1->y - perp01.y * half_line_width;
             }
 
             gp_vec2f_t linep20;
-            linep20.x = p0->x + perp01.x * line_width;
-            linep20.y = p0->y + perp01.y * line_width;
+            linep20.x = p0->x + perp01.x * half_line_width;
+            linep20.y = p0->y + perp01.y * half_line_width;
 
             gp_vec2f_t linep21;
-            linep21.x = p1->x + perp01.x * line_width;
-            linep21.y = p1->y + perp01.y * line_width;
+            linep21.x = p1->x + perp01.x * half_line_width;
+            linep21.y = p1->y + perp01.y * half_line_width;
 
             gp_linef_t line01r;
             __make_line_from_two_point_v2( &line01r, &linep20, &linep21 );
 
             gp_vec2f_t linep30;
-            linep30.x = p1->x + perp12.x * line_width;
-            linep30.y = p1->y + perp12.y * line_width;
+            linep30.x = p1->x + perp12.x * half_line_width;
+            linep30.y = p1->y + perp12.y * half_line_width;
 
             gp_vec2f_t linep31;
-            linep31.x = p2->x + perp12.x * line_width;
-            linep31.y = p2->y + perp12.y * line_width;
+            linep31.x = p2->x + perp12.x * half_line_width;
+            linep31.y = p2->y + perp12.y * half_line_width;
 
             gp_linef_t line12r;
             __make_line_from_two_point_v2( &line12r, &linep30, &linep31 );
@@ -473,14 +468,14 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
             gp_vec2f_t pr;
             if( __intersect_line( &line01r, &line12r, &pr ) == GP_FALSE )
             {
-                pr.x = p1->x + perp01.x * line_width;
-                pr.y = p1->y + perp01.y * line_width;
+                pr.x = p1->x + perp01.x * half_line_width;
+                pr.y = p1->y + perp01.y * half_line_width;
             }
 
             if( penumbra > 0.f )
             {
-                float line_width_soft = line_width - penumbra;
-                float uv_soft_offset = line_width_soft / line_width * 0.5f;
+                float line_width_soft = half_line_width - penumbra;
+                float uv_soft_offset = line_width_soft / half_line_width * 0.5f;
 
                 gp_vec2f_t linep40;
                 linep40.x = p0->x - perp01.x * line_width_soft;
@@ -573,7 +568,6 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
         }
 
         {
-            float width = points[points_size - 2].width;
             gp_uint32_t argb = points[points_size - 2].argb;
 
             const gp_vec2f_t * p0 = &points[points_size - 2].p;
@@ -582,14 +576,12 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
             gp_vec2f_t perp;
             __make_line_perp( &perp, p0, p1 );
 
-            float line_width = width * 0.5f;
-
             if( penumbra > 0.f )
             {
-                float line_width_soft = line_width - penumbra;
-                float uv_soft_offset = line_width_soft / line_width * 0.5f;
+                float line_width_soft = half_line_width - penumbra;
+                float uv_soft_offset = line_width_soft / half_line_width * 0.5f;
 
-                gp_mesh_position( _mesh, vertex_iterator + 0, p1->x - perp.x * line_width, p1->y - perp.y * line_width );
+                gp_mesh_position( _mesh, vertex_iterator + 0, p1->x - perp.x * half_line_width, p1->y - perp.y * half_line_width );
                 gp_mesh_color( _mesh, vertex_iterator + 0, argb & 0x00ffffff );
                 gp_mesh_uv( _mesh, vertex_iterator + 0, 1.f, 0.f );
 
@@ -601,7 +593,7 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
                 gp_mesh_color( _mesh, vertex_iterator + 2, argb );
                 gp_mesh_uv( _mesh, vertex_iterator + 2, 1.f, 0.5f + uv_soft_offset );
 
-                gp_mesh_position( _mesh, vertex_iterator + 3, p1->x + perp.x * line_width, p1->y + perp.y * line_width );
+                gp_mesh_position( _mesh, vertex_iterator + 3, p1->x + perp.x * half_line_width, p1->y + perp.y * half_line_width );
                 gp_mesh_color( _mesh, vertex_iterator + 3, argb & 0x00ffffff );
                 gp_mesh_uv( _mesh, vertex_iterator + 3, 1.f, 1.f );
 
@@ -609,11 +601,11 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
             }
             else
             {
-                gp_mesh_position( _mesh, vertex_iterator + 0, p1->x - perp.x * line_width, p1->y - perp.y * line_width );
+                gp_mesh_position( _mesh, vertex_iterator + 0, p1->x - perp.x * half_line_width, p1->y - perp.y * half_line_width );
                 gp_mesh_color( _mesh, vertex_iterator + 0, argb );
                 gp_mesh_uv( _mesh, vertex_iterator + 0, 1.f, 0.f );
 
-                gp_mesh_position( _mesh, vertex_iterator + 1, p1->x + perp.x * line_width, p1->y + perp.y * line_width );
+                gp_mesh_position( _mesh, vertex_iterator + 1, p1->x + perp.x * half_line_width, p1->y + perp.y * half_line_width );
                 gp_mesh_color( _mesh, vertex_iterator + 1, argb );
                 gp_mesh_uv( _mesh, vertex_iterator + 1, 1.f, 1.f );
 
@@ -642,7 +634,7 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
     }
 #endif
 
-    *_vertex_iterator = vertex_iterator;
+    * _vertex_iterator = vertex_iterator;
     *_index_iterator = index_iterator;
 
     return GP_SUCCESSFUL;

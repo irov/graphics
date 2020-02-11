@@ -11,9 +11,9 @@ static gp_result_t __calculate_mesh_rect_size( const gp_canvas_t * _canvas, gp_u
 
     for( const gp_rect_t * r = _canvas->rects; r != GP_NULLPTR; r = r->next )
     {
-        if( r->fill == GP_FALSE )
+        if( r->state.fill == GP_FALSE )
         {
-            if( r->line_penumbra > 0.f )
+            if( r->state.penumbra > 0.f )
             {
                 vertex_count += 16;
                 index_count += 72;
@@ -26,7 +26,7 @@ static gp_result_t __calculate_mesh_rect_size( const gp_canvas_t * _canvas, gp_u
         }
         else
         {
-            if( r->line_penumbra > 0.f )
+            if( r->state.penumbra > 0.f )
             {
                 vertex_count += 12;
                 index_count += 48 + 6;
@@ -69,7 +69,7 @@ gp_result_t gp_render_rect( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
     for( const gp_rect_t * r = _canvas->rects; r != GP_NULLPTR; r = r->next )
     {
         gp_color_t line_color;
-        gp_color_mul( &line_color, &_mesh->color, &r->color );
+        gp_color_mul( &line_color, &_mesh->color, &r->state.color );
         gp_uint32_t argb = gp_color_argb( &line_color );
 
         gp_vec2f_t p0;
@@ -88,12 +88,13 @@ gp_result_t gp_render_rect( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
         p3.x = r->point.x + 0.f;
         p3.y = r->point.y + r->height;
 
-        float half_width = r->line_width * 0.5f;
-        float half_width_soft = half_width - r->line_penumbra;
+        float penumbra = r->state.penumbra;
+        float half_width = r->state.line_width * 0.5f;
+        float half_width_soft = half_width - penumbra;
 
-        if( r->fill == GP_FALSE )
+        if( r->state.fill == GP_FALSE )
         {
-            if( r->line_penumbra > 0.f )
+            if( penumbra > 0.f )
             {
                 for( gp_uint16_t index = 0; index != 4; ++index )
                 {
@@ -230,7 +231,7 @@ gp_result_t gp_render_rect( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
         }
         else
         {
-            if( r->line_penumbra > 0.f )
+            if( penumbra > 0.f )
             {
                 for( gp_uint16_t index = 0; index != 4; ++index )
                 {
@@ -384,7 +385,7 @@ gp_result_t gp_render_rect( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
     }
 #endif
 
-    *_vertex_iterator = vertex_iterator;
+    * _vertex_iterator = vertex_iterator;
     *_index_iterator = index_iterator;
 
     return GP_SUCCESSFUL;

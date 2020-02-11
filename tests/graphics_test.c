@@ -237,7 +237,7 @@ static void __draw_figure( gp_canvas_t * _canvas, float _dx, float _dy )
     gp_move_to( _canvas, _dx + 0.f, _dy + 0.f );
     gp_quadratic_curve_to( _canvas, _dx + 50.f, _dy + 100.f, _dx + 100.f, _dy + 100.f );
     gp_bezier_curve_to( _canvas, _dx + 125.f, _dy + 175.f, _dx + 175.f, _dy + 150.f, _dx + 200.f, _dy );
-    gp_line_to( _canvas, _dx + 250.f, _dy + 100.f ); 
+    gp_line_to( _canvas, _dx + 250.f, _dy + 100.f );
 
     //gp_draw_rect( _canvas, _dx + 275.f, _dy + 0.f, 100.f, 50.f );
     //gp_draw_rounded_rect( _canvas, _dx + 275.f, _dy + 75.f, 100.f, 50.f, 10.f );
@@ -290,7 +290,7 @@ int main( int argc, char ** argv )
     gp_canvas_create( &canvas, &gp_malloc, &gp_free, 0 );
 
     gp_set_line_width( canvas, 50.f );
-    gp_set_line_penumbra( canvas, 0.f );
+    gp_set_penumbra( canvas, 0.f );
 
     gp_color_t fill_color;
     fill_color.r = 0.7f;
@@ -308,7 +308,7 @@ int main( int argc, char ** argv )
 
     __draw_figure( canvas, 100.f, 400.f );
 
-    gp_set_line_penumbra( canvas, 2.f );
+    gp_set_penumbra( canvas, 2.f );
 
     gp_begin_fill( canvas );
 
@@ -321,7 +321,7 @@ int main( int argc, char ** argv )
     GLuint shaderColorProgram = __make_program( vertexShaderColorSource, fragmentShaderColorSource );
     GLuint shaderTextureProgram = __make_program( vertexShaderTextureSource, fragmentShaderTextureSource );
 
-    
+
     //glUseProgram( shaderColorProgram );
     glUseProgram( shaderTextureProgram );
 
@@ -359,11 +359,11 @@ int main( int argc, char ** argv )
     GLuint VAO;
     glGenVertexArrays( 1, &VAO );
     glBindVertexArray( VAO );
-    
+
     GLuint VBO;
     glGenBuffers( 1, &VBO );
 
-    
+
     glBindBuffer( GL_ARRAY_BUFFER, VBO );
 
     glEnableVertexAttribArray( 0 );

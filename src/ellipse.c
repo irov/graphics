@@ -11,23 +11,24 @@ static gp_result_t __calculate_mesh_ellipse_size( const gp_canvas_t * _canvas, g
 
     for( const gp_ellipse_t * e = _canvas->ellipses; e != GP_NULLPTR; e = e->next )
     {
-        if( e->line_penumbra > 0.f )
+        uint8_t ellipse_quality = e->state.ellipse_quality;
+
+        if( e->state.penumbra > 0.f )
         {
-            vertex_count += e->quality * 4;
-            index_count += e->quality * 18;
+            vertex_count += ellipse_quality * 4;
+            index_count += ellipse_quality * 18;
         }
         else
         {
-            vertex_count += e->quality * 2;
-            index_count += e->quality * 6;
+            vertex_count += ellipse_quality * 2;
+            index_count += ellipse_quality * 6;
         }
 
-        if( e->fill == GP_TRUE )
+        if( e->state.fill == GP_TRUE )
         {
             vertex_count += 1;
-            vertex_count += e->quality;
-
-            index_count += e->quality * 3;
+            vertex_count += ellipse_quality;
+            index_count += ellipse_quality * 3;
         }
     }
 
@@ -61,11 +62,11 @@ gp_result_t gp_render_ellipse( const gp_canvas_t * _canvas, const gp_mesh_t * _m
     for( const gp_ellipse_t * e = _canvas->ellipses; e != GP_NULLPTR; e = e->next )
     {
         gp_color_t total_color;
-        gp_color_mul( &total_color, &_mesh->color, &e->color );
+        gp_color_mul( &total_color, &_mesh->color, &e->state.color );
         gp_uint32_t argb = gp_color_argb( &total_color );
 
-        gp_uint8_t quality = e->quality;
-        float line_penumbra = e->line_penumbra;
+        gp_uint8_t quality = e->state.ellipse_quality;
+        float line_penumbra = e->state.penumbra;
 
         if( line_penumbra > 0.f )
         {
@@ -118,11 +119,12 @@ gp_result_t gp_render_ellipse( const gp_canvas_t * _canvas, const gp_mesh_t * _m
             }
         }
 
-        float line_width = e->line_width;
+        float line_width = e->state.line_width;
+        float half_line_width = line_width * 0.5f;
 
-        float line_half_width = line_width * 0.5f;
+        float ellipse_quality_inv = e->state.ellipse_quality_inv;
 
-        float dt = gp_constant_two_pi * e->quality_inv;
+        float dt = gp_constant_two_pi * ellipse_quality_inv;
 
         float t = 0.f;
 
@@ -131,15 +133,15 @@ gp_result_t gp_render_ellipse( const gp_canvas_t * _canvas, const gp_mesh_t * _m
             float ct = GP_MATH_COSF( t );
             float st = GP_MATH_SINF( t );
 
-            float x0 = e->point.x + (e->width + line_half_width) * ct;
-            float y0 = e->point.y + (e->height + line_half_width) * st;
+            float x0 = e->point.x + (e->width + half_line_width) * ct;
+            float y0 = e->point.y + (e->height + half_line_width) * st;
 
-            float x1 = e->point.x + (e->width - line_half_width) * ct;
-            float y1 = e->point.y + (e->height - line_half_width) * st;
+            float x1 = e->point.x + (e->width - half_line_width) * ct;
+            float y1 = e->point.y + (e->height - half_line_width) * st;
 
             if( line_penumbra > 0.f )
             {
-                float line_width_soft = line_half_width - line_penumbra;
+                float line_width_soft = half_line_width - line_penumbra;
 
                 float x0_soft = e->point.x + (e->width + line_width_soft) * ct;
                 float y0_soft = e->point.y + (e->height + line_width_soft) * st;
@@ -173,7 +175,7 @@ gp_result_t gp_render_ellipse( const gp_canvas_t * _canvas, const gp_mesh_t * _m
             }
         }
 
-        if( e->fill == GP_TRUE )
+        if( e->state.fill == GP_TRUE )
         {
             for( gp_uint16_t index = 0; index != quality; ++index )
             {
@@ -227,7 +229,7 @@ gp_result_t gp_render_ellipse( const gp_canvas_t * _canvas, const gp_mesh_t * _m
     }
 #endif
 
-    *_vertex_iterator = vertex_iterator;
+    * _vertex_iterator = vertex_iterator;
     *_index_iterator = index_iterator;
 
     return GP_SUCCESSFUL;

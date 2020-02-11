@@ -11,17 +11,19 @@ static gp_result_t __calculate_mesh_rounded_rect_size( const gp_canvas_t * _canv
 
     for( const gp_rounded_rect_t * r = _canvas->rounded_rects; r != GP_NULLPTR; r = r->next )
     {
-        if( r->fill == GP_FALSE )
+        gp_uint8_t ellipse_quality = r->state.ellipse_quality;
+
+        if( r->state.fill == GP_FALSE )
         {
-            if( r->line_penumbra > 0.f )
+            if( r->state.penumbra > 0.f )
             {
                 vertex_count += 32;
                 index_count += 72;
 
                 for( gp_uint32_t index = 0; index != 4; ++index )
                 {
-                    vertex_count += (r->quality - 1) * 4;
-                    index_count += r->quality * 6 * 3;
+                    vertex_count += (ellipse_quality - 1) * 4;
+                    index_count += ellipse_quality * 6 * 3;
                 }
             }
             else
@@ -31,23 +33,23 @@ static gp_result_t __calculate_mesh_rounded_rect_size( const gp_canvas_t * _canv
 
                 for( gp_uint32_t index = 0; index != 4; ++index )
                 {
-                    vertex_count += (r->quality - 1) * 2;
-                    index_count += r->quality * 6;
+                    vertex_count += (ellipse_quality - 1) * 2;
+                    index_count += ellipse_quality * 6;
                 }
             }
         }
         else
         {
-            if( r->line_penumbra > 0.f )
+            if( r->state.penumbra > 0.f )
             {
                 vertex_count += 16 + 4;
                 index_count += 6 + 48;
 
                 for( gp_uint32_t index = 0; index != 4; ++index )
                 {
-                    vertex_count += (r->quality - 1) * 2;
-                    index_count += r->quality * 6;
-                    index_count += r->quality * 3;
+                    vertex_count += (ellipse_quality - 1) * 2;
+                    index_count += ellipse_quality * 6;
+                    index_count += ellipse_quality * 3;
                 }
             }
             else
@@ -57,8 +59,8 @@ static gp_result_t __calculate_mesh_rounded_rect_size( const gp_canvas_t * _canv
 
                 for( gp_uint32_t index = 0; index != 4; ++index )
                 {
-                    vertex_count += (r->quality - 1);
-                    index_count += r->quality * 3;
+                    vertex_count += (ellipse_quality - 1);
+                    index_count += ellipse_quality * 3;
                 }
             }
         }
@@ -94,7 +96,7 @@ gp_result_t gp_render_rounded_rect( const gp_canvas_t * _canvas, const gp_mesh_t
     for( const gp_rounded_rect_t * rr = _canvas->rounded_rects; rr != GP_NULLPTR; rr = rr->next )
     {
         gp_color_t line_color;
-        gp_color_mul( &line_color, &_mesh->color, &rr->color );
+        gp_color_mul( &line_color, &_mesh->color, &rr->state.color );
         gp_uint32_t argb = gp_color_argb( &line_color );
 
         gp_vec2f_t p0;
@@ -113,18 +115,19 @@ gp_result_t gp_render_rounded_rect( const gp_canvas_t * _canvas, const gp_mesh_t
         p3.x = rr->point.x + 0.f;
         p3.y = rr->point.y + rr->height;
 
-        float line_width = rr->line_width;
+        float line_width = rr->state.line_width;
         float line_half_width = line_width * 0.5f;
         float radius = rr->radius;
-        float line_penumbra = rr->line_penumbra;
+        float line_penumbra = rr->state.penumbra;
 
-        gp_uint8_t quality = rr->quality;
+        gp_uint8_t ellipse_quality = rr->state.ellipse_quality;
+        float ellipse_quality_inv = rr->state.ellipse_quality_inv;
 
-        float dt = gp_constant_half_pi * rr->quality_inv;
+        float dt = gp_constant_half_pi * ellipse_quality_inv;
 
         gp_uint16_t base_vertex_iterator = vertex_iterator;
 
-        if( rr->fill == GP_FALSE )
+        if( rr->state.fill == GP_FALSE )
         {
             if( line_penumbra > 0.f )
             {
@@ -275,91 +278,91 @@ gp_result_t gp_render_rounded_rect( const gp_canvas_t * _canvas, const gp_mesh_t
                 for( gp_uint16_t index_arc = 0; index_arc != 4; ++index_arc )
                 {
                     gp_mesh_index( _mesh, index_iterator + 0, base_vertex_iterator + (0 + 8 * index_arc) % 32 );
-                    gp_mesh_index( _mesh, index_iterator + 1, vertex_iterator + index_arc * (quality - 1) * 4 + 0 );
+                    gp_mesh_index( _mesh, index_iterator + 1, vertex_iterator + index_arc * (ellipse_quality - 1) * 4 + 0 );
                     gp_mesh_index( _mesh, index_iterator + 2, base_vertex_iterator + (1 + 8 * index_arc) % 32 );
                     gp_mesh_index( _mesh, index_iterator + 3, base_vertex_iterator + (1 + 8 * index_arc) % 32 );
-                    gp_mesh_index( _mesh, index_iterator + 4, vertex_iterator + index_arc * (quality - 1) * 4 + 0 );
-                    gp_mesh_index( _mesh, index_iterator + 5, vertex_iterator + index_arc * (quality - 1) * 4 + 1 );
+                    gp_mesh_index( _mesh, index_iterator + 4, vertex_iterator + index_arc * (ellipse_quality - 1) * 4 + 0 );
+                    gp_mesh_index( _mesh, index_iterator + 5, vertex_iterator + index_arc * (ellipse_quality - 1) * 4 + 1 );
 
                     index_iterator += 6;
 
                     gp_mesh_index( _mesh, index_iterator + 0, base_vertex_iterator + (1 + 8 * index_arc) % 32 );
-                    gp_mesh_index( _mesh, index_iterator + 1, vertex_iterator + index_arc * (quality - 1) * 4 + 1 );
+                    gp_mesh_index( _mesh, index_iterator + 1, vertex_iterator + index_arc * (ellipse_quality - 1) * 4 + 1 );
                     gp_mesh_index( _mesh, index_iterator + 2, base_vertex_iterator + (2 + 8 * index_arc) % 32 );
                     gp_mesh_index( _mesh, index_iterator + 3, base_vertex_iterator + (2 + 8 * index_arc) % 32 );
-                    gp_mesh_index( _mesh, index_iterator + 4, vertex_iterator + index_arc * (quality - 1) * 4 + 1 );
-                    gp_mesh_index( _mesh, index_iterator + 5, vertex_iterator + index_arc * (quality - 1) * 4 + 2 );
+                    gp_mesh_index( _mesh, index_iterator + 4, vertex_iterator + index_arc * (ellipse_quality - 1) * 4 + 1 );
+                    gp_mesh_index( _mesh, index_iterator + 5, vertex_iterator + index_arc * (ellipse_quality - 1) * 4 + 2 );
 
                     index_iterator += 6;
 
                     gp_mesh_index( _mesh, index_iterator + 0, base_vertex_iterator + (2 + 8 * index_arc) % 32 );
-                    gp_mesh_index( _mesh, index_iterator + 1, vertex_iterator + index_arc * (quality - 1) * 4 + 2 );
+                    gp_mesh_index( _mesh, index_iterator + 1, vertex_iterator + index_arc * (ellipse_quality - 1) * 4 + 2 );
                     gp_mesh_index( _mesh, index_iterator + 2, base_vertex_iterator + (3 + 8 * index_arc) % 32 );
                     gp_mesh_index( _mesh, index_iterator + 3, base_vertex_iterator + (3 + 8 * index_arc) % 32 );
-                    gp_mesh_index( _mesh, index_iterator + 4, vertex_iterator + index_arc * (quality - 1) * 4 + 2 );
-                    gp_mesh_index( _mesh, index_iterator + 5, vertex_iterator + index_arc * (quality - 1) * 4 + 3 );
+                    gp_mesh_index( _mesh, index_iterator + 4, vertex_iterator + index_arc * (ellipse_quality - 1) * 4 + 2 );
+                    gp_mesh_index( _mesh, index_iterator + 5, vertex_iterator + index_arc * (ellipse_quality - 1) * 4 + 3 );
 
                     index_iterator += 6;
 
-                    for( gp_uint16_t index = 0; index != quality - 2; ++index )
+                    for( gp_uint16_t index = 0; index != ellipse_quality - 2; ++index )
                     {
-                        gp_mesh_index( _mesh, index_iterator + 0, vertex_iterator + index_arc * (quality - 1) * 4 + (index * 4 + 0) );
-                        gp_mesh_index( _mesh, index_iterator + 1, vertex_iterator + index_arc * (quality - 1) * 4 + (index * 4 + 1) );
-                        gp_mesh_index( _mesh, index_iterator + 2, vertex_iterator + index_arc * (quality - 1) * 4 + (index * 4 + 4) );
-                        gp_mesh_index( _mesh, index_iterator + 3, vertex_iterator + index_arc * (quality - 1) * 4 + (index * 4 + 4) );
-                        gp_mesh_index( _mesh, index_iterator + 4, vertex_iterator + index_arc * (quality - 1) * 4 + (index * 4 + 1) );
-                        gp_mesh_index( _mesh, index_iterator + 5, vertex_iterator + index_arc * (quality - 1) * 4 + (index * 4 + 5) );
+                        gp_mesh_index( _mesh, index_iterator + 0, vertex_iterator + index_arc * (ellipse_quality - 1) * 4 + (index * 4 + 0) );
+                        gp_mesh_index( _mesh, index_iterator + 1, vertex_iterator + index_arc * (ellipse_quality - 1) * 4 + (index * 4 + 1) );
+                        gp_mesh_index( _mesh, index_iterator + 2, vertex_iterator + index_arc * (ellipse_quality - 1) * 4 + (index * 4 + 4) );
+                        gp_mesh_index( _mesh, index_iterator + 3, vertex_iterator + index_arc * (ellipse_quality - 1) * 4 + (index * 4 + 4) );
+                        gp_mesh_index( _mesh, index_iterator + 4, vertex_iterator + index_arc * (ellipse_quality - 1) * 4 + (index * 4 + 1) );
+                        gp_mesh_index( _mesh, index_iterator + 5, vertex_iterator + index_arc * (ellipse_quality - 1) * 4 + (index * 4 + 5) );
 
                         index_iterator += 6;
 
-                        gp_mesh_index( _mesh, index_iterator + 0, vertex_iterator + index_arc * (quality - 1) * 4 + (index * 4 + 1) );
-                        gp_mesh_index( _mesh, index_iterator + 1, vertex_iterator + index_arc * (quality - 1) * 4 + (index * 4 + 2) );
-                        gp_mesh_index( _mesh, index_iterator + 2, vertex_iterator + index_arc * (quality - 1) * 4 + (index * 4 + 5) );
-                        gp_mesh_index( _mesh, index_iterator + 3, vertex_iterator + index_arc * (quality - 1) * 4 + (index * 4 + 5) );
-                        gp_mesh_index( _mesh, index_iterator + 4, vertex_iterator + index_arc * (quality - 1) * 4 + (index * 4 + 2) );
-                        gp_mesh_index( _mesh, index_iterator + 5, vertex_iterator + index_arc * (quality - 1) * 4 + (index * 4 + 6) );
+                        gp_mesh_index( _mesh, index_iterator + 0, vertex_iterator + index_arc * (ellipse_quality - 1) * 4 + (index * 4 + 1) );
+                        gp_mesh_index( _mesh, index_iterator + 1, vertex_iterator + index_arc * (ellipse_quality - 1) * 4 + (index * 4 + 2) );
+                        gp_mesh_index( _mesh, index_iterator + 2, vertex_iterator + index_arc * (ellipse_quality - 1) * 4 + (index * 4 + 5) );
+                        gp_mesh_index( _mesh, index_iterator + 3, vertex_iterator + index_arc * (ellipse_quality - 1) * 4 + (index * 4 + 5) );
+                        gp_mesh_index( _mesh, index_iterator + 4, vertex_iterator + index_arc * (ellipse_quality - 1) * 4 + (index * 4 + 2) );
+                        gp_mesh_index( _mesh, index_iterator + 5, vertex_iterator + index_arc * (ellipse_quality - 1) * 4 + (index * 4 + 6) );
 
                         index_iterator += 6;
 
-                        gp_mesh_index( _mesh, index_iterator + 0, vertex_iterator + index_arc * (quality - 1) * 4 + (index * 4 + 2) );
-                        gp_mesh_index( _mesh, index_iterator + 1, vertex_iterator + index_arc * (quality - 1) * 4 + (index * 4 + 3) );
-                        gp_mesh_index( _mesh, index_iterator + 2, vertex_iterator + index_arc * (quality - 1) * 4 + (index * 4 + 6) );
-                        gp_mesh_index( _mesh, index_iterator + 3, vertex_iterator + index_arc * (quality - 1) * 4 + (index * 4 + 6) );
-                        gp_mesh_index( _mesh, index_iterator + 4, vertex_iterator + index_arc * (quality - 1) * 4 + (index * 4 + 3) );
-                        gp_mesh_index( _mesh, index_iterator + 5, vertex_iterator + index_arc * (quality - 1) * 4 + (index * 4 + 7) );
+                        gp_mesh_index( _mesh, index_iterator + 0, vertex_iterator + index_arc * (ellipse_quality - 1) * 4 + (index * 4 + 2) );
+                        gp_mesh_index( _mesh, index_iterator + 1, vertex_iterator + index_arc * (ellipse_quality - 1) * 4 + (index * 4 + 3) );
+                        gp_mesh_index( _mesh, index_iterator + 2, vertex_iterator + index_arc * (ellipse_quality - 1) * 4 + (index * 4 + 6) );
+                        gp_mesh_index( _mesh, index_iterator + 3, vertex_iterator + index_arc * (ellipse_quality - 1) * 4 + (index * 4 + 6) );
+                        gp_mesh_index( _mesh, index_iterator + 4, vertex_iterator + index_arc * (ellipse_quality - 1) * 4 + (index * 4 + 3) );
+                        gp_mesh_index( _mesh, index_iterator + 5, vertex_iterator + index_arc * (ellipse_quality - 1) * 4 + (index * 4 + 7) );
 
                         index_iterator += 6;
                     }
 
-                    gp_mesh_index( _mesh, index_iterator + 0, vertex_iterator + index_arc * (quality - 1) * 4 + (quality - 2) * 4 + 0 );
-                    gp_mesh_index( _mesh, index_iterator + 1, vertex_iterator + index_arc * (quality - 1) * 4 + (quality - 2) * 4 + 1 );
+                    gp_mesh_index( _mesh, index_iterator + 0, vertex_iterator + index_arc * (ellipse_quality - 1) * 4 + (ellipse_quality - 2) * 4 + 0 );
+                    gp_mesh_index( _mesh, index_iterator + 1, vertex_iterator + index_arc * (ellipse_quality - 1) * 4 + (ellipse_quality - 2) * 4 + 1 );
                     gp_mesh_index( _mesh, index_iterator + 2, base_vertex_iterator + (28 + 8 * index_arc) % 32 );
                     gp_mesh_index( _mesh, index_iterator + 3, base_vertex_iterator + (28 + 8 * index_arc) % 32 );
-                    gp_mesh_index( _mesh, index_iterator + 4, vertex_iterator + index_arc * (quality - 1) * 4 + (quality - 2) * 4 + 1 );
+                    gp_mesh_index( _mesh, index_iterator + 4, vertex_iterator + index_arc * (ellipse_quality - 1) * 4 + (ellipse_quality - 2) * 4 + 1 );
                     gp_mesh_index( _mesh, index_iterator + 5, base_vertex_iterator + (29 + 8 * index_arc) % 32 );
 
                     index_iterator += 6;
 
-                    gp_mesh_index( _mesh, index_iterator + 0, vertex_iterator + index_arc * (quality - 1) * 4 + (quality - 2) * 4 + 1 );
-                    gp_mesh_index( _mesh, index_iterator + 1, vertex_iterator + index_arc * (quality - 1) * 4 + (quality - 2) * 4 + 2 );
+                    gp_mesh_index( _mesh, index_iterator + 0, vertex_iterator + index_arc * (ellipse_quality - 1) * 4 + (ellipse_quality - 2) * 4 + 1 );
+                    gp_mesh_index( _mesh, index_iterator + 1, vertex_iterator + index_arc * (ellipse_quality - 1) * 4 + (ellipse_quality - 2) * 4 + 2 );
                     gp_mesh_index( _mesh, index_iterator + 2, base_vertex_iterator + (29 + 8 * index_arc) % 32 );
                     gp_mesh_index( _mesh, index_iterator + 3, base_vertex_iterator + (29 + 8 * index_arc) % 32 );
-                    gp_mesh_index( _mesh, index_iterator + 4, vertex_iterator + index_arc * (quality - 1) * 4 + (quality - 2) * 4 + 2 );
+                    gp_mesh_index( _mesh, index_iterator + 4, vertex_iterator + index_arc * (ellipse_quality - 1) * 4 + (ellipse_quality - 2) * 4 + 2 );
                     gp_mesh_index( _mesh, index_iterator + 5, base_vertex_iterator + (30 + 8 * index_arc) % 32 );
 
                     index_iterator += 6;
 
-                    gp_mesh_index( _mesh, index_iterator + 0, vertex_iterator + index_arc * (quality - 1) * 4 + (quality - 2) * 4 + 2 );
-                    gp_mesh_index( _mesh, index_iterator + 1, vertex_iterator + index_arc * (quality - 1) * 4 + (quality - 2) * 4 + 3 );
+                    gp_mesh_index( _mesh, index_iterator + 0, vertex_iterator + index_arc * (ellipse_quality - 1) * 4 + (ellipse_quality - 2) * 4 + 2 );
+                    gp_mesh_index( _mesh, index_iterator + 1, vertex_iterator + index_arc * (ellipse_quality - 1) * 4 + (ellipse_quality - 2) * 4 + 3 );
                     gp_mesh_index( _mesh, index_iterator + 2, base_vertex_iterator + (30 + 8 * index_arc) % 32 );
                     gp_mesh_index( _mesh, index_iterator + 3, base_vertex_iterator + (30 + 8 * index_arc) % 32 );
-                    gp_mesh_index( _mesh, index_iterator + 4, vertex_iterator + index_arc * (quality - 1) * 4 + (quality - 2) * 4 + 3 );
+                    gp_mesh_index( _mesh, index_iterator + 4, vertex_iterator + index_arc * (ellipse_quality - 1) * 4 + (ellipse_quality - 2) * 4 + 3 );
                     gp_mesh_index( _mesh, index_iterator + 5, base_vertex_iterator + (31 + 8 * index_arc) % 32 );
 
                     index_iterator += 6;
                 }
 
-                for( gp_uint8_t index = 1; index != quality; ++index )
+                for( gp_uint8_t index = 1; index != ellipse_quality; ++index )
                 {
                     float t = gp_constant_half_pi + dt * index;
 
@@ -395,7 +398,7 @@ gp_result_t gp_render_rounded_rect( const gp_canvas_t * _canvas, const gp_mesh_t
                     vertex_iterator += 4;
                 }
 
-                for( gp_uint8_t index = 1; index != quality; ++index )
+                for( gp_uint8_t index = 1; index != ellipse_quality; ++index )
                 {
                     float t = 0.f + dt * index;
 
@@ -431,7 +434,7 @@ gp_result_t gp_render_rounded_rect( const gp_canvas_t * _canvas, const gp_mesh_t
                     vertex_iterator += 4;
                 }
 
-                for( gp_uint8_t index = 1; index != quality; ++index )
+                for( gp_uint8_t index = 1; index != ellipse_quality; ++index )
                 {
                     float t = gp_constant_one_and_a_half_pi + dt * index;
 
@@ -467,7 +470,7 @@ gp_result_t gp_render_rounded_rect( const gp_canvas_t * _canvas, const gp_mesh_t
                     vertex_iterator += 4;
                 }
 
-                for( gp_uint8_t index = 1; index != quality; ++index )
+                for( gp_uint8_t index = 1; index != ellipse_quality; ++index )
                 {
                     float t = gp_constant_pi + dt * index;
 
@@ -584,37 +587,37 @@ gp_result_t gp_render_rounded_rect( const gp_canvas_t * _canvas, const gp_mesh_t
                 for( gp_uint16_t index_arc = 0; index_arc != 4; ++index_arc )
                 {
                     gp_mesh_index( _mesh, index_iterator + 0, base_vertex_iterator + (0 + 4 * index_arc) % 16 );
-                    gp_mesh_index( _mesh, index_iterator + 1, vertex_iterator + index_arc * (quality - 1) * 2 + 0 );
+                    gp_mesh_index( _mesh, index_iterator + 1, vertex_iterator + index_arc * (ellipse_quality - 1) * 2 + 0 );
                     gp_mesh_index( _mesh, index_iterator + 2, base_vertex_iterator + (1 + 4 * index_arc) % 16 );
                     gp_mesh_index( _mesh, index_iterator + 3, base_vertex_iterator + (1 + 4 * index_arc) % 16 );
-                    gp_mesh_index( _mesh, index_iterator + 4, vertex_iterator + index_arc * (quality - 1) * 2 + 0 );
-                    gp_mesh_index( _mesh, index_iterator + 5, vertex_iterator + index_arc * (quality - 1) * 2 + 1 );
+                    gp_mesh_index( _mesh, index_iterator + 4, vertex_iterator + index_arc * (ellipse_quality - 1) * 2 + 0 );
+                    gp_mesh_index( _mesh, index_iterator + 5, vertex_iterator + index_arc * (ellipse_quality - 1) * 2 + 1 );
 
                     index_iterator += 6;
 
-                    for( gp_uint16_t index = 0; index != quality - 2; ++index )
+                    for( gp_uint16_t index = 0; index != ellipse_quality - 2; ++index )
                     {
-                        gp_mesh_index( _mesh, index_iterator + 0, vertex_iterator + index_arc * (quality - 1) * 2 + (index * 2 + 0) );
-                        gp_mesh_index( _mesh, index_iterator + 1, vertex_iterator + index_arc * (quality - 1) * 2 + (index * 2 + 1) );
-                        gp_mesh_index( _mesh, index_iterator + 2, vertex_iterator + index_arc * (quality - 1) * 2 + (index * 2 + 2) );
-                        gp_mesh_index( _mesh, index_iterator + 3, vertex_iterator + index_arc * (quality - 1) * 2 + (index * 2 + 2) );
-                        gp_mesh_index( _mesh, index_iterator + 4, vertex_iterator + index_arc * (quality - 1) * 2 + (index * 2 + 1) );
-                        gp_mesh_index( _mesh, index_iterator + 5, vertex_iterator + index_arc * (quality - 1) * 2 + (index * 2 + 3) );
+                        gp_mesh_index( _mesh, index_iterator + 0, vertex_iterator + index_arc * (ellipse_quality - 1) * 2 + (index * 2 + 0) );
+                        gp_mesh_index( _mesh, index_iterator + 1, vertex_iterator + index_arc * (ellipse_quality - 1) * 2 + (index * 2 + 1) );
+                        gp_mesh_index( _mesh, index_iterator + 2, vertex_iterator + index_arc * (ellipse_quality - 1) * 2 + (index * 2 + 2) );
+                        gp_mesh_index( _mesh, index_iterator + 3, vertex_iterator + index_arc * (ellipse_quality - 1) * 2 + (index * 2 + 2) );
+                        gp_mesh_index( _mesh, index_iterator + 4, vertex_iterator + index_arc * (ellipse_quality - 1) * 2 + (index * 2 + 1) );
+                        gp_mesh_index( _mesh, index_iterator + 5, vertex_iterator + index_arc * (ellipse_quality - 1) * 2 + (index * 2 + 3) );
 
                         index_iterator += 6;
                     }
 
-                    gp_mesh_index( _mesh, index_iterator + 0, vertex_iterator + index_arc * (quality - 1) * 2 + (quality - 2) * 2 + 0 );
-                    gp_mesh_index( _mesh, index_iterator + 1, vertex_iterator + index_arc * (quality - 1) * 2 + (quality - 2) * 2 + 1 );
+                    gp_mesh_index( _mesh, index_iterator + 0, vertex_iterator + index_arc * (ellipse_quality - 1) * 2 + (ellipse_quality - 2) * 2 + 0 );
+                    gp_mesh_index( _mesh, index_iterator + 1, vertex_iterator + index_arc * (ellipse_quality - 1) * 2 + (ellipse_quality - 2) * 2 + 1 );
                     gp_mesh_index( _mesh, index_iterator + 2, base_vertex_iterator + (14 + 4 * index_arc) % 16 );
                     gp_mesh_index( _mesh, index_iterator + 3, base_vertex_iterator + (14 + 4 * index_arc) % 16 );
-                    gp_mesh_index( _mesh, index_iterator + 4, vertex_iterator + index_arc * (quality - 1) * 2 + (quality - 2) * 2 + 1 );
+                    gp_mesh_index( _mesh, index_iterator + 4, vertex_iterator + index_arc * (ellipse_quality - 1) * 2 + (ellipse_quality - 2) * 2 + 1 );
                     gp_mesh_index( _mesh, index_iterator + 5, base_vertex_iterator + (15 + 4 * index_arc) % 16 );
 
                     index_iterator += 6;
                 }
 
-                for( gp_uint8_t index = 1; index != quality; ++index )
+                for( gp_uint8_t index = 1; index != ellipse_quality; ++index )
                 {
                     float t = gp_constant_half_pi + dt * index;
 
@@ -636,7 +639,7 @@ gp_result_t gp_render_rounded_rect( const gp_canvas_t * _canvas, const gp_mesh_t
                     vertex_iterator += 2;
                 }
 
-                for( gp_uint8_t index = 1; index != quality; ++index )
+                for( gp_uint8_t index = 1; index != ellipse_quality; ++index )
                 {
                     float t = 0.f + dt * index;
 
@@ -658,7 +661,7 @@ gp_result_t gp_render_rounded_rect( const gp_canvas_t * _canvas, const gp_mesh_t
                     vertex_iterator += 2;
                 }
 
-                for( gp_uint8_t index = 1; index != quality; ++index )
+                for( gp_uint8_t index = 1; index != ellipse_quality; ++index )
                 {
                     float t = gp_constant_one_and_a_half_pi + dt * index;
 
@@ -680,7 +683,7 @@ gp_result_t gp_render_rounded_rect( const gp_canvas_t * _canvas, const gp_mesh_t
                     vertex_iterator += 2;
                 }
 
-                for( gp_uint8_t index = 1; index != quality; ++index )
+                for( gp_uint8_t index = 1; index != ellipse_quality; ++index )
                 {
                     float t = gp_constant_pi + dt * index;
 
@@ -820,55 +823,55 @@ gp_result_t gp_render_rounded_rect( const gp_canvas_t * _canvas, const gp_mesh_t
                 for( gp_uint16_t index_arc = 0; index_arc != 4; ++index_arc )
                 {
                     gp_mesh_index( _mesh, index_iterator + 0, base_vertex_iterator + 4 + (0 + 4 * index_arc) % 16 );
-                    gp_mesh_index( _mesh, index_iterator + 1, vertex_iterator + index_arc * (quality - 1) * 2 + 0 );
+                    gp_mesh_index( _mesh, index_iterator + 1, vertex_iterator + index_arc * (ellipse_quality - 1) * 2 + 0 );
                     gp_mesh_index( _mesh, index_iterator + 2, base_vertex_iterator + 4 + (1 + 4 * index_arc) % 16 );
                     gp_mesh_index( _mesh, index_iterator + 3, base_vertex_iterator + 4 + (1 + 4 * index_arc) % 16 );
-                    gp_mesh_index( _mesh, index_iterator + 4, vertex_iterator + index_arc * (quality - 1) * 2 + 0 );
-                    gp_mesh_index( _mesh, index_iterator + 5, vertex_iterator + index_arc * (quality - 1) * 2 + 1 );
+                    gp_mesh_index( _mesh, index_iterator + 4, vertex_iterator + index_arc * (ellipse_quality - 1) * 2 + 0 );
+                    gp_mesh_index( _mesh, index_iterator + 5, vertex_iterator + index_arc * (ellipse_quality - 1) * 2 + 1 );
 
                     index_iterator += 6;
 
                     gp_mesh_index( _mesh, index_iterator + 0, base_vertex_iterator + 4 + (1 + 4 * index_arc) % 16 );
                     gp_mesh_index( _mesh, index_iterator + 1, base_vertex_iterator + index_arc );
-                    gp_mesh_index( _mesh, index_iterator + 2, vertex_iterator + index_arc * (quality - 1) * 2 + 1 );
+                    gp_mesh_index( _mesh, index_iterator + 2, vertex_iterator + index_arc * (ellipse_quality - 1) * 2 + 1 );
 
                     index_iterator += 3;
 
-                    for( gp_uint16_t index = 0; index != quality - 2; ++index )
+                    for( gp_uint16_t index = 0; index != ellipse_quality - 2; ++index )
                     {
-                        gp_mesh_index( _mesh, index_iterator + 0, vertex_iterator + index_arc * (quality - 1) * 2 + (index * 2 + 0) );
-                        gp_mesh_index( _mesh, index_iterator + 1, vertex_iterator + index_arc * (quality - 1) * 2 + (index * 2 + 1) );
-                        gp_mesh_index( _mesh, index_iterator + 2, vertex_iterator + index_arc * (quality - 1) * 2 + (index * 2 + 2) );
-                        gp_mesh_index( _mesh, index_iterator + 3, vertex_iterator + index_arc * (quality - 1) * 2 + (index * 2 + 2) );
-                        gp_mesh_index( _mesh, index_iterator + 4, vertex_iterator + index_arc * (quality - 1) * 2 + (index * 2 + 1) );
-                        gp_mesh_index( _mesh, index_iterator + 5, vertex_iterator + index_arc * (quality - 1) * 2 + (index * 2 + 3) );
+                        gp_mesh_index( _mesh, index_iterator + 0, vertex_iterator + index_arc * (ellipse_quality - 1) * 2 + (index * 2 + 0) );
+                        gp_mesh_index( _mesh, index_iterator + 1, vertex_iterator + index_arc * (ellipse_quality - 1) * 2 + (index * 2 + 1) );
+                        gp_mesh_index( _mesh, index_iterator + 2, vertex_iterator + index_arc * (ellipse_quality - 1) * 2 + (index * 2 + 2) );
+                        gp_mesh_index( _mesh, index_iterator + 3, vertex_iterator + index_arc * (ellipse_quality - 1) * 2 + (index * 2 + 2) );
+                        gp_mesh_index( _mesh, index_iterator + 4, vertex_iterator + index_arc * (ellipse_quality - 1) * 2 + (index * 2 + 1) );
+                        gp_mesh_index( _mesh, index_iterator + 5, vertex_iterator + index_arc * (ellipse_quality - 1) * 2 + (index * 2 + 3) );
 
                         index_iterator += 6;
 
-                        gp_mesh_index( _mesh, index_iterator + 0, vertex_iterator + index_arc * (quality - 1) * 2 + (index * 2 + 1) );
+                        gp_mesh_index( _mesh, index_iterator + 0, vertex_iterator + index_arc * (ellipse_quality - 1) * 2 + (index * 2 + 1) );
                         gp_mesh_index( _mesh, index_iterator + 1, base_vertex_iterator + index_arc );
-                        gp_mesh_index( _mesh, index_iterator + 2, vertex_iterator + index_arc * (quality - 1) * 2 + (index * 2 + 3) );
+                        gp_mesh_index( _mesh, index_iterator + 2, vertex_iterator + index_arc * (ellipse_quality - 1) * 2 + (index * 2 + 3) );
 
                         index_iterator += 3;
                     }
 
-                    gp_mesh_index( _mesh, index_iterator + 0, vertex_iterator + index_arc * (quality - 1) * 2 + (quality - 2) * 2 + 0 );
-                    gp_mesh_index( _mesh, index_iterator + 1, vertex_iterator + index_arc * (quality - 1) * 2 + (quality - 2) * 2 + 1 );
+                    gp_mesh_index( _mesh, index_iterator + 0, vertex_iterator + index_arc * (ellipse_quality - 1) * 2 + (ellipse_quality - 2) * 2 + 0 );
+                    gp_mesh_index( _mesh, index_iterator + 1, vertex_iterator + index_arc * (ellipse_quality - 1) * 2 + (ellipse_quality - 2) * 2 + 1 );
                     gp_mesh_index( _mesh, index_iterator + 2, base_vertex_iterator + 4 + (14 + 4 * index_arc) % 16 );
                     gp_mesh_index( _mesh, index_iterator + 3, base_vertex_iterator + 4 + (14 + 4 * index_arc) % 16 );
-                    gp_mesh_index( _mesh, index_iterator + 4, vertex_iterator + index_arc * (quality - 1) * 2 + (quality - 2) * 2 + 1 );
+                    gp_mesh_index( _mesh, index_iterator + 4, vertex_iterator + index_arc * (ellipse_quality - 1) * 2 + (ellipse_quality - 2) * 2 + 1 );
                     gp_mesh_index( _mesh, index_iterator + 5, base_vertex_iterator + 4 + (15 + 4 * index_arc) % 16 );
 
                     index_iterator += 6;
 
-                    gp_mesh_index( _mesh, index_iterator + 0, vertex_iterator + index_arc * (quality - 1) * 2 + (quality - 2) * 2 + 1 );
+                    gp_mesh_index( _mesh, index_iterator + 0, vertex_iterator + index_arc * (ellipse_quality - 1) * 2 + (ellipse_quality - 2) * 2 + 1 );
                     gp_mesh_index( _mesh, index_iterator + 1, base_vertex_iterator + index_arc );
                     gp_mesh_index( _mesh, index_iterator + 2, base_vertex_iterator + 4 + (15 + 4 * index_arc) % 16 );
 
                     index_iterator += 3;
                 }
 
-                for( gp_uint8_t index = 1; index != quality; ++index )
+                for( gp_uint8_t index = 1; index != ellipse_quality; ++index )
                 {
                     float t = gp_constant_half_pi + dt * index;
 
@@ -892,7 +895,7 @@ gp_result_t gp_render_rounded_rect( const gp_canvas_t * _canvas, const gp_mesh_t
                     vertex_iterator += 2;
                 }
 
-                for( gp_uint8_t index = 1; index != quality; ++index )
+                for( gp_uint8_t index = 1; index != ellipse_quality; ++index )
                 {
                     float t = 0.f + dt * index;
 
@@ -916,7 +919,7 @@ gp_result_t gp_render_rounded_rect( const gp_canvas_t * _canvas, const gp_mesh_t
                     vertex_iterator += 2;
                 }
 
-                for( gp_uint8_t index = 1; index != quality; ++index )
+                for( gp_uint8_t index = 1; index != ellipse_quality; ++index )
                 {
                     float t = gp_constant_one_and_a_half_pi + dt * index;
 
@@ -940,7 +943,7 @@ gp_result_t gp_render_rounded_rect( const gp_canvas_t * _canvas, const gp_mesh_t
                     vertex_iterator += 2;
                 }
 
-                for( gp_uint8_t index = 1; index != quality; ++index )
+                for( gp_uint8_t index = 1; index != ellipse_quality; ++index )
                 {
                     float t = gp_constant_pi + dt * index;
 
@@ -1022,27 +1025,27 @@ gp_result_t gp_render_rounded_rect( const gp_canvas_t * _canvas, const gp_mesh_t
                 {
                     gp_mesh_index( _mesh, index_iterator + 0, base_vertex_iterator + 4 + (2 * index_arc + 0) % 8 );
                     gp_mesh_index( _mesh, index_iterator + 1, base_vertex_iterator + index_arc );
-                    gp_mesh_index( _mesh, index_iterator + 2, vertex_iterator + index_arc * (quality - 1) );
+                    gp_mesh_index( _mesh, index_iterator + 2, vertex_iterator + index_arc * (ellipse_quality - 1) );
 
                     index_iterator += 3;
 
-                    for( gp_uint16_t index = 0; index != quality - 2; ++index )
+                    for( gp_uint16_t index = 0; index != ellipse_quality - 2; ++index )
                     {
-                        gp_mesh_index( _mesh, index_iterator + 0, vertex_iterator + index_arc * (quality - 1) + (index + 0) );
+                        gp_mesh_index( _mesh, index_iterator + 0, vertex_iterator + index_arc * (ellipse_quality - 1) + (index + 0) );
                         gp_mesh_index( _mesh, index_iterator + 1, base_vertex_iterator + index_arc );
-                        gp_mesh_index( _mesh, index_iterator + 2, vertex_iterator + index_arc * (quality - 1) + (index + 1) );
+                        gp_mesh_index( _mesh, index_iterator + 2, vertex_iterator + index_arc * (ellipse_quality - 1) + (index + 1) );
 
                         index_iterator += 3;
                     }
 
-                    gp_mesh_index( _mesh, index_iterator + 0, vertex_iterator + index_arc * (quality - 1) + (quality - 1) - 1 );
+                    gp_mesh_index( _mesh, index_iterator + 0, vertex_iterator + index_arc * (ellipse_quality - 1) + (ellipse_quality - 1) - 1 );
                     gp_mesh_index( _mesh, index_iterator + 1, base_vertex_iterator + index_arc );
                     gp_mesh_index( _mesh, index_iterator + 2, base_vertex_iterator + 4 + (2 * index_arc + 7) % 8 );
 
                     index_iterator += 3;
                 }
 
-                for( gp_uint8_t index = 1; index != quality; ++index )
+                for( gp_uint8_t index = 1; index != ellipse_quality; ++index )
                 {
                     float t = gp_constant_half_pi + dt * index;
 
@@ -1058,7 +1061,7 @@ gp_result_t gp_render_rounded_rect( const gp_canvas_t * _canvas, const gp_mesh_t
                     vertex_iterator += 1;
                 }
 
-                for( gp_uint8_t index = 1; index != quality; ++index )
+                for( gp_uint8_t index = 1; index != ellipse_quality; ++index )
                 {
                     float t = 0.f + dt * index;
 
@@ -1074,7 +1077,7 @@ gp_result_t gp_render_rounded_rect( const gp_canvas_t * _canvas, const gp_mesh_t
                     vertex_iterator += 1;
                 }
 
-                for( gp_uint8_t index = 1; index != quality; ++index )
+                for( gp_uint8_t index = 1; index != ellipse_quality; ++index )
                 {
                     float t = gp_constant_one_and_a_half_pi + dt * index;
 
@@ -1090,7 +1093,7 @@ gp_result_t gp_render_rounded_rect( const gp_canvas_t * _canvas, const gp_mesh_t
                     vertex_iterator += 1;
                 }
 
-                for( gp_uint8_t index = 1; index != quality; ++index )
+                for( gp_uint8_t index = 1; index != ellipse_quality; ++index )
                 {
                     float t = gp_constant_pi + dt * index;
 
@@ -1129,7 +1132,7 @@ gp_result_t gp_render_rounded_rect( const gp_canvas_t * _canvas, const gp_mesh_t
     }
 #endif
 
-    *_vertex_iterator = vertex_iterator;
+    * _vertex_iterator = vertex_iterator;
     *_index_iterator = index_iterator;
 
     return GP_SUCCESSFUL;

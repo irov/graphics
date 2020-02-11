@@ -15,11 +15,14 @@ gp_result_t gp_canvas_clear( gp_canvas_t * _canvas );
 gp_result_t gp_set_line_width( gp_canvas_t * _canvas, float _width );
 gp_result_t gp_get_line_width( gp_canvas_t * _canvas, float * _width );
 
-gp_result_t gp_set_line_penumbra( gp_canvas_t * _canvas, float _penumbra );
-gp_result_t gp_get_line_penumbra( gp_canvas_t * _canvas, float * _penumbra );
+gp_result_t gp_set_penumbra( gp_canvas_t * _canvas, float _penumbra );
+gp_result_t gp_get_penumbra( gp_canvas_t * _canvas, float * _penumbra );
 
 gp_result_t gp_set_color( gp_canvas_t * _canvas, const gp_color_t * _color );
 gp_result_t gp_get_color( gp_canvas_t * _canvas, gp_color_t * _color );
+
+gp_result_t gp_set_uv_offset( gp_canvas_t * _canvas, float _ox, float _oy, float _su, float _sv );
+gp_result_t gp_get_uv_offset( gp_canvas_t * _canvas, float * _ox, float * _oy, float * _su, float * _sv );
 
 gp_result_t gp_set_curve_quality( gp_canvas_t * _canvas, gp_uint8_t _quality );
 gp_result_t gp_get_curve_quality( gp_canvas_t * _canvas, gp_uint8_t * _quality );
