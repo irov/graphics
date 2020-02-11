@@ -292,6 +292,8 @@ int main( int argc, char ** argv )
     gp_set_line_width( canvas, 50.f );
     gp_set_penumbra( canvas, 0.f );
 
+    gp_set_uv_offset( canvas, 0.f, 0.f, 4.f, 1.f );
+
     gp_color_t fill_color;
     fill_color.r = 0.7f;
     fill_color.g = 0.6f;

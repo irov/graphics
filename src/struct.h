@@ -26,8 +26,8 @@ typedef struct gp_state_t
 
     gp_color_t color;
 
-    float uv_ox;
-    float uv_oy;
+    float uv_ou;
+    float uv_ov;
     float uv_su;
     float uv_sv;
 
