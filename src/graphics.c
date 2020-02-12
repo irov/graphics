@@ -137,6 +137,7 @@ gp_result_t gp_get_uv_offset( const gp_canvas_t * _canvas, float * _ou, float * 
 gp_result_t gp_set_curve_quality( gp_canvas_t * _canvas, gp_uint8_t _quality )
 {
     _canvas->state.curve_quality = _quality;
+    _canvas->state.curve_quality_inv = 1.f / (float)_quality;
 
     return GP_SUCCESSFUL;
 }

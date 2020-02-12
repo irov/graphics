@@ -13,6 +13,12 @@
 #include <stdio.h>
 
 //////////////////////////////////////////////////////////////////////////
+typedef struct settings_t
+{
+    int wireframe;
+    int texture;
+} settings_t;
+//////////////////////////////////////////////////////////////////////////
 static void __make_ortho( float _l, float _r, float _t, float _b, float _n, float _f, float _m[16] )
 {
     _m[0] = 2.f / (_r - _l);
@@ -161,6 +167,31 @@ static void framebuffer_size_callback( GLFWwindow * _window, int _width, int _he
     glViewport( 0, 0, _width, _height );
 }
 //////////////////////////////////////////////////////////////////////////
+static void key_callback( GLFWwindow * window, int key, int scancode, int action, int mods )
+{
+    GP_UNUSED( scancode );
+    GP_UNUSED( mods );
+
+    settings_t * s = (settings_t *)glfwGetWindowUserPointer( window );
+
+    if( key == GLFW_KEY_ESCAPE && action == GLFW_PRESS )
+    {
+        glfwSetWindowShouldClose( window, GLFW_TRUE );
+    }
+
+    if( key == GLFW_KEY_F1 && action == GLFW_PRESS )
+    {
+        s->wireframe += 1;
+        s->wireframe %= 2;
+    }
+
+    if( key == GLFW_KEY_F2 && action == GLFW_PRESS )
+    {
+        s->texture += 1;
+        s->texture %= 2;
+    }
+}
+//////////////////////////////////////////////////////////////////////////
 static const char * vertexShaderColorSource = "#version 330 core\n"
 "layout (location = 0) in vec2 inPos;\n"
 "layout (location = 1) in vec4 inColor;\n"
@@ -211,7 +242,9 @@ static void * gp_malloc( gp_size_t _size, void * _ud )
 {
     GP_UNUSED( _ud );
 
-    return malloc( _size );
+    void * p = malloc( _size );
+
+    return p;
 }
 //////////////////////////////////////////////////////////////////////////
 static void gp_free( void * _ptr, void * _ud )
@@ -239,11 +272,11 @@ static void __draw_figure( gp_canvas_t * _canvas, float _dx, float _dy )
     gp_bezier_curve_to( _canvas, _dx + 125.f, _dy + 175.f, _dx + 175.f, _dy + 150.f, _dx + 200.f, _dy );
     gp_line_to( _canvas, _dx + 250.f, _dy + 100.f );
 
-    //gp_draw_rect( _canvas, _dx + 275.f, _dy + 0.f, 100.f, 50.f );
-    //gp_draw_rounded_rect( _canvas, _dx + 275.f, _dy + 75.f, 100.f, 50.f, 10.f );
+    gp_draw_rect( _canvas, _dx + 275.f, _dy + 0.f, 100.f, 50.f );
+    gp_draw_rounded_rect( _canvas, _dx + 275.f, _dy + 75.f, 100.f, 50.f, 10.f );
 
-    //gp_draw_circle( _canvas, _dx + 100.f, _dy + 225.f, 50.f );
-    //gp_draw_ellipse( _canvas, _dx + 250.f, _dy + 225.f, 50.f, 25.f );
+    gp_draw_circle( _canvas, _dx + 100.f, _dy + 225.f, 50.f );
+    gp_draw_ellipse( _canvas, _dx + 250.f, _dy + 225.f, 50.f, 25.f );
 }
 //////////////////////////////////////////////////////////////////////////
 int main( int argc, char ** argv )
@@ -274,8 +307,15 @@ int main( int argc, char ** argv )
         return EXIT_FAILURE;
     }
 
+    settings_t s;
+    s.wireframe = 0;
+    s.texture = 0;
+
+    glfwSetWindowUserPointer( fwWindow, &s );
+
     glfwMakeContextCurrent( fwWindow );
     glfwSetFramebufferSizeCallback( fwWindow, framebuffer_size_callback );
+    glfwSetKeyCallback( fwWindow, key_callback );
 
     if( gladLoadGLLoader( (GLADloadproc)glfwGetProcAddress ) == 0 )
     {
@@ -289,10 +329,10 @@ int main( int argc, char ** argv )
     gp_canvas_t * canvas;
     gp_canvas_create( &canvas, &gp_malloc, &gp_free, 0 );
 
-    gp_set_line_width( canvas, 50.f );
+    gp_set_line_width( canvas, 20.f );
     gp_set_penumbra( canvas, 0.f );
 
-    gp_set_uv_offset( canvas, 0.f, 0.f, 4.f, 1.f );
+    gp_set_uv_offset( canvas, 0.f, 0.f, 1.f, 1.f );
 
     gp_color_t fill_color;
     fill_color.r = 0.7f;
@@ -323,8 +363,25 @@ int main( int argc, char ** argv )
     GLuint shaderColorProgram = __make_program( vertexShaderColorSource, fragmentShaderColorSource );
     GLuint shaderTextureProgram = __make_program( vertexShaderTextureSource, fragmentShaderTextureSource );
 
+    float left = 0.f;
+    float right = (float)window_width;
+    float bottom = (float)window_height;
+    float top = 0.f;
+    float zNear = -1.f;
+    float zFar = 1.f;
 
-    //glUseProgram( shaderColorProgram );
+    float projOrtho[16];
+    __make_ortho( left, right, top, bottom, zNear, zFar, projOrtho );
+
+    glUseProgram( shaderColorProgram );
+
+    GLint wvpColorLocation = glGetUniformLocation( shaderColorProgram, "uWVP" );
+
+    if( wvpColorLocation >= 0 )
+    {
+        glUniformMatrix4fv( wvpColorLocation, 1, GL_FALSE, projOrtho );
+    }
+
     glUseProgram( shaderTextureProgram );
 
     GLint texLocRGB = glGetUniformLocation( shaderTextureProgram, "uTextureRGB" );
@@ -332,23 +389,6 @@ int main( int argc, char ** argv )
     if( texLocRGB >= 0 )
     {
         glUniform1i( texLocRGB, 0 );
-    }
-
-    const float left = 0.f;
-    const float right = (float)window_width;
-    const float bottom = (float)window_height;
-    const float top = 0.f;
-    const float zNear = -1.f;
-    const float zFar = 1.f;
-
-    float projOrtho[16];
-    __make_ortho( left, right, top, bottom, zNear, zFar, projOrtho );
-
-    GLint wvpColorLocation = glGetUniformLocation( shaderColorProgram, "uWVP" );
-
-    if( wvpColorLocation >= 0 )
-    {
-        glUniformMatrix4fv( wvpColorLocation, 1, GL_FALSE, projOrtho );
     }
 
     GLint wvpTextureLocation = glGetUniformLocation( shaderTextureProgram, "uWVP" );
@@ -370,12 +410,10 @@ int main( int argc, char ** argv )
 
     glEnableVertexAttribArray( 0 );
     glEnableVertexAttribArray( 1 );
-    glEnableVertexAttribArray( 2 );
-
+    
     glVertexAttribPointer( 0, 2, GL_FLOAT, GL_FALSE, sizeof( gl_vertex_t ), (gp_uint8_t *)0 + offsetof( gl_vertex_t, x ) );
     glVertexAttribPointer( 1, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof( gl_vertex_t ), (gp_uint8_t *)0 + offsetof( gl_vertex_t, c ) );
     glVertexAttribPointer( 2, 2, GL_FLOAT, GL_FALSE, sizeof( gl_vertex_t ), (gp_uint8_t *)0 + offsetof( gl_vertex_t, u ) );
-
 
     GLuint IBO;
     glGenBuffers( 1, &IBO );
@@ -386,23 +424,55 @@ int main( int argc, char ** argv )
     glEnable( GL_BLEND );
     glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
 
-    glActiveTexture( GL_TEXTURE0 );
-    glBindTexture( GL_TEXTURE_2D, textureId );
+    uint32_t max_vertex_count = 8196;
+    uint32_t max_index_count = 16384 + 8196;
 
-    //glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
-
-    glBufferData( GL_ARRAY_BUFFER, 4096 * sizeof( gl_vertex_t ), GP_NULLPTR, GL_DYNAMIC_DRAW );
-    glBufferData( GL_ELEMENT_ARRAY_BUFFER, 8192 * sizeof( gl_index_t ), GP_NULLPTR, GL_DYNAMIC_DRAW );
+    glBufferData( GL_ARRAY_BUFFER, max_vertex_count * sizeof( gl_vertex_t ), GP_NULLPTR, GL_DYNAMIC_DRAW );
+    glBufferData( GL_ELEMENT_ARRAY_BUFFER, max_index_count * sizeof( gl_index_t ), GP_NULLPTR, GL_DYNAMIC_DRAW );
 
     while( glfwWindowShouldClose( fwWindow ) == 0 )
     {
         glfwPollEvents();
+
+        if( s.wireframe == 1 )
+        {
+            glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
+        }
+        else
+        {
+            glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
+        }
+
+        if( s.texture == 1 )
+        {
+            glActiveTexture( GL_TEXTURE0 );
+            glBindTexture( GL_TEXTURE_2D, textureId );
+
+            glUseProgram( shaderTextureProgram );
+
+            glEnableVertexAttribArray( 2 );
+        }
+        else
+        {
+            glActiveTexture( GL_TEXTURE0 );
+            glBindTexture( GL_TEXTURE_2D, 0 );
+
+            glUseProgram( shaderColorProgram );
+
+            glDisableVertexAttribArray( 2 );
+        }
 
         glClearColor( 0.2f, 0.3f, 0.3f, 1.f );
         glClear( GL_COLOR_BUFFER_BIT );
 
         gp_mesh_t mesh;
         gp_calculate_mesh_size( canvas, &mesh );
+
+        if( mesh.vertex_count >= max_vertex_count ||
+            mesh.index_count >= max_index_count )
+        {
+            break;
+        }
 
         glBindBuffer( GL_ARRAY_BUFFER, VBO );
         glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, IBO );
@@ -432,12 +502,14 @@ int main( int argc, char ** argv )
         mesh.indices_stride = sizeof( gp_uint16_t );
 
         gp_result_t result = gp_render( canvas, &mesh );
-        (void)result;
-
+        
         glUnmapBuffer( GL_ARRAY_BUFFER );
         glUnmapBuffer( GL_ELEMENT_ARRAY_BUFFER );
 
-        glDrawElements( GL_TRIANGLES, mesh.index_count, GL_UNSIGNED_SHORT, GP_NULLPTR );
+        if( result == GP_SUCCESSFUL )
+        {
+            glDrawElements( GL_TRIANGLES, mesh.index_count, GL_UNSIGNED_SHORT, GP_NULLPTR );
+        }
 
         glfwSwapBuffers( fwWindow );
     }
