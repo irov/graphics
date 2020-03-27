@@ -49,7 +49,6 @@ typedef struct gp_point_t
 typedef struct gp_line_points_t
 {
     gp_vec2f_t p;
-    gp_uint32_t argb;
 } gp_line_points_t;
 //////////////////////////////////////////////////////////////////////////
 typedef struct gp_line_edge_t

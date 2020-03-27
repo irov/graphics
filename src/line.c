@@ -188,9 +188,12 @@ static void __calculate_bezier_position( gp_vec2f_t * _out, const gp_vec2f_t * _
 //////////////////////////////////////////////////////////////////////////
 static void __make_line_from_two_point_v2( gp_linef_t * _line, const gp_vec2f_t * _a, const gp_vec2f_t * _b )
 {
-    _line->a = _a->y - _b->y;
-    _line->b = _b->x - _a->x;
-    _line->c = _a->x * _b->y - _b->x * _a->y;
+    float a = _b->y - _a->y;
+    float b = _a->x - _b->x;
+
+    _line->a = a;
+    _line->b = b;
+    _line->c = a * _a->x + b * _a->y;
 }
 //////////////////////////////////////////////////////////////////////////
 static float __cross2( float _a, float _b, float _c, float _d )
@@ -209,8 +212,8 @@ static gp_bool_t __intersect_line( const gp_linef_t * _l1, const gp_linef_t * _l
 
     float inv_zn = 1.f / zn;
 
-    _p->x = -__cross2( _l1->c, _l1->b, _l2->c, _l2->b ) * inv_zn;
-    _p->y = -__cross2( _l1->a, _l1->c, _l2->a, _l2->c ) * inv_zn;
+    _p->x = __cross2( _l1->c, _l1->b, _l2->c, _l2->b ) * inv_zn;
+    _p->y = __cross2( _l1->a, _l1->c, _l2->a, _l2->c ) * inv_zn;
 
     return GP_TRUE;
 }
@@ -235,82 +238,78 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
         gp_line_points_t points[GP_LINE_POINTS_MAX];
         gp_uint16_t points_size = 0;
 
-        const gp_point_t * point_iterator = l->points;
+        gp_color_t line_color;
+        gp_color_mul( &line_color, &_mesh->color, &l->state.color );
+        gp_uint32_t total_argb = gp_color_argb( &line_color );
 
-        for( const gp_line_edge_t * e = l->edges; e != GP_NULLPTR; e = e->next )
         {
-            const gp_point_t * p0 = point_iterator;
-            point_iterator = point_iterator->next;
-            const gp_point_t * p1 = point_iterator;
+            const gp_point_t * point_iterator = l->points;
 
-            gp_color_t line_color;
-            gp_color_mul( &line_color, &_mesh->color, &l->state.color );
-            gp_uint32_t argb = gp_color_argb( &line_color );
-
-            switch( e->controls )
+            for( const gp_line_edge_t * e = l->edges; e != GP_NULLPTR; e = e->next )
             {
-            case 0:
-                {
-                    gp_line_points_t * p = points + points_size;
-                    p->p = p0->p;
-                    p->argb = argb;
+                const gp_point_t * p0 = point_iterator;
+                point_iterator = point_iterator->next;
 
-                    ++points_size;
-                }break;
-            case 1:
+                switch( e->controls )
                 {
-                    float t = 0.f;
-
-                    for( gp_uint8_t index = 0; index != curve_quality; ++index )
+                case 0:
                     {
-                        gp_vec2f_t bp;
-                        __calculate_bezier_position( &bp, &p0->p, &p1->p, e->p, 1, t );
-
-                        t += curve_quality_inv;
-
                         gp_line_points_t * p = points + points_size;
-                        p->p = bp;
-                        p->argb = argb;
+                        p->p = p0->p;
 
                         ++points_size;
-                    }
-                }break;
-            case 2:
-                {
-                    float t = 0.f;
-
-                    for( gp_uint8_t index = 0; index != curve_quality; ++index )
+                    }break;
+                case 1:
                     {
-                        gp_vec2f_t bp;
-                        __calculate_bezier_position( &bp, &p0->p, &p1->p, e->p, 2, t );
+                        const gp_point_t * p1 = point_iterator;
 
-                        t += curve_quality_inv;
+                        float t = 0.f;
 
-                        gp_line_points_t * p = points + points_size;
-                        p->p = bp;
-                        p->argb = argb;
+                        for( gp_uint8_t index = 0; index != curve_quality; ++index )
+                        {
+                            gp_vec2f_t bp;
+                            __calculate_bezier_position( &bp, &p0->p, &p1->p, e->p, 1, t );
 
-                        ++points_size;
-                    }
-                }break;
-            default:
-                return GP_FAILURE;
+                            t += curve_quality_inv;
+
+                            gp_line_points_t * p = points + points_size;
+                            p->p = bp;
+
+                            ++points_size;
+                        }
+                    }break;
+                case 2:
+                    {
+                        const gp_point_t * p1 = point_iterator;
+
+                        float t = 0.f;
+
+                        for( gp_uint8_t index = 0; index != curve_quality; ++index )
+                        {
+                            gp_vec2f_t bp;
+                            __calculate_bezier_position( &bp, &p0->p, &p1->p, e->p, 2, t );
+
+                            t += curve_quality_inv;
+
+                            gp_line_points_t * p = points + points_size;
+                            p->p = bp;
+
+                            ++points_size;
+                        }
+                    }break;
+                default:
+                    return GP_FAILURE;
+                }
             }
-        }
 
-        {
-            const gp_point_t * p1 = point_iterator;
+            {
+                const gp_point_t * p1 = point_iterator;
 
-            gp_line_points_t * p = points + points_size;
-            p->p = p1->p;
+                gp_line_points_t * p = points + points_size;
+                p->p = p1->p;
 
-            gp_color_t line_color;
-            gp_color_mul( &line_color, &_mesh->color, &l->state.color );
-            gp_uint32_t argb = gp_color_argb( &line_color );
-
-            p->argb = argb;
-
-            ++points_size;
+                ++points_size;
+            }
         }
 
         float penumbra = l->state.penumbra;
@@ -375,13 +374,8 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
         }
 
         {
-            gp_line_points_t * point0 = points + 0;
-            gp_line_points_t * point1 = points + 1;
-
-            gp_uint32_t argb = point0->argb;
-
-            const gp_vec2f_t * p0 = &point0->p;
-            const gp_vec2f_t * p1 = &point1->p;
+            const gp_vec2f_t * p0 = &points[0].p;
+            const gp_vec2f_t * p1 = &points[1].p;
 
             gp_vec2f_t perp;
             __make_line_perp( &perp, p0, p1 );
@@ -392,19 +386,19 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
                 float uv_soft_offset = line_width_soft / half_line_width * 0.5f;
 
                 gp_mesh_position( _mesh, vertex_iterator + 0, p0->x - perp.x * half_line_width, p0->y - perp.y * half_line_width );
-                gp_mesh_color( _mesh, vertex_iterator + 0, argb & 0x00ffffff );
+                gp_mesh_color( _mesh, vertex_iterator + 0, total_argb & 0x00ffffff );
                 gp_mesh_uv( _canvas, _mesh, vertex_iterator + 0, 0.f, 0.f );
 
                 gp_mesh_position( _mesh, vertex_iterator + 1, p0->x - perp.x * line_width_soft, p0->y - perp.y * line_width_soft );
-                gp_mesh_color( _mesh, vertex_iterator + 1, argb );
+                gp_mesh_color( _mesh, vertex_iterator + 1, total_argb );
                 gp_mesh_uv( _canvas, _mesh, vertex_iterator + 1, 0.f, 0.5f - uv_soft_offset );
 
                 gp_mesh_position( _mesh, vertex_iterator + 2, p0->x + perp.x * line_width_soft, p0->y + perp.y * line_width_soft );
-                gp_mesh_color( _mesh, vertex_iterator + 2, argb );
+                gp_mesh_color( _mesh, vertex_iterator + 2, total_argb );
                 gp_mesh_uv( _canvas, _mesh, vertex_iterator + 2, 0.f, 0.5f + uv_soft_offset );
 
                 gp_mesh_position( _mesh, vertex_iterator + 3, p0->x + perp.x * half_line_width, p0->y + perp.y * half_line_width );
-                gp_mesh_color( _mesh, vertex_iterator + 3, argb & 0x00ffffff );
+                gp_mesh_color( _mesh, vertex_iterator + 3, total_argb & 0x00ffffff );
                 gp_mesh_uv( _canvas, _mesh, vertex_iterator + 2, 0.f, 1.f );
 
                 vertex_iterator += 4;
@@ -412,11 +406,11 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
             else
             {
                 gp_mesh_position( _mesh, vertex_iterator + 0, p0->x - perp.x * half_line_width, p0->y - perp.y * half_line_width );
-                gp_mesh_color( _mesh, vertex_iterator + 0, argb );
+                gp_mesh_color( _mesh, vertex_iterator + 0, total_argb );
                 gp_mesh_uv( _canvas, _mesh, vertex_iterator + 0, 0.f, 0.f );
 
                 gp_mesh_position( _mesh, vertex_iterator + 1, p0->x + perp.x * half_line_width, p0->y + perp.y * half_line_width );
-                gp_mesh_color( _mesh, vertex_iterator + 1, argb );
+                gp_mesh_color( _mesh, vertex_iterator + 1, total_argb );
                 gp_mesh_uv( _canvas, _mesh, vertex_iterator + 1, 0.f, 1.f );
 
                 vertex_iterator += 2;
@@ -427,8 +421,6 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
 
         for( gp_uint16_t index = 1; index != points_size - 1; ++index )
         {
-            gp_uint32_t argb = points[index + 0].argb;
-
             const gp_vec2f_t * p0 = &points[index - 1].p;
             const gp_vec2f_t * p1 = &points[index + 0].p;
             const gp_vec2f_t * p2 = &points[index + 1].p;
@@ -567,19 +559,19 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
                 }
 
                 gp_mesh_position( _mesh, vertex_iterator + 0, pl.x, pl.y );
-                gp_mesh_color( _mesh, vertex_iterator + 0, argb & 0x00ffffff );
+                gp_mesh_color( _mesh, vertex_iterator + 0, total_argb & 0x00ffffff );
                 gp_mesh_uv( _canvas, _mesh, vertex_iterator + 0, u, 0.f );
 
                 gp_mesh_position( _mesh, vertex_iterator + 1, pl_soft.x, pl_soft.y );
-                gp_mesh_color( _mesh, vertex_iterator + 1, argb );
+                gp_mesh_color( _mesh, vertex_iterator + 1, total_argb );
                 gp_mesh_uv( _canvas, _mesh, vertex_iterator + 1, u, 0.5f - uv_soft_offset );
 
                 gp_mesh_position( _mesh, vertex_iterator + 2, pr_soft.x, pr_soft.y );
-                gp_mesh_color( _mesh, vertex_iterator + 2, argb );
+                gp_mesh_color( _mesh, vertex_iterator + 2, total_argb );
                 gp_mesh_uv( _canvas, _mesh, vertex_iterator + 2, u, 0.5f + uv_soft_offset );
 
                 gp_mesh_position( _mesh, vertex_iterator + 3, pr.x, pr.y );
-                gp_mesh_color( _mesh, vertex_iterator + 3, argb & 0x00ffffff );
+                gp_mesh_color( _mesh, vertex_iterator + 3, total_argb & 0x00ffffff );
                 gp_mesh_uv( _canvas, _mesh, vertex_iterator + 3, u, 1.f );
 
                 vertex_iterator += 4;
@@ -587,11 +579,11 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
             else
             {
                 gp_mesh_position( _mesh, vertex_iterator + 0, pl.x, pl.y );
-                gp_mesh_color( _mesh, vertex_iterator + 0, argb );
+                gp_mesh_color( _mesh, vertex_iterator + 0, total_argb );
                 gp_mesh_uv( _canvas, _mesh, vertex_iterator + 0, u, 0.f );
 
                 gp_mesh_position( _mesh, vertex_iterator + 1, pr.x, pr.y );
-                gp_mesh_color( _mesh, vertex_iterator + 1, argb );
+                gp_mesh_color( _mesh, vertex_iterator + 1, total_argb );
                 gp_mesh_uv( _canvas, _mesh, vertex_iterator + 1, u, 1.f );
 
                 vertex_iterator += 2;
@@ -599,8 +591,6 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
         }
 
         {
-            gp_uint32_t argb = points[points_size - 2].argb;
-
             const gp_vec2f_t * p0 = &points[points_size - 2].p;
             const gp_vec2f_t * p1 = &points[points_size - 1].p;
 
@@ -613,19 +603,19 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
                 float uv_soft_offset = line_width_soft / half_line_width * 0.5f;
 
                 gp_mesh_position( _mesh, vertex_iterator + 0, p1->x - perp.x * half_line_width, p1->y - perp.y * half_line_width );
-                gp_mesh_color( _mesh, vertex_iterator + 0, argb & 0x00ffffff );
+                gp_mesh_color( _mesh, vertex_iterator + 0, total_argb & 0x00ffffff );
                 gp_mesh_uv( _canvas, _mesh, vertex_iterator + 0, 1.f, 0.f );
 
                 gp_mesh_position( _mesh, vertex_iterator + 1, p1->x - perp.x * line_width_soft, p1->y - perp.y * line_width_soft );
-                gp_mesh_color( _mesh, vertex_iterator + 1, argb );
+                gp_mesh_color( _mesh, vertex_iterator + 1, total_argb );
                 gp_mesh_uv( _canvas, _mesh, vertex_iterator + 1, 1.f, 0.5f - uv_soft_offset );
 
                 gp_mesh_position( _mesh, vertex_iterator + 2, p1->x + perp.x * line_width_soft, p1->y + perp.y * line_width_soft );
-                gp_mesh_color( _mesh, vertex_iterator + 2, argb );
+                gp_mesh_color( _mesh, vertex_iterator + 2, total_argb );
                 gp_mesh_uv( _canvas, _mesh, vertex_iterator + 2, 1.f, 0.5f + uv_soft_offset );
 
                 gp_mesh_position( _mesh, vertex_iterator + 3, p1->x + perp.x * half_line_width, p1->y + perp.y * half_line_width );
-                gp_mesh_color( _mesh, vertex_iterator + 3, argb & 0x00ffffff );
+                gp_mesh_color( _mesh, vertex_iterator + 3, total_argb & 0x00ffffff );
                 gp_mesh_uv( _canvas, _mesh, vertex_iterator + 3, 1.f, 1.f );
 
                 vertex_iterator += 4;
@@ -633,11 +623,11 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
             else
             {
                 gp_mesh_position( _mesh, vertex_iterator + 0, p1->x - perp.x * half_line_width, p1->y - perp.y * half_line_width );
-                gp_mesh_color( _mesh, vertex_iterator + 0, argb );
+                gp_mesh_color( _mesh, vertex_iterator + 0, total_argb );
                 gp_mesh_uv( _canvas, _mesh, vertex_iterator + 0, 1.f, 0.f );
 
                 gp_mesh_position( _mesh, vertex_iterator + 1, p1->x + perp.x * half_line_width, p1->y + perp.y * half_line_width );
-                gp_mesh_color( _mesh, vertex_iterator + 1, argb );
+                gp_mesh_color( _mesh, vertex_iterator + 1, total_argb );
                 gp_mesh_uv( _canvas, _mesh, vertex_iterator + 1, 1.f, 1.f );
 
                 vertex_iterator += 2;
