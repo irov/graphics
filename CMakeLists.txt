@@ -77,5 +77,8 @@ if(GRAPHICS_INSTALL)
 endif()
 
 if(GRAPHICS_BUILD_TESTS)
+    include(CTest)
+    enable_testing()
+    
     add_subdirectory(tests)
 endif()
