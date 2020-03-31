@@ -1,62 +1,18 @@
-CMAKE_MINIMUM_REQUIRED(VERSION 3.2)
+cmake_minimum_required(VERSION 3.0)
 
-set(GRAPHICS_DEPENDENCIES_DIR ${CMAKE_CURRENT_SOURCE_DIR}/dependencies)
-set(GRAPHICS_CONTENT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/content)
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
-include(cmake/macro.cmake)
-include(cmake/glad_download.cmake)
-include(cmake/glfw_download.cmake)
-include(cmake/stb_libs_download.cmake)
-include(cmake/content_download.cmake)
+macro(ADD_GRAPHICS_TEST testname)
+    ADD_DEFINITIONS(-D_CRT_SECURE_NO_WARNINGS)
+    
+    ADD_EXECUTABLE(test_${testname} test_${testname}.c)
+    TARGET_LINK_LIBRARIES(test_${testname} graphics)
 
-project(graphics_test C)
+    set_target_properties (test_${testname} PROPERTIES
+        FOLDER tests
+    )
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
-include_directories(${GRAPHICS_DEPENDENCIES_DIR})
-include_directories(${GLFW_INCLUDE_DIR})
-include_directories(${IMGUI_INCLUDE_DIR})
-include_directories(${GLAD_INCLUDE_DIR})
+    ADD_TEST(NAME ${testname} COMMAND ${ROOT_DIR}/bin/${CMAKE_GENERATOR}/test_${testname} ${ROOT_DIR}/bin/${CMAKE_GENERATOR})
+endmacro()
 
-ADD_DEFINITIONS(-DGRAPHICS_CONTENT_PATH="${GRAPHICS_CONTENT_DIR}")
-
-add_executable(${PROJECT_NAME} graphics_test.c)
-
-message("UNIX: ${UNIX}")
-message("APPLE: ${APPLE}")
-message("ANDROID: ${ANDROID}")
-
-target_link_libraries(${PROJECT_NAME}
-    graphics
-    glad
-    glfw
-)
-
-add_dependencies(${PROJECT_NAME}
-    glad_download
-    glfw_download
-)
-
-if(UNIX AND NOT ANDROID AND NOT APPLE)
-    target_link_libraries(${PROJECT_NAME} m)
-    target_link_libraries(${PROJECT_NAME} c)
-    target_link_libraries(${PROJECT_NAME} dl)
-    target_link_libraries(${PROJECT_NAME} X11)
-    target_link_libraries(${PROJECT_NAME} Xxf86vm)
-    target_link_libraries(${PROJECT_NAME} Xrandr)
-    target_link_libraries(${PROJECT_NAME} rt)
-    target_link_libraries(${PROJECT_NAME} GL)
-    target_link_libraries(${PROJECT_NAME} pthread)
-endif()
-
-if(APPLE)
-    ADD_APPLE_FRAMEWORK(${PROJECT_NAME} Cocoa)
-    ADD_APPLE_FRAMEWORK(${PROJECT_NAME} IOKit)
-    ADD_APPLE_FRAMEWORK(${PROJECT_NAME} CoreVideo)
-    ADD_APPLE_FRAMEWORK(${PROJECT_NAME} OpenAL)
-endif()
-
-set_target_properties (${PROJECT_NAME} PROPERTIES
-    FOLDER tests
-)
-
-ADD_TEST(NAME ${PROJECT_NAME} COMMAND ./${PROJECT_NAME} ${CMAKE_CURRENT_SOURCE_DIR})
+ADD_GRAPHICS_TEST(memory_leak)
