@@ -50,7 +50,7 @@ script:
     # run
     - mkdir build_cmake
     - pushd build_cmake
-    - cmake .. -DCMAKE_BUILD_TYPE=$BUILD_CONFIGURATION
+    - cmake .. -DCMAKE_CONFIGURATION_TYPES=$BUILD_CONFIGURATION -DGRAPHICS_EXAMPLES_BUILD:BOOL=FALSE -DGRAPHICS_TESTS:BOOL=TRUE
     - cmake --build . --config $BUILD_CONFIGURATION
     - ctest --output-on-failure
     - popd
