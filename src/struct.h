@@ -21,7 +21,7 @@ typedef struct gp_state_t
 {
     gp_bool_t fill;
 
-    float line_width;
+    float line_thickness;
     float penumbra;
 
     gp_color_t color;
@@ -36,20 +36,26 @@ typedef struct gp_state_t
 
     float curve_quality_inv;
     float ellipse_quality_inv;
+
+    struct gp_state_t * next;
+    struct gp_state_t * prev;
 } gp_state_t;
 //////////////////////////////////////////////////////////////////////////
-typedef struct gp_point_t
+typedef struct gp_points_t
+{
+    gp_vec2f_t p;
+    gp_argb_t argb;
+} gp_points_t;
+//////////////////////////////////////////////////////////////////////////
+typedef struct gp_line_point_t
 {
     gp_vec2f_t p;
 
-    struct gp_point_t * next;
-    struct gp_point_t * prev;
-} gp_point_t;
-//////////////////////////////////////////////////////////////////////////
-typedef struct gp_line_points_t
-{
-    gp_vec2f_t p;
-} gp_line_points_t;
+    const gp_state_t * state;
+
+    struct gp_line_point_t * next;
+    struct gp_line_point_t * prev;
+} gp_line_point_t;
 //////////////////////////////////////////////////////////////////////////
 typedef struct gp_line_edge_t
 {
@@ -62,10 +68,10 @@ typedef struct gp_line_edge_t
 //////////////////////////////////////////////////////////////////////////
 typedef struct gp_line_t
 {
-    gp_point_t * points;
+    gp_line_point_t * points;
     gp_line_edge_t * edges;
 
-    gp_state_t state;
+    const gp_state_t * state;
 
     struct gp_line_t * next;
     struct gp_line_t * prev;
@@ -77,7 +83,7 @@ typedef struct gp_rect_t
     float width;
     float height;
 
-    gp_state_t state;
+    const gp_state_t * state;
 
     struct gp_rect_t * next;
     struct gp_rect_t * prev;
@@ -90,7 +96,7 @@ typedef struct gp_rounded_rect_t
     float height;
     float radius;
 
-    gp_state_t state;
+    const gp_state_t * state;
 
     struct gp_rounded_rect_t * next;
     struct gp_rounded_rect_t * prev;
@@ -99,10 +105,10 @@ typedef struct gp_rounded_rect_t
 typedef struct gp_ellipse_t
 {
     gp_vec2f_t point;
-    float width;
-    float height;
+    float radius_width;
+    float radius_height;
 
-    gp_state_t state;
+    const gp_state_t * state;
 
     struct gp_ellipse_t * next;
     struct gp_ellipse_t * prev;
@@ -110,7 +116,10 @@ typedef struct gp_ellipse_t
 //////////////////////////////////////////////////////////////////////////
 typedef struct gp_canvas_t
 {
-    gp_state_t state;
+    gp_state_t state_cook;
+    gp_bool_t state_invalidate;
+
+    gp_state_t * states;
 
     gp_line_t * lines;
     gp_rect_t * rects;

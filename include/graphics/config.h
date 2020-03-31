@@ -23,6 +23,8 @@ typedef uint16_t gp_uint16_t;
 typedef uint32_t gp_uint32_t;
 typedef size_t gp_size_t;
 
+typedef gp_uint32_t gp_argb_t;
+
 typedef struct gp_color_t
 {
     float r;

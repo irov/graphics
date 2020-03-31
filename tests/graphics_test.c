@@ -48,7 +48,7 @@ static GLuint __make_program( const char * _vertexShaderSource, const char * _fr
 
         printf( "error: %s\n"
             , infoLog
-        );
+            );
 
         return EXIT_FAILURE;
     }
@@ -66,7 +66,7 @@ static GLuint __make_program( const char * _vertexShaderSource, const char * _fr
 
         printf( "error: %s\n"
             , infoLog
-        );
+            );
 
         return EXIT_FAILURE;
     }
@@ -85,7 +85,7 @@ static GLuint __make_program( const char * _vertexShaderSource, const char * _fr
 
         printf( "error: %s\n"
             , infoLog
-        );
+            );
 
         return EXIT_FAILURE;
     }
@@ -106,7 +106,7 @@ static GLuint __make_texture( const char * _path )
     sprintf( texture_path, "%s/%s"
         , GRAPHICS_CONTENT_PATH
         , _path
-    );
+        );
 
     uint8_t * data = stbi_load( texture_path, &width, &height, &comp, STBI_default );
 
@@ -240,18 +240,22 @@ static const char * fragmentShaderTextureSource = "#version 330 core\n"
 //////////////////////////////////////////////////////////////////////////
 static void * gp_malloc( gp_size_t _size, void * _ud )
 {
-    GP_UNUSED( _ud );
+    void * p = malloc( _size + sizeof( gp_size_t ) );
 
-    void * p = malloc( _size );
+    *(gp_size_t *)p = _size;
 
-    return p;
+    *(gp_size_t *)_ud += _size;
+
+    return (gp_size_t *)p + 1;
 }
 //////////////////////////////////////////////////////////////////////////
 static void gp_free( void * _ptr, void * _ud )
 {
-    GP_UNUSED( _ud );
+    gp_size_t * p = (gp_size_t *)_ptr - 1;
 
-    free( _ptr );
+    *(gp_size_t *)_ud -= *p;
+
+    free( p );
 }
 //////////////////////////////////////////////////////////////////////////
 typedef struct gl_vertex_t
@@ -267,15 +271,25 @@ typedef gp_uint16_t gl_index_t;
 //////////////////////////////////////////////////////////////////////////
 static void __draw_figure( gp_canvas_t * _canvas, float _dx, float _dy )
 {
+    gp_set_color( _canvas, 1.f, 0.5f, 0.25f, 1.f );
     gp_move_to( _canvas, _dx + 0.f, _dy + 0.f );
+    gp_set_color( _canvas, 0.5f, 1.0f, 0.25f, 1.f );
     gp_quadratic_curve_to( _canvas, _dx + 50.f, _dy + 100.f, _dx + 100.f, _dy + 100.f );
+    gp_set_color( _canvas, 0.5f, 0.5f, 1.f, 1.f );
     gp_bezier_curve_to( _canvas, _dx + 125.f, _dy + 175.f, _dx + 175.f, _dy + 150.f, _dx + 200.f, _dy );
+    gp_set_color( _canvas, 0.25f, 1.f, 1.f, 1.f );
     gp_line_to( _canvas, _dx + 250.f, _dy + 100.f );
 
+    gp_set_color( _canvas, 0.2f, 0.6f, 0.9f, 1.f );
     gp_draw_rect( _canvas, _dx + 275.f, _dy + 0.f, 100.f, 50.f );
+
+    gp_set_color( _canvas, 0.7f, 0.3f, 0.4f, 1.f );
     gp_draw_rounded_rect( _canvas, _dx + 275.f, _dy + 75.f, 100.f, 50.f, 10.f );
 
+    gp_set_color( _canvas, 0.1f, 0.8f, 0.2f, 1.f );
     gp_draw_circle( _canvas, _dx + 100.f, _dy + 225.f, 50.f );
+
+    gp_set_color( _canvas, 0.9f, 0.1f, 0.7f, 1.f );
     gp_draw_ellipse( _canvas, _dx + 250.f, _dy + 225.f, 50.f, 25.f );
 }
 //////////////////////////////////////////////////////////////////////////
@@ -326,21 +340,15 @@ int main( int argc, char ** argv )
 
     GLint textureId = __make_texture( "texture.jpg" );
 
-    gp_canvas_t * canvas;
-    gp_canvas_create( &canvas, &gp_malloc, &gp_free, 0 );
+    gp_size_t msz = 0;
 
-    gp_set_line_width( canvas, 20.f );
-    gp_set_penumbra( canvas, 0.f );
+    gp_canvas_t * canvas;
+    gp_canvas_create( &canvas, &gp_malloc, &gp_free, &msz );
+
+    gp_set_line_thickness( canvas, 20.f );
+    gp_set_penumbra( canvas, 5.f );
 
     gp_set_uv_offset( canvas, 0.f, 0.f, 1.f, 1.f );
-
-    gp_color_t fill_color;
-    fill_color.r = 0.7f;
-    fill_color.g = 0.6f;
-    fill_color.b = 0.4f;
-    fill_color.a = 1.f;
-
-    gp_set_color( canvas, &fill_color );
 
     gp_begin_fill( canvas );
 
@@ -410,7 +418,7 @@ int main( int argc, char ** argv )
 
     glEnableVertexAttribArray( 0 );
     glEnableVertexAttribArray( 1 );
-    
+
     glVertexAttribPointer( 0, 2, GL_FLOAT, GL_FALSE, sizeof( gl_vertex_t ), (gp_uint8_t *)0 + offsetof( gl_vertex_t, x ) );
     glVertexAttribPointer( 1, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof( gl_vertex_t ), (gp_uint8_t *)0 + offsetof( gl_vertex_t, c ) );
     glVertexAttribPointer( 2, 2, GL_FLOAT, GL_FALSE, sizeof( gl_vertex_t ), (gp_uint8_t *)0 + offsetof( gl_vertex_t, u ) );
@@ -425,7 +433,7 @@ int main( int argc, char ** argv )
     glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
 
     uint32_t max_vertex_count = 8196;
-    uint32_t max_index_count = 16384 + 8196;
+    uint32_t max_index_count = 32768;
 
     glBufferData( GL_ARRAY_BUFFER, max_vertex_count * sizeof( gl_vertex_t ), GP_NULLPTR, GL_DYNAMIC_DRAW );
     glBufferData( GL_ELEMENT_ARRAY_BUFFER, max_index_count * sizeof( gl_index_t ), GP_NULLPTR, GL_DYNAMIC_DRAW );
@@ -502,7 +510,7 @@ int main( int argc, char ** argv )
         mesh.indices_stride = sizeof( gp_uint16_t );
 
         gp_result_t result = gp_render( canvas, &mesh );
-        
+
         glUnmapBuffer( GL_ARRAY_BUFFER );
         glUnmapBuffer( GL_ELEMENT_ARRAY_BUFFER );
 
@@ -525,6 +533,11 @@ int main( int argc, char ** argv )
 
     glfwDestroyWindow( fwWindow );
     glfwTerminate();
+
+    if( msz != 0 )
+    { 
+        return EXIT_FAILURE;
+    }
 
     return EXIT_SUCCESS;
 }

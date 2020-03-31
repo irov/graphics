@@ -63,7 +63,7 @@ gp_result_t gp_mesh_position( const gp_mesh_t * _mesh, gp_uint16_t _iterator, fl
     return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
-gp_result_t gp_mesh_color( const gp_mesh_t * _mesh, gp_uint16_t _iterator, gp_uint32_t _c )
+gp_result_t gp_mesh_color( const gp_mesh_t * _mesh, gp_uint16_t _iterator, gp_argb_t _c )
 {
     if( _mesh->colors_buffer == GP_NULLPTR )
     {
@@ -75,7 +75,7 @@ gp_result_t gp_mesh_color( const gp_mesh_t * _mesh, gp_uint16_t _iterator, gp_ui
         return GP_FAILURE;
     }
 
-    *(gp_uint32_t *)((gp_uint8_t *)_mesh->colors_buffer + _mesh->colors_offset + _mesh->colors_stride * _iterator) = _c;
+    *(gp_argb_t *)((gp_uint8_t *)_mesh->colors_buffer + _mesh->colors_offset + _mesh->colors_stride * _iterator) = _c;
 
     return GP_SUCCESSFUL;
 }
@@ -84,7 +84,7 @@ gp_result_t gp_mesh_uv( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh, gp
 {
     if( _mesh->uv_buffer == GP_NULLPTR )
     {
-        return GP_FAILURE;
+        return GP_SUCCESSFUL;
     }
 
     if( _mesh->vertex_count <= _iterator )
@@ -93,10 +93,20 @@ gp_result_t gp_mesh_uv( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh, gp
     }
 
     gp_vec2f_t uv;
-    uv.x = _canvas->state.uv_ou + _u * _canvas->state.uv_su;
-    uv.y = _canvas->state.uv_ov + _v * _canvas->state.uv_sv;
+    uv.x = _canvas->state_cook.uv_ou + _u * _canvas->state_cook.uv_su;
+    uv.y = _canvas->state_cook.uv_ov + _v * _canvas->state_cook.uv_sv;
 
     *(gp_vec2f_t *)((gp_uint8_t *)_mesh->uv_buffer + _mesh->uv_offset + _mesh->uv_stride * _iterator) = uv;
 
     return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
+gp_result_t gp_mesh_uv_map( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh, gp_uint16_t _iterator, float _x, float _y, float _ox, float _oy, float _w, float _h )
+{
+    float u = (_x + _ox) / _w;
+    float v = (_y + _oy) / _h;
+
+    gp_result_t result = gp_mesh_uv( _canvas, _mesh, _iterator, u, v );
+
+    return result;
 }
