@@ -7,6 +7,12 @@ macro(ADD_GRAPHICS_TEST testname)
     
     ADD_EXECUTABLE(test_${testname} test_${testname}.c)
     TARGET_LINK_LIBRARIES(test_${testname} graphics)
+    
+    if(UNIX AND NOT ANDROID AND NOT APPLE)
+        target_link_libraries(${PROJECT_NAME} m)
+        target_link_libraries(${PROJECT_NAME} c)
+        target_link_libraries(${PROJECT_NAME} dl)
+    endif()
 
     set_target_properties (test_${testname} PROPERTIES
         FOLDER tests
