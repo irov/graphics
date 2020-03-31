@@ -9,9 +9,9 @@ macro(ADD_GRAPHICS_TEST testname)
     TARGET_LINK_LIBRARIES(test_${testname} graphics)
     
     if(UNIX AND NOT ANDROID AND NOT APPLE)
-        target_link_libraries(${PROJECT_NAME} m)
-        target_link_libraries(${PROJECT_NAME} c)
-        target_link_libraries(${PROJECT_NAME} dl)
+        target_link_libraries(test_${testname} m)
+        target_link_libraries(test_${testname} c)
+        target_link_libraries(test_${testname} dl)
     endif()
 
     set_target_properties (test_${testname} PROPERTIES
