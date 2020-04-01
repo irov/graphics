@@ -7,19 +7,27 @@ include(cmake/macro.cmake)
 include(cmake/glad_download.cmake)
 include(cmake/glfw_download.cmake)
 include(cmake/stb_libs_download.cmake)
+include(cmake/imgui_download.cmake)
 include(cmake/content_download.cmake)
 
-project(graphics_examples C)
+project(graphics_examples)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 include_directories(${GRAPHICS_DEPENDENCIES_DIR})
 include_directories(${GLFW_INCLUDE_DIR})
-include_directories(${IMGUI_INCLUDE_DIR})
 include_directories(${GLAD_INCLUDE_DIR})
+include_directories(${IMGUI_INCLUDE_DIR})
+
+
+ADD_DEFINITIONS(-D_CRT_SECURE_NO_WARNINGS)
 
 ADD_DEFINITIONS(-DGRAPHICS_CONTENT_PATH="${GRAPHICS_CONTENT_DIR}")
 
-add_executable(${PROJECT_NAME} graphics_examples.c)
+set(EXAMPLES_SOURCES
+    graphics_examples.cpp
+)
+
+add_executable(${PROJECT_NAME} ${EXAMPLES_SOURCES})
 
 message("UNIX: ${UNIX}")
 message("APPLE: ${APPLE}")
@@ -29,11 +37,15 @@ target_link_libraries(${PROJECT_NAME}
     graphics
     glad
     glfw
+    imgui
+    imgui_glfw
+    imgui_opengl3
 )
 
 add_dependencies(${PROJECT_NAME}
     glad_download
     glfw_download
+    imgui_download
 )
 
 if(UNIX AND NOT ANDROID AND NOT APPLE)

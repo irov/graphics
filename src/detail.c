@@ -32,10 +32,12 @@ gp_result_t gp_mesh_index( const gp_mesh_t * _mesh, gp_uint16_t _iterator, gp_ui
         return GP_SUCCESSFUL;
     }
 
+#if defined(GP_DEBUG)
     if( _mesh->index_count <= _iterator )
     {
         return GP_FAILURE;
     }
+#endif
 
     *(gp_uint16_t *)((gp_uint8_t *)_mesh->indices_buffer + _mesh->indices_offset + _mesh->indices_stride * _iterator) = _index;
 
@@ -49,10 +51,12 @@ gp_result_t gp_mesh_position( const gp_mesh_t * _mesh, gp_uint16_t _iterator, fl
         return GP_SUCCESSFUL;
     }
 
+#if defined(GP_DEBUG)
     if( _mesh->vertex_count <= _iterator )
     {
         return GP_FAILURE;
     }
+#endif
 
     gp_vec2f_t p;
     p.x = _x;
@@ -70,10 +74,12 @@ gp_result_t gp_mesh_color( const gp_mesh_t * _mesh, gp_uint16_t _iterator, gp_ar
         return GP_SUCCESSFUL;
     }
 
+#if defined(GP_DEBUG)
     if( _mesh->vertex_count <= _iterator )
     {
         return GP_FAILURE;
     }
+#endif
 
     *(gp_argb_t *)((gp_uint8_t *)_mesh->colors_buffer + _mesh->colors_offset + _mesh->colors_stride * _iterator) = _c;
 
@@ -87,10 +93,12 @@ gp_result_t gp_mesh_uv( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh, gp
         return GP_SUCCESSFUL;
     }
 
+#if defined(GP_DEBUG)
     if( _mesh->vertex_count <= _iterator )
     {
         return GP_FAILURE;
     }
+#endif
 
     gp_vec2f_t uv;
     uv.x = _canvas->state_cook.uv_ou + _u * _canvas->state_cook.uv_su;

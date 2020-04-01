@@ -7,17 +7,15 @@
 #include "glad/glad.h"
 #include "GLFW/glfw3.h"
 
-#include "graphics/graphics.h"
+#include "imgui.h"
+#include "imgui_impl_glfw.h"
+#include "imgui_impl_opengl3.h"
+
+#include "graphics/graphics.hpp"
 
 #include <stdlib.h>
 #include <stdio.h>
 
-//////////////////////////////////////////////////////////////////////////
-typedef struct settings_t
-{
-    int wireframe;
-    int texture;
-} settings_t;
 //////////////////////////////////////////////////////////////////////////
 static void __make_ortho( float _l, float _r, float _t, float _b, float _n, float _f, float _m[16] )
 {
@@ -167,31 +165,6 @@ static void framebuffer_size_callback( GLFWwindow * _window, int _width, int _he
     glViewport( 0, 0, _width, _height );
 }
 //////////////////////////////////////////////////////////////////////////
-static void key_callback( GLFWwindow * window, int key, int scancode, int action, int mods )
-{
-    GP_UNUSED( scancode );
-    GP_UNUSED( mods );
-
-    settings_t * s = (settings_t *)glfwGetWindowUserPointer( window );
-
-    if( key == GLFW_KEY_ESCAPE && action == GLFW_PRESS )
-    {
-        glfwSetWindowShouldClose( window, GLFW_TRUE );
-    }
-
-    if( key == GLFW_KEY_F1 && action == GLFW_PRESS )
-    {
-        s->wireframe += 1;
-        s->wireframe %= 2;
-    }
-
-    if( key == GLFW_KEY_F2 && action == GLFW_PRESS )
-    {
-        s->texture += 1;
-        s->texture %= 2;
-    }
-}
-//////////////////////////////////////////////////////////////////////////
 static const char * vertexShaderColorSource = "#version 330 core\n"
 "layout (location = 0) in vec2 inPos;\n"
 "layout (location = 1) in vec4 inColor;\n"
@@ -240,22 +213,18 @@ static const char * fragmentShaderTextureSource = "#version 330 core\n"
 //////////////////////////////////////////////////////////////////////////
 static void * gp_malloc( gp_size_t _size, void * _ud )
 {
-    void * p = malloc( _size + sizeof( gp_size_t ) );
+    GP_UNUSED( _ud );
 
-    *(gp_size_t *)p = _size;
+    void * p = malloc( _size );
 
-    *(gp_size_t *)_ud += _size;
-
-    return (gp_size_t *)p + 1;
+    return p;
 }
 //////////////////////////////////////////////////////////////////////////
 static void gp_free( void * _ptr, void * _ud )
 {
-    gp_size_t * p = (gp_size_t *)_ptr - 1;
-
-    *(gp_size_t *)_ud -= *p;
-
-    free( p );
+    GP_UNUSED( _ud );
+    
+    free( _ptr );
 }
 //////////////////////////////////////////////////////////////////////////
 typedef struct gl_vertex_t
@@ -321,15 +290,8 @@ int main( int argc, char ** argv )
         return EXIT_FAILURE;
     }
 
-    settings_t s;
-    s.wireframe = 0;
-    s.texture = 0;
-
-    glfwSetWindowUserPointer( fwWindow, &s );
-
     glfwMakeContextCurrent( fwWindow );
     glfwSetFramebufferSizeCallback( fwWindow, framebuffer_size_callback );
-    glfwSetKeyCallback( fwWindow, key_callback );
 
     if( gladLoadGLLoader( (GLADloadproc)glfwGetProcAddress ) == 0 )
     {
@@ -338,35 +300,39 @@ int main( int argc, char ** argv )
 
     glfwSwapInterval( 1 );
 
+    ImGuiContext * context = ImGui::CreateContext();
+    (void)context;
+
+    if( context == nullptr )
+    {
+        return EXIT_FAILURE;
+    }
+    
+    if( ImGui_ImplGlfw_InitForOpenGL( fwWindow, false ) == false )
+    {
+        return EXIT_FAILURE;
+    }
+
+    const char * glsl_version = "#version 330";
+
+    if( ImGui_ImplOpenGL3_Init( glsl_version ) == false )
+    {
+        return EXIT_FAILURE;
+    }
+    
+    if( ImGui_ImplOpenGL3_CreateFontsTexture() == false )
+    {
+        return EXIT_FAILURE;
+    }
+
+    if( ImGui_ImplOpenGL3_CreateDeviceObjects() == false )
+    {
+        return EXIT_FAILURE;
+    }
+
+
     GLint textureId = __make_texture( "texture.jpg" );
 
-    gp_size_t msz = 0;
-
-    gp_canvas_t * canvas;
-    gp_canvas_create( &canvas, &gp_malloc, &gp_free, &msz );
-
-    gp_set_line_thickness( canvas, 20.f );
-    gp_set_penumbra( canvas, 5.f );
-
-    gp_set_uv_offset( canvas, 0.f, 0.f, 1.f, 1.f );
-
-    gp_begin_fill( canvas );
-
-    __draw_figure( canvas, 100.f, 100.f );
-
-    gp_end_fill( canvas );
-
-    __draw_figure( canvas, 100.f, 400.f );
-
-    gp_set_penumbra( canvas, 2.f );
-
-    gp_begin_fill( canvas );
-
-    __draw_figure( canvas, 600.f, 100.f );
-
-    gp_end_fill( canvas );
-
-    __draw_figure( canvas, 600.f, 400.f );
 
     GLuint shaderColorProgram = __make_program( vertexShaderColorSource, fragmentShaderColorSource );
     GLuint shaderTextureProgram = __make_program( vertexShaderTextureSource, fragmentShaderTextureSource );
@@ -442,7 +408,39 @@ int main( int argc, char ** argv )
     {
         glfwPollEvents();
 
-        if( s.wireframe == 1 )
+        ImGui_ImplGlfw_NewFrame();
+        ImGui_ImplOpenGL3_NewFrame();
+
+        ImGui::NewFrame();
+
+        static bool wireframe = false;
+        static bool texture = false;
+
+        ImGui::Checkbox( "wireframe", &wireframe );
+        ImGui::Checkbox( "texture", &texture );
+
+        static bool fill = false;
+
+        ImGui::Checkbox( "fill", &fill );
+        
+        static float thickness = gp_get_default_line_thickness();
+        ImGui::DragFloat( "thickness", &thickness, 0.125f, 0.125f, 64.f );
+
+        static float penumbra = gp_get_default_penumbra() / gp_get_default_line_thickness() * 2.f;
+        ImGui::DragFloat( "penumbra", &penumbra, 0.0125f, 0.f, 1.f );
+
+        static int curve_quality = gp_get_default_curve_quality();
+        ImGui::SliderInt( "curve quality", &curve_quality, 1, 64 );
+
+        static int ellipse_quality = gp_get_default_ellipse_quality();
+        ImGui::SliderInt( "ellipse quality", &ellipse_quality, 8, 128 );
+
+        static int rect_quality = gp_get_default_rect_quality();
+        ImGui::SliderInt( "rect quality", &rect_quality, 2, 64 );
+
+        ImGui::EndFrame();
+
+        if( wireframe == 1 )
         {
             glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
         }
@@ -451,7 +449,7 @@ int main( int argc, char ** argv )
             glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
         }
 
-        if( s.texture == 1 )
+        if( texture == 1 )
         {
             glActiveTexture( GL_TEXTURE0 );
             glBindTexture( GL_TEXTURE_2D, textureId );
@@ -472,6 +470,28 @@ int main( int argc, char ** argv )
 
         glClearColor( 0.2f, 0.3f, 0.3f, 1.f );
         glClear( GL_COLOR_BUFFER_BIT );
+
+        gp_canvas_t * canvas;
+        gp_canvas_create( &canvas, &gp_malloc, &gp_free, GP_NULLPTR );
+
+        gp_set_line_thickness( canvas, thickness );
+        gp_set_penumbra( canvas, thickness * penumbra * (0.5f - 0.0125f) );
+
+        gp_set_curve_quality( canvas, curve_quality );
+        gp_set_ellipse_quality( canvas, ellipse_quality );
+        gp_set_rect_quality( canvas, rect_quality );
+
+        if( fill == true )
+        {
+            gp_begin_fill( canvas );
+        }
+
+        __draw_figure( canvas, 300.f, 300.f );
+
+        if( fill == true )
+        {
+            gp_end_fill( canvas );
+        }
 
         gp_mesh_t mesh;
         gp_calculate_mesh_size( canvas, &mesh );
@@ -511,6 +531,8 @@ int main( int argc, char ** argv )
 
         gp_result_t result = gp_render( canvas, &mesh );
 
+        gp_canvas_destroy( canvas );
+
         glUnmapBuffer( GL_ARRAY_BUFFER );
         glUnmapBuffer( GL_ELEMENT_ARRAY_BUFFER );
 
@@ -518,6 +540,12 @@ int main( int argc, char ** argv )
         {
             glDrawElements( GL_TRIANGLES, mesh.index_count, GL_UNSIGNED_SHORT, GP_NULLPTR );
         }
+
+        ImGui::Render();
+
+        ImDrawData * imData = ImGui::GetDrawData();
+
+        ImGui_ImplOpenGL3_RenderDrawData( imData );
 
         glfwSwapBuffers( fwWindow );
     }
@@ -529,15 +557,12 @@ int main( int argc, char ** argv )
     glDeleteProgram( shaderColorProgram );
     glDeleteProgram( shaderTextureProgram );
 
-    gp_canvas_destroy( canvas );
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
 
     glfwDestroyWindow( fwWindow );
     glfwTerminate();
-
-    if( msz != 0 )
-    { 
-        return EXIT_FAILURE;
-    }
 
     return EXIT_SUCCESS;
 }

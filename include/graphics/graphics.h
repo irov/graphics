@@ -20,6 +20,16 @@ gp_result_t gp_canvas_clear( gp_canvas_t * _canvas );
 *
 *************************************************************************/
 
+float gp_get_default_line_thickness( void );
+float gp_get_default_penumbra( void );
+gp_uint8_t gp_get_default_curve_quality( void );
+gp_uint8_t gp_get_default_ellipse_quality( void );
+gp_uint8_t gp_get_default_rect_quality( void );
+
+/*************************************************************************
+*
+*************************************************************************/
+
 gp_result_t gp_set_line_thickness( gp_canvas_t * _canvas, float _thickness );
 gp_result_t gp_get_line_thickness( const gp_canvas_t * _canvas, float * _thickness );
 
@@ -37,6 +47,9 @@ gp_result_t gp_get_curve_quality( const gp_canvas_t * _canvas, gp_uint8_t * _qua
 
 gp_result_t gp_set_ellipse_quality( gp_canvas_t * _canvas, gp_uint8_t _quality );
 gp_result_t gp_get_ellipse_quality( const gp_canvas_t * _canvas, gp_uint8_t * _quality );
+
+gp_result_t gp_set_rect_quality( gp_canvas_t * _canvas, gp_uint8_t _quality );
+gp_result_t gp_get_rect_quality( const gp_canvas_t * _canvas, gp_uint8_t * _quality );
 
 gp_result_t gp_begin_fill( gp_canvas_t * _canvas );
 gp_result_t gp_end_fill( gp_canvas_t * _canvas );

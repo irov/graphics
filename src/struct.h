@@ -33,9 +33,11 @@ typedef struct gp_state_t
 
     gp_uint8_t curve_quality;
     gp_uint8_t ellipse_quality;
+    gp_uint8_t rect_quality;
 
     float curve_quality_inv;
     float ellipse_quality_inv;
+    float rect_quality_inv;
 
     struct gp_state_t * next;
     struct gp_state_t * prev;

@@ -9,12 +9,37 @@
 #include "detail.h"
 
 //////////////////////////////////////////////////////////////////////////
+float gp_get_default_line_thickness( void )
+{
+    return 3.f;
+}
+//////////////////////////////////////////////////////////////////////////
+float gp_get_default_penumbra( void )
+{
+    return 1.f;
+}
+//////////////////////////////////////////////////////////////////////////
+gp_uint8_t gp_get_default_curve_quality( void )
+{
+    return 32;
+}
+//////////////////////////////////////////////////////////////////////////
+gp_uint8_t gp_get_default_ellipse_quality( void )
+{
+    return 64;
+}
+//////////////////////////////////////////////////////////////////////////
+gp_uint8_t gp_get_default_rect_quality( void )
+{
+    return 16;
+}
+//////////////////////////////////////////////////////////////////////////
 static void __canvas_default_setup( gp_canvas_t * _canvas )
 {
     _canvas->state_cook.next = GP_NULLPTR;
     _canvas->state_cook.prev = GP_NULLPTR;
-    _canvas->state_cook.line_thickness = 3.f;
-    _canvas->state_cook.penumbra = 1.f;
+    _canvas->state_cook.line_thickness = gp_get_default_line_thickness();
+    _canvas->state_cook.penumbra = gp_get_default_penumbra();
     _canvas->state_cook.color.r = 1.f;
     _canvas->state_cook.color.g = 1.f;
     _canvas->state_cook.color.b = 1.f;
@@ -24,10 +49,12 @@ static void __canvas_default_setup( gp_canvas_t * _canvas )
     _canvas->state_cook.uv_ov = 0.f;
     _canvas->state_cook.uv_su = 1.f;
     _canvas->state_cook.uv_sv = 1.f;
-    _canvas->state_cook.curve_quality = 32;
-    _canvas->state_cook.curve_quality_inv = 1.f / 32.f;
-    _canvas->state_cook.ellipse_quality = 64;
-    _canvas->state_cook.ellipse_quality_inv = 1.f / 64.f;
+    _canvas->state_cook.curve_quality = gp_get_default_curve_quality();
+    _canvas->state_cook.curve_quality_inv = 1.f / (float)_canvas->state_cook.curve_quality;
+    _canvas->state_cook.ellipse_quality = gp_get_default_ellipse_quality();
+    _canvas->state_cook.ellipse_quality_inv = 1.f / (float)_canvas->state_cook.ellipse_quality;
+    _canvas->state_cook.rect_quality = gp_get_default_rect_quality();
+    _canvas->state_cook.rect_quality_inv = 1.f / (float)_canvas->state_cook.rect_quality;
 }
 //////////////////////////////////////////////////////////////////////////
 gp_result_t gp_canvas_create( gp_canvas_t ** _canvas, gp_malloc_t _malloc, gp_free_t _free, void * _ud )
@@ -104,10 +131,12 @@ gp_result_t gp_get_line_thickness( const gp_canvas_t * _canvas, float * _thickne
 //////////////////////////////////////////////////////////////////////////
 gp_result_t gp_set_penumbra( gp_canvas_t * _canvas, float _penumbra )
 {
+#if defined(GP_DEBUG)
     if( _penumbra >= _canvas->state_cook.line_thickness * 0.5f )
     {
         return GP_FAILURE;
     }
+#endif
 
     if( _canvas->state_cook.penumbra == _penumbra )
     {
@@ -185,6 +214,13 @@ gp_result_t gp_get_uv_offset( const gp_canvas_t * _canvas, float * _ou, float * 
 //////////////////////////////////////////////////////////////////////////
 gp_result_t gp_set_curve_quality( gp_canvas_t * _canvas, gp_uint8_t _quality )
 {
+#if defined(GP_DEBUG)
+    if( _quality == 0 )
+    {
+        return GP_FAILURE;
+    }
+#endif
+
     if( _canvas->state_cook.curve_quality == _quality )
     {
         return GP_SUCCESSFUL;
@@ -207,7 +243,14 @@ gp_result_t gp_get_curve_quality( const gp_canvas_t * _canvas, gp_uint8_t * _qua
 //////////////////////////////////////////////////////////////////////////
 gp_result_t gp_set_ellipse_quality( gp_canvas_t * _canvas, gp_uint8_t _quality )
 {
-    gp_uint8_t quality = (_quality + 3) / 4;
+#if defined(GP_DEBUG)
+    if( _quality < 4 )
+    {
+        return GP_FAILURE;
+    }
+#endif
+
+    gp_uint8_t quality = (_quality + 3) / 4 * 4;
 
     if( _canvas->state_cook.ellipse_quality == quality )
     {
@@ -229,12 +272,43 @@ gp_result_t gp_get_ellipse_quality( const gp_canvas_t * _canvas, gp_uint8_t * _q
     return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
+gp_result_t gp_set_rect_quality( gp_canvas_t * _canvas, gp_uint8_t _quality )
+{
+#if defined(GP_DEBUG)
+    if( _quality < 2 )
+    {
+        return GP_FAILURE;
+    }
+#endif
+
+    if( _canvas->state_cook.rect_quality == _quality )
+    {
+        return GP_SUCCESSFUL;
+    }
+
+    _canvas->state_cook.rect_quality = _quality;
+    _canvas->state_cook.rect_quality_inv = 1.f / (float)_canvas->state_cook.rect_quality;
+
+    _canvas->state_invalidate = GP_TRUE;
+
+    return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
+gp_result_t gp_get_rect_quality( const gp_canvas_t * _canvas, gp_uint8_t * _quality )
+{
+    *_quality = _canvas->state_cook.rect_quality;
+
+    return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
 gp_result_t gp_begin_fill( gp_canvas_t * _canvas )
 {
+#if defined(GP_DEBUG)
     if( _canvas->state_cook.fill == GP_TRUE )
     {
         return GP_FAILURE;
     }
+#endif
 
     _canvas->state_cook.fill = GP_TRUE;
 
@@ -245,12 +319,16 @@ gp_result_t gp_begin_fill( gp_canvas_t * _canvas )
 //////////////////////////////////////////////////////////////////////////
 gp_result_t gp_end_fill( gp_canvas_t * _canvas )
 {
+#if defined(GP_DEBUG)
     if( _canvas->state_cook.fill == GP_FALSE )
     {
         return GP_FAILURE;
     }
+#endif
 
     _canvas->state_cook.fill = GP_FALSE;
+
+    _canvas->state_invalidate = GP_TRUE;
 
     return GP_SUCCESSFUL;
 }
@@ -306,10 +384,12 @@ gp_result_t gp_move_to( gp_canvas_t * _canvas, float _x, float _y )
 //////////////////////////////////////////////////////////////////////////
 gp_result_t gp_line_to( gp_canvas_t * _canvas, float _x, float _y )
 {
+#if defined(GP_DEBUG)
     if( _canvas->lines == GP_NULLPTR )
     {
         return GP_FAILURE;
     }
+#endif
 
     gp_line_t * l = GP_LIST_BACK( _canvas->lines );
 
@@ -456,25 +536,10 @@ gp_result_t gp_calculate_mesh_size( const gp_canvas_t * _canvas, gp_mesh_t * _me
     _mesh->vertex_count = 0;
     _mesh->index_count = 0;
 
-    if( gp_calculate_mesh_line_size( _canvas, _mesh ) == GP_FAILURE )
-    {
-        return GP_FAILURE;
-    }
-
-    if( gp_calculate_mesh_rect_size( _canvas, _mesh ) == GP_FAILURE )
-    {
-        return GP_FAILURE;
-    }
-
-    if( gp_calculate_mesh_rounded_rect_size( _canvas, _mesh ) == GP_FAILURE )
-    {
-        return GP_FAILURE;
-    }
-
-    if( gp_calculate_mesh_ellipse_size( _canvas, _mesh ) == GP_FAILURE )
-    {
-        return GP_FAILURE;
-    }
+    GP_DEBUG_CALL( gp_calculate_mesh_line_size, (_canvas, _mesh) );
+    GP_DEBUG_CALL( gp_calculate_mesh_rect_size, (_canvas, _mesh) );
+    GP_DEBUG_CALL( gp_calculate_mesh_rounded_rect_size, (_canvas, _mesh) );
+    GP_DEBUG_CALL( gp_calculate_mesh_ellipse_size, (_canvas, _mesh) );
 
     _mesh->color.r = 1.f;
     _mesh->color.g = 1.f;
@@ -482,36 +547,55 @@ gp_result_t gp_calculate_mesh_size( const gp_canvas_t * _canvas, gp_mesh_t * _me
     _mesh->color.a = 1.f;
 
     _mesh->positions_buffer = GP_NULLPTR;
+    _mesh->positions_offset = ~0U;
+    _mesh->positions_stride = ~0U;
+
     _mesh->colors_buffer = GP_NULLPTR;
+    _mesh->colors_offset = ~0U;
+    _mesh->colors_stride = ~0U;
+
+    _mesh->uv_buffer = GP_NULLPTR;
+    _mesh->uv_offset = ~0U;
+    _mesh->uv_stride = ~0U;
+
     _mesh->indices_buffer = GP_NULLPTR;
+    _mesh->indices_offset = ~0U;
+    _mesh->indices_stride = ~0U;
 
     return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
 gp_result_t gp_render( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh )
 {
+#if defined(GP_DEBUG)
+    if( _mesh->positions_buffer != GP_NULLPTR && (_mesh->positions_offset == ~0U || _mesh->positions_stride == ~0U) )
+    {        
+        return GP_FAILURE;
+    }
+
+    if( _mesh->colors_buffer != GP_NULLPTR && (_mesh->colors_offset == ~0U || _mesh->colors_stride == ~0U) )
+    {
+        return GP_FAILURE;
+    }
+
+    if( _mesh->uv_buffer != GP_NULLPTR && (_mesh->uv_offset == ~0U || _mesh->uv_stride == ~0U) )
+    {
+        return GP_FAILURE;
+    }
+
+    if( _mesh->indices_buffer != GP_NULLPTR && (_mesh->indices_offset == ~0U || _mesh->indices_stride == ~0U) )
+    {
+        return GP_FAILURE;
+    }
+#endif
+
     gp_uint16_t vertex_iterator = 0;
     gp_uint16_t index_iterator = 0;
 
-    if( gp_render_line( _canvas, _mesh, &vertex_iterator, &index_iterator ) == GP_FAILURE )
-    {
-        return GP_FAILURE;
-    }
-
-    if( gp_render_rect( _canvas, _mesh, &vertex_iterator, &index_iterator ) == GP_FAILURE )
-    {
-        return GP_FAILURE;
-    }
-
-    if( gp_render_rounded_rect( _canvas, _mesh, &vertex_iterator, &index_iterator ) == GP_FAILURE )
-    {
-        return GP_FAILURE;
-    }
-
-    if( gp_render_ellipse( _canvas, _mesh, &vertex_iterator, &index_iterator ) == GP_FAILURE )
-    {
-        return GP_FAILURE;
-    }
+    GP_DEBUG_CALL( gp_render_line, (_canvas, _mesh, &vertex_iterator, &index_iterator) );
+    GP_DEBUG_CALL( gp_render_rect, (_canvas, _mesh, &vertex_iterator, &index_iterator) );
+    GP_DEBUG_CALL( gp_render_rounded_rect, (_canvas, _mesh, &vertex_iterator, &index_iterator) );
+    GP_DEBUG_CALL( gp_render_ellipse, (_canvas, _mesh, &vertex_iterator, &index_iterator) );
 
     return GP_SUCCESSFUL;
 }
