@@ -12,6 +12,9 @@ install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/imgui.h ${CMAKE_CURRENT_SOURCE_DIR}/im
 
 project(imgui_glfw)
 
+MESSAGE("GLAD_INCLUDE_DIR: ${GLAD_INCLUDE_DIR}")
+MESSAGE("GLFW_INCLUDE_DIR: ${GLFW_INCLUDE_DIR}")
+
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 include_directories(${GLAD_INCLUDE_DIR})
 include_directories(${GLFW_INCLUDE_DIR})

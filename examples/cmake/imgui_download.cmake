@@ -14,6 +14,8 @@ ExternalProject_Add(imgui_download PREFIX imgui
             -DGLFW_INCLUDE_DIR=${GLFW_INCLUDE_DIR}
             -DGLAD_INCLUDE_DIR=${GLAD_INCLUDE_DIR}
     )
+    
+ExternalProject_Add_StepDependencies(imgui_download build glfw_download glad_download)
 
 ExternalProject_Get_Property(imgui_download INSTALL_DIR)
 set(IMGUI_INCLUDE_DIR ${INSTALL_DIR}/include)
