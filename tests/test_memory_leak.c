@@ -150,7 +150,7 @@ int main( int argc, char ** argv )
 
     if( gp_render( canvas, &mesh ) == GP_FAILURE )
     {
-        return GP_FAILURE;
+        return EXIT_FAILURE;
     }
 
     free( vertices );
@@ -158,7 +158,7 @@ int main( int argc, char ** argv )
 
     if( gp_canvas_destroy( canvas ) == GP_FAILURE )
     {
-        return GP_FAILURE;
+        return EXIT_FAILURE;
     }
 
     if( msz != 0 )
