@@ -419,6 +419,14 @@ int main( int argc, char ** argv )
             glDrawElements( GL_TRIANGLES, mesh.index_count, GL_UNSIGNED_SHORT, GP_NULLPTR );
         }
 
+        if( TextEditorCollapsingHeader == true )
+        {
+            if( result == GP_FAILURE )
+            {
+                ImGui::TextColored( {1.f, 0.f, 0.f, 1.f}, "invalid render" );
+            }
+        }
+
         if( gp_canvas_clear( canvas ) == GP_FAILURE )
         {
             break;
