@@ -2,6 +2,18 @@ CMAKE_MINIMUM_REQUIRED(VERSION 3.2)
 
 project(imguicolortextedit)
 
+set(CMAKE_CXX_STANDARD 17)
+
+if(APPLE)
+    set(LLVM_ENABLE_CXX1Y ON CACHE BOOL "" FORCE)
+    
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -stdlib=libc++" CACHE STRING "" FORCE)
+elseif(ANDROID)
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
+elseif(UNIX)
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
+endif()
+
 include_directories(${IMGUI_INCLUDE_DIR})
 
 add_library(${PROJECT_NAME} STATIC
