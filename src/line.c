@@ -228,6 +228,12 @@ static void __lerp_color( gp_color_t * _c, const gp_color_t * _a, const gp_color
     _c->a = __lerp( _a->a, _b->a, _t );
 }
 //////////////////////////////////////////////////////////////////////////
+#if defined( GP_DEBUG )
+#define GP_POINTS_INCREF() if( ++points_size == GP_LINE_POINTS_MAX) return GP_FAILURE
+#else
+#define GP_POINTS_INCREF() ++points_size;
+#endif
+//////////////////////////////////////////////////////////////////////////
 gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh, gp_uint16_t * _vertex_iterator, gp_uint16_t * _index_iterator )
 {
     gp_uint16_t vertex_iterator = *_vertex_iterator;
@@ -269,7 +275,7 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
                         p->p = p0->p;
                         p->argb = argb0;
 
-                        ++points_size;
+                        GP_POINTS_INCREF();
                     }break;
                 case 1:
                     {
@@ -295,7 +301,7 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
                             p->p = bp;
                             p->argb = argb01;
 
-                            ++points_size;
+                            GP_POINTS_INCREF();
                         }
                     }break;
                 case 2:
@@ -322,7 +328,7 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
                             p->p = bp;
                             p->argb = argb01;
 
-                            ++points_size;
+                            GP_POINTS_INCREF();
                         }
                     }break;
                 default:
@@ -341,7 +347,7 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
                 p->p = p1->p;
                 p->argb = argb1;
 
-                ++points_size;
+                GP_POINTS_INCREF();
             }
         }
 

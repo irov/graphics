@@ -28,6 +28,10 @@ ADD_DEFINITIONS(-DGRAPHICS_CONTENT_PATH="${GRAPHICS_CONTENT_DIR}")
 
 set(EXAMPLES_SOURCES
     graphics_examples.cpp
+    graphics_lua.cpp
+    graphics_lua.h
+    graphics_opengl.cpp
+    graphics_opengl.h
 )
 
 add_executable(${PROJECT_NAME} ${EXAMPLES_SOURCES})
