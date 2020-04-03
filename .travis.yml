@@ -13,8 +13,8 @@ addons:
       - ubuntu-toolchain-r-test
     packages:
       - cmake
-      - gcc-7
-      - g++-7
+      - gcc-9
+      - g++-9
 
 os:
     - linux
@@ -46,11 +46,11 @@ matrix:
 
 script:
     # Export CC and CXX to tell cmake which compiler to use
-    - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then export CC=/usr/bin/gcc-7 && export CXX=/usr/bin/g++-7 && gcc -v && g++ -v && cmake --version; fi
+    - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then export CC=/usr/bin/gcc-9 && export CXX=/usr/bin/g++-9 && gcc -v && g++ -v && cmake --version; fi
     # run
     - mkdir build_cmake
     - pushd build_cmake
-    - cmake -S ".." -DCMAKE_CONFIGURATION_TYPES=$BUILD_CONFIGURATION -DGRAPHICS_EXAMPLES_BUILD:BOOL=TRUE -DGRAPHICS_TESTS:BOOL=TRUE
+    - cmake -S ".." -DCMAKE_BUILD_TYPE=$BUILD_CONFIGURATION -DGRAPHICS_EXAMPLES_BUILD:BOOL=TRUE -DGRAPHICS_TESTS:BOOL=TRUE
     - cmake --build . --config $BUILD_CONFIGURATION
     - ctest --output-on-failure
     - popd
