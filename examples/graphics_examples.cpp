@@ -73,6 +73,15 @@ static void * gp_malloc( gp_size_t _size, void * _ud )
     return p;
 }
 //////////////////////////////////////////////////////////////////////////
+static void * gp_realloc( void * _ptr, gp_size_t _size, void * _ud )
+{
+    GP_UNUSED( _ud );
+
+    void * p = realloc( _ptr, _size );
+
+    return p;
+}
+//////////////////////////////////////////////////////////////////////////
 static void gp_free( void * _ptr, void * _ud )
 {
     GP_UNUSED( _ud );
@@ -173,12 +182,12 @@ int main( int argc, char ** argv )
     }
 
     gp_canvas_t * canvas;
-    gp_canvas_create( &canvas, &gp_malloc, &gp_free, GP_NULLPTR );
+    gp_canvas_create( &canvas, &gp_malloc, &gp_realloc, &gp_free, GP_NULLPTR );
 
     example_script_handle_t * script_handle;
     initialize_script( &script_handle, canvas );
 
-    uint32_t max_vertex_count = 8196;
+    uint32_t max_vertex_count = 8196 * 2;
     uint32_t max_index_count = 32768;
 
     example_opengl_handle_t * opengl_handle;
@@ -318,8 +327,6 @@ int main( int argc, char ** argv )
             ImGui::NewLine();
         }
 
-        ImGui::EndFrame();
-
         if( wireframe == 1 )
         {
             glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
@@ -426,6 +433,8 @@ int main( int argc, char ** argv )
                 ImGui::TextColored( {1.f, 0.f, 0.f, 1.f}, "invalid render" );
             }
         }
+
+        ImGui::EndFrame();
 
         if( gp_canvas_clear( canvas ) == GP_FAILURE )
         {

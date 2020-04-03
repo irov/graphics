@@ -15,6 +15,17 @@ static void * gp_malloc( gp_size_t _size, void * _ud )
     return (gp_size_t *)p + 1;
 }
 //////////////////////////////////////////////////////////////////////////
+static void * gp_realloc( void * _ptr, gp_size_t _size, void * _ud )
+{
+    void * p = realloc( _ptr, _size + sizeof( gp_size_t ) );
+
+    *(gp_size_t *)p = _size;
+
+    *(gp_size_t *)_ud += _size;
+
+    return (gp_size_t *)p + 1;
+}
+//////////////////////////////////////////////////////////////////////////
 static void gp_free( void * _ptr, void * _ud )
 {
     gp_size_t * p = (gp_size_t *)_ptr - 1;
@@ -99,7 +110,7 @@ int main( int argc, char ** argv )
     gp_size_t msz = 0;
 
     gp_canvas_t * canvas;
-    if( gp_canvas_create( &canvas, &gp_malloc, &gp_free, &msz ) == GP_FAILURE )
+    if( gp_canvas_create( &canvas, &gp_malloc, &gp_realloc, &gp_free, &msz ) == GP_FAILURE )
     {
         return EXIT_FAILURE;
     }

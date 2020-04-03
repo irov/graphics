@@ -14,6 +14,8 @@ include(cmake/content_download.cmake)
 
 project(graphics_examples)
 
+set(CMAKE_CXX_STANDARD 17)
+
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 include_directories(${GRAPHICS_DEPENDENCIES_DIR})
 include_directories(${GLFW_INCLUDE_DIR})

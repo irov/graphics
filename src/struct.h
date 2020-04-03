@@ -129,6 +129,7 @@ typedef struct gp_canvas_t
     gp_ellipse_t * ellipses;
 
     gp_malloc_t malloc;
+    gp_realloc_t realloc;
     gp_free_t free;
 
     void * ud;

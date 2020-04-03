@@ -228,11 +228,65 @@ static void __lerp_color( gp_color_t * _c, const gp_color_t * _a, const gp_color
     _c->a = __lerp( _a->a, _b->a, _t );
 }
 //////////////////////////////////////////////////////////////////////////
-#if defined( GP_DEBUG )
-#define GP_POINTS_INCREF() if( ++points_size == GP_LINE_POINTS_MAX) return GP_FAILURE
-#else
-#define GP_POINTS_INCREF() ++points_size
+typedef struct gp_line_point_render_cache_t
+{
+    gp_points_t points[GP_LINE_POINTS_MAX];
+    gp_uint16_t size;
+
+#if defined(GP_DISABLE_EXTRA_LINE_POINTS)
+    gp_points_t * extra_points;
+    gp_uint16_t extra_capacity;
 #endif
+} gp_line_point_render_cache_t;
+//////////////////////////////////////////////////////////////////////////
+static gp_points_t * __get_render_point( gp_line_point_render_cache_t * _cache, gp_uint16_t _index )
+{
+#if defined(GP_DISABLE_EXTRA_LINE_POINTS)
+    return _cache->points + _index;
+#else
+    if( _index < GP_LINE_POINTS_MAX )
+    {
+        return _cache->points + _index;
+    }
+
+    return _cache->extra_points + _index - GP_LINE_POINTS_MAX;
+#endif
+}
+//////////////////////////////////////////////////////////////////////////
+static gp_result_t __incref_render_points( const gp_canvas_t * _canvas, gp_line_point_render_cache_t * _cache )
+{
+    if( (++_cache->size) < GP_LINE_POINTS_MAX )
+    {
+        return GP_SUCCESSFUL;
+    }
+
+#if defined(GP_DISABLE_EXTRA_LINE_POINTS)
+    GP_UNUSED( _canvas );
+
+    return GP_FAILURE;
+#else
+    if( (_cache->size - GP_LINE_POINTS_MAX) < _cache->extra_capacity )
+    {
+        return GP_SUCCESSFUL;
+    }
+
+    _cache->extra_capacity += GP_LINE_POINTS_MAX;
+
+    void * p = GP_REALLOC( _canvas, _cache->extra_points, gp_points_t, _cache->extra_capacity );
+
+    _cache->extra_points = p;
+
+    return GP_SUCCESSFUL;
+#endif
+}
+//////////////////////////////////////////////////////////////////////////
+#if defined( GP_DEBUG )
+#define GP_POINTS_INCREF() if( __incref_render_points( _canvas, &points_cache) == GP_FAILURE) return GP_FAILURE
+#else
+#define GP_POINTS_INCREF() __incref_render_points( _canvas, &points_cache)
+#endif
+//////////////////////////////////////////////////////////////////////////
+#define GP_GET_POINT(i) __get_render_point(&points_cache, i)
 //////////////////////////////////////////////////////////////////////////
 gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh, gp_uint16_t * _vertex_iterator, gp_uint16_t * _index_iterator )
 {
@@ -252,8 +306,13 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
         uint8_t curve_quality = l->state->curve_quality;
         float curve_quality_inv = l->state->curve_quality_inv;
 
-        gp_points_t points[GP_LINE_POINTS_MAX];
-        gp_uint16_t points_size = 0;
+        gp_line_point_render_cache_t points_cache;
+        points_cache.size = 0;
+
+#if defined(GP_DISABLE_EXTRA_LINE_POINTS)
+        points_cache.extra_capacity = 0;
+        points_cache.extra_points = GP_NULLPTR;
+#endif
 
         {
             const gp_line_point_t * point_iterator = l->points;
@@ -271,7 +330,7 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
                 {
                 case 0:
                     {
-                        gp_points_t * p = points + points_size;
+                        gp_points_t * p = GP_GET_POINT( points_cache.size );
                         p->p = p0->p;
                         p->argb = argb0;
 
@@ -297,7 +356,7 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
 
                             t += curve_quality_inv;
 
-                            gp_points_t * p = points + points_size;
+                            gp_points_t * p = GP_GET_POINT( points_cache.size );
                             p->p = bp;
                             p->argb = argb01;
 
@@ -324,7 +383,7 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
 
                             t += curve_quality_inv;
 
-                            gp_points_t * p = points + points_size;
+                            gp_points_t * p = GP_GET_POINT( points_cache.size );
                             p->p = bp;
                             p->argb = argb01;
 
@@ -343,7 +402,7 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
                 gp_color_mul( &point_color1, &_mesh->color, &p1->state->color );
                 gp_argb_t argb1 = gp_color_argb( &point_color1 );
 
-                gp_points_t * p = points + points_size;
+                gp_points_t * p = GP_GET_POINT( points_cache.size );
                 p->p = p1->p;
                 p->argb = argb1;
 
@@ -355,7 +414,7 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
 
         if( penumbra > 0.f )
         {
-            for( gp_uint16_t index = 0; index != points_size - 1; ++index )
+            for( gp_uint16_t index = 0; index != points_cache.size - 1; ++index )
             {
                 GP_DEBUG_CALL( gp_mesh_index, (_mesh, index_iterator + 0, vertex_iterator + index * 4 + 0) );
                 GP_DEBUG_CALL( gp_mesh_index, (_mesh, index_iterator + 1, vertex_iterator + index * 4 + 1) );
@@ -387,7 +446,7 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
         }
         else
         {
-            for( gp_uint16_t index = 0; index != points_size - 1; ++index )
+            for( gp_uint16_t index = 0; index != points_cache.size - 1; ++index )
             {
                 GP_DEBUG_CALL( gp_mesh_index, (_mesh, index_iterator + 0, vertex_iterator + index * 2 + 0) );
                 GP_DEBUG_CALL( gp_mesh_index, (_mesh, index_iterator + 1, vertex_iterator + index * 2 + 1) );
@@ -402,10 +461,10 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
 
         float total_distance = 0.f;
 
-        for( gp_uint16_t index = 1; index != points_size; ++index )
+        for( gp_uint16_t index = 1; index != points_cache.size; ++index )
         {
-            const gp_vec2f_t * p0 = &points[index - 1].p;
-            const gp_vec2f_t * p1 = &points[index + 0].p;
+            const gp_vec2f_t * p0 = &GP_GET_POINT( index - 1 )->p;
+            const gp_vec2f_t * p1 = &GP_GET_POINT( index + 0 )->p;
 
             float d = __vec2f_distance( p0, p1 );
 
@@ -413,10 +472,10 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
         }
 
         {
-            const gp_vec2f_t * p0 = &points[0].p;
-            const gp_vec2f_t * p1 = &points[1].p;
+            const gp_vec2f_t * p0 = &GP_GET_POINT( 0 )->p;
+            const gp_vec2f_t * p1 = &GP_GET_POINT( 1 )->p;
 
-            gp_argb_t argb0 = points[0].argb;
+            gp_argb_t argb0 = GP_GET_POINT( 0 )->argb;
 
             gp_vec2f_t perp;
             __make_line_perp( &perp, p0, p1 );
@@ -460,13 +519,13 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
 
         float dd = 0.f;
 
-        for( gp_uint16_t index = 1; index != points_size - 1; ++index )
+        for( gp_uint16_t index = 1; index != points_cache.size - 1; ++index )
         {
-            const gp_vec2f_t * p0 = &points[index - 1].p;
-            const gp_vec2f_t * p1 = &points[index + 0].p;
-            const gp_vec2f_t * p2 = &points[index + 1].p;
+            const gp_vec2f_t * p0 = &GP_GET_POINT( index - 1 )->p;
+            const gp_vec2f_t * p1 = &GP_GET_POINT( index + 0 )->p;
+            const gp_vec2f_t * p2 = &GP_GET_POINT( index + 1 )->p;
 
-            gp_argb_t argb0 = points[index + 0].argb;
+            gp_argb_t argb0 = GP_GET_POINT( index + 0 )->argb;
 
             float d = __vec2f_distance( p0, p1 );
 
@@ -634,10 +693,10 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
         }
 
         {
-            const gp_vec2f_t * p0 = &points[points_size - 2].p;
-            const gp_vec2f_t * p1 = &points[points_size - 1].p;
+            const gp_vec2f_t * p0 = &GP_GET_POINT( points_cache.size - 2 )->p;
+            const gp_vec2f_t * p1 = &GP_GET_POINT( points_cache.size - 1 )->p;
 
-            gp_argb_t argb0 = points[points_size - 2].argb;
+            gp_argb_t argb0 = GP_GET_POINT( points_cache.size - 2 )->argb;
 
             gp_vec2f_t perp;
             __make_line_perp( &perp, p0, p1 );
@@ -677,6 +736,13 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
 
                 vertex_iterator += 2;
             }
+
+#if defined(GP_DISABLE_EXTRA_LINE_POINTS)
+            if( points_cache.extra_points != GP_NULLPTR )
+            {
+                GP_FREE( _canvas, points_cache.extra_points );
+            }
+#endif
         }
     }
 

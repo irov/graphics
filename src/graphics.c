@@ -57,7 +57,7 @@ static void __canvas_default_state_setup( gp_canvas_t * _canvas )
     _canvas->state_cook.rect_quality_inv = 1.f / (float)_canvas->state_cook.rect_quality;
 }
 //////////////////////////////////////////////////////////////////////////
-gp_result_t gp_canvas_create( gp_canvas_t ** _canvas, gp_malloc_t _malloc, gp_free_t _free, void * _ud )
+gp_result_t gp_canvas_create( gp_canvas_t ** _canvas, gp_malloc_t _malloc, gp_realloc_t _realloc, gp_free_t _free, void * _ud )
 {
     gp_canvas_t * canvas = (gp_canvas_t *)(*_malloc)(sizeof( gp_canvas_t ), _ud);
 
@@ -72,6 +72,7 @@ gp_result_t gp_canvas_create( gp_canvas_t ** _canvas, gp_malloc_t _malloc, gp_fr
     __canvas_default_state_setup( canvas );
 
     canvas->malloc = _malloc;
+    canvas->realloc = _realloc;
     canvas->free = _free;
     canvas->ud = _ud;
 

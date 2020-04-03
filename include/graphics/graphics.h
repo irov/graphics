@@ -6,13 +6,14 @@
 typedef struct gp_canvas_t gp_canvas_t;
 
 typedef void * (*gp_malloc_t)(gp_size_t _size, void * _ud);
+typedef void * (*gp_realloc_t)(void * _ptr, gp_size_t _size, void * _ud);
 typedef void (*gp_free_t)(void * _ptr, void * _ud);
 
 /*************************************************************************
 *
 *************************************************************************/
 
-gp_result_t gp_canvas_create( gp_canvas_t ** _canvas, gp_malloc_t _malloc, gp_free_t _free, void * _ud );
+gp_result_t gp_canvas_create( gp_canvas_t ** _canvas, gp_malloc_t _malloc, gp_realloc_t _realloc, gp_free_t _free, void * _ud );
 gp_result_t gp_canvas_destroy( gp_canvas_t * _canvas );
 gp_result_t gp_canvas_clear( gp_canvas_t * _canvas );
 

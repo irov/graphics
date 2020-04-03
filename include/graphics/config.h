@@ -52,6 +52,10 @@ typedef struct gp_color_t
 #define GP_LINE_POINTS_MAX 1024
 #endif
 
+#ifndef GP_ENABLE_EXTRA_LINE_POINTS
+#define GP_DISABLE_EXTRA_LINE_POINTS
+#endif
+
 #ifndef GP_MATH_SQRTF
 #include <math.h>
 #define GP_MATH_SQRTF (sqrtf)

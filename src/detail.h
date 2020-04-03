@@ -5,7 +5,8 @@
 #include "graphics/graphics.h"
 
 #define GP_NEW(c, t) ((t*)(*c->malloc)(sizeof(t), c->ud))
-#define GP_FREE(c, o) (*c->free)(o, c->ud)
+#define GP_REALLOC(c, p, t, s) ((t*)(*c->realloc)((p), sizeof(t) * s, c->ud))
+#define GP_FREE(c, p) (*c->free)((p), c->ud)
 
 #if defined(GP_DEBUG)
 #   define GP_DEBUG_CALL(m, args) if( m args == GP_FAILURE) return GP_FAILURE
