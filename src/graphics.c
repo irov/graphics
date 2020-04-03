@@ -361,6 +361,18 @@ static const gp_state_t * __copy_state( gp_canvas_t * _canvas )
 //////////////////////////////////////////////////////////////////////////
 gp_result_t gp_move_to( gp_canvas_t * _canvas, float _x, float _y )
 {
+#if defined(GP_DEBUG)
+    if( _canvas->lines != GP_NULLPTR )
+    {
+        gp_line_t * l = GP_LIST_BACK( _canvas->lines );
+
+        if( l->edges == GP_NULLPTR )
+        {
+            return GP_FAILURE;
+        }
+    }
+#endif
+
     gp_line_point_t * p = GP_NEW( _canvas, gp_line_point_t );
     p->next = GP_NULLPTR;
     p->prev = GP_NULLPTR;
@@ -376,6 +388,7 @@ gp_result_t gp_move_to( gp_canvas_t * _canvas, float _x, float _y )
 
     l->points = GP_NULLPTR;
     GP_LIST_PUSHBACK( gp_line_point_t, l->points, p );
+
     l->edges = GP_NULLPTR;
     l->state = p->state;
 

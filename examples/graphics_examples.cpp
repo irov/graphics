@@ -981,7 +981,7 @@ int main( int argc, char ** argv )
             }
             else if( script_handle.result == GP_FAILURE )
             {
-                ImGui::TextColored( ImVec4( 1.f, 0.f, 0.f, 1.f ), "graphics error: %s [line:%d]", script_handle.error_line, script_handle.error_msg.c_str() );
+                ImGui::TextColored( ImVec4( 1.f, 0.f, 0.f, 1.f ), "graphics error: %s [line:%d]", script_handle.error_msg.c_str(), script_handle.error_line );
 
                 gp_canvas_clear( canvas );
 
