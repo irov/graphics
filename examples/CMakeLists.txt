@@ -14,6 +14,14 @@ include(cmake/content_download.cmake)
 
 set(CMAKE_CXX_STANDARD 17)
 
+if(UNIX)
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
+elseif(APPLE)
+    set(LLVM_ENABLE_CXX1Y ON CACHE BOOL "" FORCE)
+    
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -stdlib=libc++" CACHE STRING "" FORCE)
+endif()
+
 project(graphics_examples)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
