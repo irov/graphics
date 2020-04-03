@@ -14,12 +14,14 @@ include(cmake/content_download.cmake)
 
 set(CMAKE_CXX_STANDARD 17)
 
-if(UNIX)
-    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
-elseif(APPLE)
+if(APPLE)
     set(LLVM_ENABLE_CXX1Y ON CACHE BOOL "" FORCE)
     
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -stdlib=libc++" CACHE STRING "" FORCE)
+elseif(ANDROID)
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
+elseif(UNIX)
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
 endif()
 
 project(graphics_examples)
