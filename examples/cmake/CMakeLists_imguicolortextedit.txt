@@ -1,0 +1,12 @@
+CMAKE_MINIMUM_REQUIRED(VERSION 3.2)
+
+project(imguicolortextedit)
+
+include_directories(${IMGUI_INCLUDE_DIR})
+
+add_library(${PROJECT_NAME} STATIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/TextEditor.cpp
+)
+
+install(TARGETS ${PROJECT_NAME} DESTINATION lib)
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/TextEditor.h DESTINATION include)

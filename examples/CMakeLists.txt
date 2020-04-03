@@ -8,6 +8,8 @@ include(cmake/glad_download.cmake)
 include(cmake/glfw_download.cmake)
 include(cmake/stb_libs_download.cmake)
 include(cmake/imgui_download.cmake)
+include(cmake/imguicolortextedit_download.cmake)
+include(cmake/lua_download.cmake)
 include(cmake/content_download.cmake)
 
 project(graphics_examples)
@@ -17,7 +19,8 @@ include_directories(${GRAPHICS_DEPENDENCIES_DIR})
 include_directories(${GLFW_INCLUDE_DIR})
 include_directories(${GLAD_INCLUDE_DIR})
 include_directories(${IMGUI_INCLUDE_DIR})
-
+include_directories(${IMGUICOLORTEXTEDIT_INCLUDE_DIR})
+include_directories(${LUA_INCLUDE_DIR})
 
 ADD_DEFINITIONS(-D_CRT_SECURE_NO_WARNINGS)
 
@@ -40,12 +43,16 @@ target_link_libraries(${PROJECT_NAME}
     imgui
     imgui_glfw
     imgui_opengl3
+    imguicolortextedit
+    lua
 )
 
 add_dependencies(${PROJECT_NAME}
     glad_download
     glfw_download
     imgui_download
+    imguicolortextedit_download
+    lua_download
 )
 
 if(UNIX AND NOT ANDROID AND NOT APPLE)

@@ -49,23 +49,23 @@ static gp_result_t __draw_figure( gp_canvas_t * _canvas, float _dx, float _dy )
     GP_CALL( gp_line_to, (_canvas, _dx + 250.f, _dy + 100.f) );
 
     GP_CALL( gp_set_color, (_canvas, 0.2f, 0.6f, 0.9f, 1.f) );
-    GP_CALL( gp_draw_rect, (_canvas, _dx + 275.f, _dy + 0.f, 100.f, 50.f) );
+    GP_CALL( gp_rect, (_canvas, _dx + 275.f, _dy + 0.f, 100.f, 50.f) );
 
     GP_CALL( gp_set_color, (_canvas, 0.7f, 0.3f, 0.4f, 1.f) );
-    GP_CALL( gp_draw_rounded_rect, (_canvas, _dx + 275.f, _dy + 75.f, 100.f, 50.f, 10.f) );
+    GP_CALL( gp_rounded_rect, (_canvas, _dx + 275.f, _dy + 75.f, 100.f, 50.f, 10.f) );
 
     GP_CALL( gp_set_color, (_canvas, 0.1f, 0.8f, 0.2f, 1.f) );
-    GP_CALL( gp_draw_circle, (_canvas, _dx + 100.f, _dy + 225.f, 50.f) );
+    GP_CALL( gp_circle, (_canvas, _dx + 100.f, _dy + 225.f, 50.f) );
 
     GP_CALL( gp_set_color, (_canvas, 0.9f, 0.1f, 0.7f, 1.f) );
-    GP_CALL( gp_draw_ellipse, (_canvas, _dx + 250.f, _dy + 225.f, 50.f, 25.f) );
+    GP_CALL( gp_ellipse, (_canvas, _dx + 250.f, _dy + 225.f, 50.f, 25.f) );
 
     return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
 static gp_result_t __test_figure( gp_canvas_t * _canvas )
 {
-    GP_CALL( gp_set_line_thickness, (_canvas, 20.f) );
+    GP_CALL( gp_set_thickness, (_canvas, 20.f) );
     GP_CALL( gp_set_penumbra, (_canvas, 5.f) );
 
     GP_CALL( gp_set_uv_offset, (_canvas, 0.f, 0.f, 1.f, 1.f) );

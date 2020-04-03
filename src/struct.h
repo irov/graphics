@@ -21,7 +21,7 @@ typedef struct gp_state_t
 {
     gp_bool_t fill;
 
-    float line_thickness;
+    float thickness;
     float penumbra;
 
     gp_color_t color;

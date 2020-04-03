@@ -20,7 +20,7 @@ gp_result_t gp_canvas_clear( gp_canvas_t * _canvas );
 *
 *************************************************************************/
 
-float gp_get_default_line_thickness( void );
+float gp_get_default_thickness( void );
 float gp_get_default_penumbra( void );
 gp_uint8_t gp_get_default_curve_quality( void );
 gp_uint8_t gp_get_default_ellipse_quality( void );
@@ -30,8 +30,8 @@ gp_uint8_t gp_get_default_rect_quality( void );
 *
 *************************************************************************/
 
-gp_result_t gp_set_line_thickness( gp_canvas_t * _canvas, float _thickness );
-gp_result_t gp_get_line_thickness( const gp_canvas_t * _canvas, float * _thickness );
+gp_result_t gp_set_thickness( gp_canvas_t * _canvas, float _thickness );
+gp_result_t gp_get_thickness( const gp_canvas_t * _canvas, float * _thickness );
 
 gp_result_t gp_set_penumbra( gp_canvas_t * _canvas, float _penumbra );
 gp_result_t gp_get_penumbra( const gp_canvas_t * _canvas, float * _penumbra );
@@ -63,10 +63,10 @@ gp_result_t gp_line_to( gp_canvas_t * _canvas, float _x, float _y );
 gp_result_t gp_quadratic_curve_to( gp_canvas_t * _canvas, float _p0x, float _p0y, float _x, float _y );
 gp_result_t gp_bezier_curve_to( gp_canvas_t * _canvas, float _p0x, float _p0y, float _p1x, float _p1y, float _x, float _y );
 
-gp_result_t gp_draw_rect( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height );
-gp_result_t gp_draw_rounded_rect( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height, float _radius );
-gp_result_t gp_draw_circle( gp_canvas_t * _canvas, float _x, float _y, float _radius );
-gp_result_t gp_draw_ellipse( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height );
+gp_result_t gp_rect( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height );
+gp_result_t gp_rounded_rect( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height, float _radius );
+gp_result_t gp_circle( gp_canvas_t * _canvas, float _x, float _y, float _radius );
+gp_result_t gp_ellipse( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height );
 
 /*************************************************************************
 *

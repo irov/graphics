@@ -9,7 +9,7 @@
 #include "detail.h"
 
 //////////////////////////////////////////////////////////////////////////
-float gp_get_default_line_thickness( void )
+float gp_get_default_thickness( void )
 {
     return 3.f;
 }
@@ -34,11 +34,11 @@ gp_uint8_t gp_get_default_rect_quality( void )
     return 16;
 }
 //////////////////////////////////////////////////////////////////////////
-static void __canvas_default_setup( gp_canvas_t * _canvas )
+static void __canvas_default_state_setup( gp_canvas_t * _canvas )
 {
     _canvas->state_cook.next = GP_NULLPTR;
     _canvas->state_cook.prev = GP_NULLPTR;
-    _canvas->state_cook.line_thickness = gp_get_default_line_thickness();
+    _canvas->state_cook.thickness = gp_get_default_thickness();
     _canvas->state_cook.penumbra = gp_get_default_penumbra();
     _canvas->state_cook.color.r = 1.f;
     _canvas->state_cook.color.g = 1.f;
@@ -69,7 +69,7 @@ gp_result_t gp_canvas_create( gp_canvas_t ** _canvas, gp_malloc_t _malloc, gp_fr
     canvas->rounded_rects = GP_NULLPTR;
     canvas->ellipses = GP_NULLPTR;
 
-    __canvas_default_setup( canvas );
+    __canvas_default_state_setup( canvas );
 
     canvas->malloc = _malloc;
     canvas->free = _free;
@@ -104,27 +104,29 @@ gp_result_t gp_canvas_clear( gp_canvas_t * _canvas )
     GP_LIST_DESTROY( _canvas, gp_rounded_rect_t, _canvas->rounded_rects );
     GP_LIST_DESTROY( _canvas, gp_ellipse_t, _canvas->ellipses );
 
-    __canvas_default_setup( _canvas );
+    _canvas->state_invalidate = GP_TRUE;
+
+    __canvas_default_state_setup( _canvas );
 
     return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
-gp_result_t gp_set_line_thickness( gp_canvas_t * _canvas, float _thickness )
+gp_result_t gp_set_thickness( gp_canvas_t * _canvas, float _thickness )
 {
-    if( _canvas->state_cook.line_thickness == _thickness )
+    if( _canvas->state_cook.thickness == _thickness )
     {
         return GP_SUCCESSFUL;
     }
 
-    _canvas->state_cook.line_thickness = _thickness;
+    _canvas->state_cook.thickness = _thickness;
     _canvas->state_invalidate = GP_TRUE;
 
     return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
-gp_result_t gp_get_line_thickness( const gp_canvas_t * _canvas, float * _thickness )
+gp_result_t gp_get_thickness( const gp_canvas_t * _canvas, float * _thickness )
 {
-    *_thickness = _canvas->state_cook.line_thickness;
+    *_thickness = _canvas->state_cook.thickness;
 
     return GP_SUCCESSFUL;
 }
@@ -132,7 +134,7 @@ gp_result_t gp_get_line_thickness( const gp_canvas_t * _canvas, float * _thickne
 gp_result_t gp_set_penumbra( gp_canvas_t * _canvas, float _penumbra )
 {
 #if defined(GP_DEBUG)
-    if( _penumbra >= _canvas->state_cook.line_thickness * 0.5f )
+    if( _penumbra >= _canvas->state_cook.thickness * 0.5f )
     {
         return GP_FAILURE;
     }
@@ -471,7 +473,7 @@ gp_result_t gp_bezier_curve_to( gp_canvas_t * _canvas, float _p0x, float _p0y, f
     return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
-gp_result_t gp_draw_rect( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height )
+gp_result_t gp_rect( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height )
 {
     gp_rect_t * r = GP_NEW( _canvas, gp_rect_t );
     r->next = GP_NULLPTR;
@@ -489,7 +491,7 @@ gp_result_t gp_draw_rect( gp_canvas_t * _canvas, float _x, float _y, float _widt
     return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
-gp_result_t gp_draw_rounded_rect( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height, float _radius )
+gp_result_t gp_rounded_rect( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height, float _radius )
 {
     gp_rounded_rect_t * rr = GP_NEW( _canvas, gp_rounded_rect_t );
     rr->next = GP_NULLPTR;
@@ -508,16 +510,18 @@ gp_result_t gp_draw_rounded_rect( gp_canvas_t * _canvas, float _x, float _y, flo
     return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
-gp_result_t gp_draw_circle( gp_canvas_t * _canvas, float _x, float _y, float _radius )
+gp_result_t gp_circle( gp_canvas_t * _canvas, float _x, float _y, float _radius )
 {
-    gp_result_t result = gp_draw_ellipse( _canvas, _x, _y, _radius, _radius );
+    gp_result_t result = gp_ellipse( _canvas, _x, _y, _radius, _radius );
 
     return result;
 }
 //////////////////////////////////////////////////////////////////////////
-gp_result_t gp_draw_ellipse( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height )
+gp_result_t gp_ellipse( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height )
 {
     gp_ellipse_t * e = GP_NEW( _canvas, gp_ellipse_t );
+    e->next = GP_NULLPTR;
+    e->prev = GP_NULLPTR;
 
     e->point.x = _x;
     e->point.y = _y;
@@ -569,7 +573,7 @@ gp_result_t gp_render( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh )
 {
 #if defined(GP_DEBUG)
     if( _mesh->positions_buffer != GP_NULLPTR && (_mesh->positions_offset == ~0U || _mesh->positions_stride == ~0U) )
-    {        
+    {
         return GP_FAILURE;
     }
 

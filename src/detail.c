@@ -39,7 +39,7 @@ gp_result_t gp_mesh_index( const gp_mesh_t * _mesh, gp_uint16_t _iterator, gp_ui
     }
 #endif
 
-    *(gp_uint16_t *)((gp_uint8_t *)_mesh->indices_buffer + _mesh->indices_offset + _mesh->indices_stride * _iterator) = _index;
+    * (gp_uint16_t *)((gp_uint8_t *)_mesh->indices_buffer + _mesh->indices_offset + _mesh->indices_stride * _iterator) = _index;
 
     return GP_SUCCESSFUL;
 }
@@ -81,7 +81,7 @@ gp_result_t gp_mesh_color( const gp_mesh_t * _mesh, gp_uint16_t _iterator, gp_ar
     }
 #endif
 
-    *(gp_argb_t *)((gp_uint8_t *)_mesh->colors_buffer + _mesh->colors_offset + _mesh->colors_stride * _iterator) = _c;
+    * (gp_argb_t *)((gp_uint8_t *)_mesh->colors_buffer + _mesh->colors_offset + _mesh->colors_stride * _iterator) = _c;
 
     return GP_SUCCESSFUL;
 }

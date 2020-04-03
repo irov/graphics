@@ -73,14 +73,14 @@ gp_result_t gp_render_ellipse( const gp_canvas_t * _canvas, const gp_mesh_t * _m
         gp_uint8_t ellipse_quality = e->state->ellipse_quality;
         float line_penumbra = e->state->penumbra;
 
-        float line_thickness = e->state->line_thickness;
-        float line_half_thickness = line_thickness * 0.5f;
+        float thickness = e->state->thickness;
+        float half_thickness = thickness * 0.5f;
 
-        float total_width = e->radius_width * 2.f + line_thickness;
-        float total_height = e->radius_height * 2.f + line_thickness;
+        float total_width = e->radius_width * 2.f + thickness;
+        float total_height = e->radius_height * 2.f + thickness;
 
-        float u_offset = -(e->point.x - e->radius_width - line_half_thickness);
-        float v_offset = -(e->point.y - e->radius_height - line_half_thickness);
+        float u_offset = -(e->point.x - e->radius_width - half_thickness);
+        float v_offset = -(e->point.y - e->radius_height - half_thickness);
 
         float ellipse_quality_inv = e->state->ellipse_quality_inv;
 
@@ -90,7 +90,7 @@ gp_result_t gp_render_ellipse( const gp_canvas_t * _canvas, const gp_mesh_t * _m
         {
             if( line_penumbra > 0.f )
             {
-                float line_half_thickness_soft = line_half_thickness - line_penumbra;
+                float line_half_thickness_soft = half_thickness - line_penumbra;
 
                 gp_uint32_t ellipse_quality2 = ellipse_quality * 4;
 
@@ -131,11 +131,11 @@ gp_result_t gp_render_ellipse( const gp_canvas_t * _canvas, const gp_mesh_t * _m
                     float ct = GP_MATH_COSF( t );
                     float st = GP_MATH_SINF( t );
 
-                    float x0 = e->point.x + (e->radius_width + line_half_thickness) * ct;
-                    float y0 = e->point.y + (e->radius_height + line_half_thickness) * st;
+                    float x0 = e->point.x + (e->radius_width + half_thickness) * ct;
+                    float y0 = e->point.y + (e->radius_height + half_thickness) * st;
 
-                    float x1 = e->point.x + (e->radius_width - line_half_thickness) * ct;
-                    float y1 = e->point.y + (e->radius_height - line_half_thickness) * st;
+                    float x1 = e->point.x + (e->radius_width - half_thickness) * ct;
+                    float y1 = e->point.y + (e->radius_height - half_thickness) * st;
 
                     float x0_soft = e->point.x + (e->radius_width + line_half_thickness_soft) * ct;
                     float y0_soft = e->point.y + (e->radius_height + line_half_thickness_soft) * st;
@@ -185,11 +185,11 @@ gp_result_t gp_render_ellipse( const gp_canvas_t * _canvas, const gp_mesh_t * _m
                     float ct = GP_MATH_COSF( t );
                     float st = GP_MATH_SINF( t );
 
-                    float x0 = e->point.x + (e->radius_width + line_half_thickness) * ct;
-                    float y0 = e->point.y + (e->radius_height + line_half_thickness) * st;
+                    float x0 = e->point.x + (e->radius_width + half_thickness) * ct;
+                    float y0 = e->point.y + (e->radius_height + half_thickness) * st;
 
-                    float x1 = e->point.x + (e->radius_width - line_half_thickness) * ct;
-                    float y1 = e->point.y + (e->radius_height - line_half_thickness) * st;
+                    float x1 = e->point.x + (e->radius_width - half_thickness) * ct;
+                    float y1 = e->point.y + (e->radius_height - half_thickness) * st;
 
                     GP_DEBUG_CALL( gp_mesh_position, (_mesh, vertex_iterator + 0, x0, y0) );
                     GP_DEBUG_CALL( gp_mesh_color, (_mesh, vertex_iterator + 0, argb) );
@@ -207,7 +207,7 @@ gp_result_t gp_render_ellipse( const gp_canvas_t * _canvas, const gp_mesh_t * _m
         {
             if( line_penumbra > 0.f )
             {
-                float line_half_thickness_soft = line_half_thickness - line_penumbra;
+                float line_half_thickness_soft = half_thickness - line_penumbra;
 
                 gp_uint32_t ellipse_quality2 = ellipse_quality * 2;
 
@@ -245,8 +245,8 @@ gp_result_t gp_render_ellipse( const gp_canvas_t * _canvas, const gp_mesh_t * _m
                     float ct = GP_MATH_COSF( t );
                     float st = GP_MATH_SINF( t );
 
-                    float x = e->point.x + (e->radius_width + line_half_thickness) * ct;
-                    float y = e->point.y + (e->radius_height + line_half_thickness) * st;
+                    float x = e->point.x + (e->radius_width + half_thickness) * ct;
+                    float y = e->point.y + (e->radius_height + half_thickness) * st;
 
                     float x_soft = e->point.x + (e->radius_width + line_half_thickness_soft) * ct;
                     float y_soft = e->point.y + (e->radius_height + line_half_thickness_soft) * st;
@@ -286,8 +286,8 @@ gp_result_t gp_render_ellipse( const gp_canvas_t * _canvas, const gp_mesh_t * _m
                     float ct = GP_MATH_COSF( t );
                     float st = GP_MATH_SINF( t );
 
-                    float x = e->point.x + (e->radius_width + line_half_thickness) * ct;
-                    float y = e->point.y + (e->radius_height + line_half_thickness) * st;
+                    float x = e->point.x + (e->radius_width + half_thickness) * ct;
+                    float y = e->point.y + (e->radius_height + half_thickness) * st;
 
                     GP_DEBUG_CALL( gp_mesh_position, (_mesh, vertex_iterator + 0, x, y) );
                     GP_DEBUG_CALL( gp_mesh_color, (_mesh, vertex_iterator + 0, argb) );
