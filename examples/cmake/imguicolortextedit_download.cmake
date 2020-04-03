@@ -13,7 +13,7 @@ ExternalProject_Add(imguicolortextedit_download PREFIX imguicolortextedit
             -DIMGUI_INCLUDE_DIR=${IMGUI_INCLUDE_DIR}
     )
     
-ExternalProject_Add_StepDependencies(imgui_download build imgui_download)
+ExternalProject_Add_StepDependencies(imguicolortextedit_download build imgui_download)
     
 ExternalProject_Get_Property(imguicolortextedit_download INSTALL_DIR)
 set(IMGUICOLORTEXTEDIT_INCLUDE_DIR ${INSTALL_DIR}/include)
