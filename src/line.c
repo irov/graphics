@@ -231,7 +231,7 @@ static void __lerp_color( gp_color_t * _c, const gp_color_t * _a, const gp_color
 #if defined( GP_DEBUG )
 #define GP_POINTS_INCREF() if( ++points_size == GP_LINE_POINTS_MAX) return GP_FAILURE
 #else
-#define GP_POINTS_INCREF() ++points_size;
+#define GP_POINTS_INCREF() ++points_size
 #endif
 //////////////////////////////////////////////////////////////////////////
 gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh, gp_uint16_t * _vertex_iterator, gp_uint16_t * _index_iterator )
