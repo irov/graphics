@@ -3,6 +3,10 @@
 
 #include "graphics/config.h"
 
+/*************************************************************************
+*
+*************************************************************************/
+
 typedef struct gp_canvas_t gp_canvas_t;
 
 typedef void * (*gp_malloc_t)(gp_size_t _size, void * _ud);
@@ -54,6 +58,9 @@ gp_result_t gp_get_rect_quality( const gp_canvas_t * _canvas, gp_uint8_t * _qual
 
 gp_result_t gp_begin_fill( gp_canvas_t * _canvas );
 gp_result_t gp_end_fill( gp_canvas_t * _canvas );
+
+gp_result_t gp_push_state( gp_canvas_t * _canvas );
+gp_result_t gp_pop_state( gp_canvas_t * _canvas );
 
 /*************************************************************************
 *

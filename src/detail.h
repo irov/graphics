@@ -21,6 +21,8 @@
 
 #define GP_EQUAL_F(f, eps) (((f) >= -(eps)) && ((f) <= (eps)))
 
+#define GP_GET_STATE(c) (c->state_cook + c->state_stack)
+
 static const float gp_constant_pi = 3.1415926535897932384626433832795f;
 static const float gp_constant_half_pi = 1.5707963267948966192313216916398f;
 static const float gp_constant_one_and_a_half_pi = 4.7123889803846898576939650749193f;

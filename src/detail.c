@@ -100,9 +100,11 @@ gp_result_t gp_mesh_uv( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh, gp
     }
 #endif
 
+    const gp_state_t * state = GP_GET_STATE( _canvas );
+
     gp_vec2f_t uv;
-    uv.x = _canvas->state_cook.uv_ou + _u * _canvas->state_cook.uv_su;
-    uv.y = _canvas->state_cook.uv_ov + _v * _canvas->state_cook.uv_sv;
+    uv.x = state->uv_ou + _u * state->uv_su;
+    uv.y = state->uv_ov + _v * state->uv_sv;
 
     *(gp_vec2f_t *)((gp_uint8_t *)_mesh->uv_buffer + _mesh->uv_offset + _mesh->uv_stride * _iterator) = uv;
 

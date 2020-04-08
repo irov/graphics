@@ -52,6 +52,10 @@ typedef struct gp_color_t
 #define GP_LINE_POINTS_MAX 1024
 #endif
 
+#ifndef GP_STATE_STACK_MAX
+#define GP_STATE_STACK_MAX 8
+#endif
+
 #ifndef GP_ENABLE_EXTRA_LINE_POINTS
 #define GP_DISABLE_EXTRA_LINE_POINTS
 #endif

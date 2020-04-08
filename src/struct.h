@@ -118,7 +118,8 @@ typedef struct gp_ellipse_t
 //////////////////////////////////////////////////////////////////////////
 typedef struct gp_canvas_t
 {
-    gp_state_t state_cook;
+    gp_state_t state_cook[GP_STATE_STACK_MAX];
+    gp_uint32_t state_stack;
     gp_bool_t state_invalidate;
 
     gp_state_t * states;
