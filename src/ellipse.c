@@ -299,7 +299,7 @@ gp_result_t gp_render_ellipse( const gp_canvas_t * _canvas, const gp_mesh_t * _m
         }
     }
 
-#ifdef GP_DEBUG
+#if defined(GP_DEBUG)
     gp_uint16_t test_vertex_count;
     gp_uint16_t test_index_count;
 
