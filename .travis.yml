@@ -28,9 +28,9 @@ compiler:
     - clang
     
 before_install:
-    - if [[ "${TRAVIS_OS_NAME}" == "linux" ]]; then sudo apt-get install xorg-dev libglu1-mesa-dev; fi
-    - if [[ "${TRAVIS_OS_NAME}" == "linux" ]]; then sudo apt-get install xorg-dev libglu1-mesa-dev; fi
-    - if [[ "${TRAVIS_OS_NAME}" == "linux" ]]; then sudo apt-get install build-essential libgtk-3-dev; fi
+    - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get install xorg-dev libglu1-mesa-dev; fi
+    - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get install xorg-dev libglu1-mesa-dev; fi
+    - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get install build-essential libgtk-3-dev; fi
 
 env:
     - BUILD_CONFIGURATION=Debug
@@ -42,10 +42,10 @@ matrix:
           compiler: gcc
 
         - os:  osx
-          env: TARGET_CPU=x86 BUILD_CONFIGURATION=Debug
+          env: BUILD_CONFIGURATION=Debug
 
         - os:  osx
-          env: TARGET_CPU=x86 BUILD_CONFIGURATION=Release
+          env: BUILD_CONFIGURATION=Release
 
 script:
     # Export CC and CXX to tell cmake which compiler to use
@@ -53,7 +53,7 @@ script:
     # run
     - mkdir build_cmake
     - pushd build_cmake
-    - cmake -S ".." -DCMAKE_BUILD_TYPE=${BUILD_CONFIGURATION} -DGRAPHICS_EXAMPLES_BUILD:BOOL=TRUE -DGRAPHICS_TESTS:BOOL=TRUE
-    - cmake --build . --config ${BUILD_CONFIGURATION}
+    - cmake -S ".." -DCMAKE_BUILD_TYPE=$BUILD_CONFIGURATION -DGRAPHICS_EXAMPLES_BUILD:BOOL=TRUE -DGRAPHICS_TESTS:BOOL=TRUE
+    - cmake --build . --config $BUILD_CONFIGURATION
     - ctest --output-on-failure
     - popd
