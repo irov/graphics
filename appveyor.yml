@@ -23,6 +23,6 @@ build_script:
   - mkdir build_cmake
   - pushd build_cmake
   - cmake -G "%env_cmake_generator%" -A %env_cmake_architecture% -S ".." -DCMAKE_BUILD_TYPE=%configuration% -DGRAPHICS_EXAMPLES_BUILD:BOOL=TRUE -DGRAPHICS_TESTS:BOOL=TRUE
-  - cmake --build .
-  - ctest --output-on-failure
+  - cmake --build . --config %configuration%
+  - ctest --output-on-failure -C %configuration%
   - popd
