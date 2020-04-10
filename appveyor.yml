@@ -13,7 +13,6 @@ configuration:
 
 environment:
   matrix:
-  # Comilers matrix
   - env_cmake_generator: "Visual Studio 16 2019"
     env_cmake_architecture: Win32
   - env_cmake_generator: "Visual Studio 16 2019"
@@ -24,5 +23,9 @@ build_script:
   - pushd build_cmake
   - cmake -G "%env_cmake_generator%" -A %env_cmake_architecture% -S ".." -DCMAKE_BUILD_TYPE=%configuration% -DGRAPHICS_EXAMPLES_BUILD:BOOL=TRUE -DGRAPHICS_TESTS:BOOL=TRUE
   - cmake --build . --config %configuration%
-  - ctest --output-on-failure -C %configuration%
+  - popd
+  
+test_script:
+  - pushd build_cmake
+  - ctest -C %configuration% --output-on-failure
   - popd
