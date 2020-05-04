@@ -158,11 +158,13 @@ static const char * vertexShaderColorSource = "#version 330 core\n"
 "layout (location = 0) in vec2 inPos;\n"
 "layout (location = 1) in vec4 inColor;\n"
 "uniform mat4 uWVP;\n"
+"uniform float uScale;\n"
+"uniform vec2 uOffset;\n"
 "out vec4 v2fColor;\n"
 "void main()\n"
 "{\n"
-"   vec4 p = vec4(inPos.x, inPos.y, 0.0, 1.0);\n"
-"   gl_Position = uWVP * p;\n"
+"   vec3 p = vec3(inPos.xy + uOffset, 0.0) * uScale;\n"
+"   gl_Position = uWVP * vec4(p, 1.0);\n"
 "   v2fColor = inColor;\n"
 "}\0";
 //////////////////////////////////////////////////////////////////////////
@@ -179,12 +181,14 @@ static const char * vertexShaderTextureSource = "#version 330 core\n"
 "layout (location = 1) in vec4 inColor;\n"
 "layout (location = 2) in vec2 inUV;\n"
 "uniform mat4 uWVP;\n"
+"uniform float uScale;\n"
+"uniform vec2 uOffset;\n"
 "out vec4 v2fColor;\n"
 "out vec2 v2fUV;\n"
 "void main()\n"
 "{\n"
-"   vec4 p = vec4(inPos.x, inPos.y, 0.0, 1.0);\n"
-"   gl_Position = uWVP * p;\n"
+"   vec3 p = vec3(inPos.xy + uOffset, 0.0) * uScale;\n"
+"   gl_Position = uWVP * vec4(p, 1.0);\n"
 "   v2fColor = inColor;\n"
 "   v2fUV = inUV;\n"
 "}\0";
@@ -226,6 +230,20 @@ bool initialize_opengl( example_opengl_handle_t ** _handle, float _width, float 
         glUniformMatrix4fv( wvpColorLocation, 1, GL_FALSE, projOrtho );
     }
 
+    GLint uOffsetColorLocation = glGetUniformLocation( shaderColorProgram, "uOffset" );
+
+    if( uOffsetColorLocation >= 0 )
+    {
+        glUniform2f( uOffsetColorLocation, 0.f, 0.f );
+    }
+
+    GLint uScaleColorLocation = glGetUniformLocation( shaderColorProgram, "uScale" );
+
+    if( uScaleColorLocation >= 0 )
+    {
+        glUniform1f( uScaleColorLocation, 1.f );
+    }
+
     glUseProgram( shaderTextureProgram );
 
     GLint texLocRGB = glGetUniformLocation( shaderTextureProgram, "uTextureRGB" );
@@ -240,6 +258,20 @@ bool initialize_opengl( example_opengl_handle_t ** _handle, float _width, float 
     if( wvpTextureLocation >= 0 )
     {
         glUniformMatrix4fv( wvpTextureLocation, 1, GL_FALSE, projOrtho );
+    }
+
+    GLint uOffsetTextureLocation = glGetUniformLocation( shaderTextureProgram, "uOffset" );
+
+    if( uOffsetTextureLocation >= 0 )
+    {
+        glUniform2f( uOffsetTextureLocation, 0.f, 0.f );
+    }
+
+    GLint uScaleTextureLocation = glGetUniformLocation( shaderTextureProgram, "uScale" );
+
+    if( uScaleTextureLocation >= 0 )
+    {
+        glUniform1f( uScaleTextureLocation, 1.f );
     }
 
     GLuint VAO;
@@ -276,6 +308,7 @@ bool initialize_opengl( example_opengl_handle_t ** _handle, float _width, float 
     opengl_handle->VAO = VAO;
     opengl_handle->VBO = VBO;
     opengl_handle->IBO = IBO;
+    opengl_handle->shaderCurrentProgram = shaderColorProgram;
     opengl_handle->shaderColorProgram = shaderColorProgram;
     opengl_handle->shaderTextureProgram = shaderTextureProgram;
 
@@ -294,4 +327,36 @@ void finalize_opengl( example_opengl_handle_t * _handle )
 
     glDeleteProgram( _handle->shaderColorProgram );
     glDeleteProgram( _handle->shaderTextureProgram );
+}
+//////////////////////////////////////////////////////////////////////////
+void opengl_use_color_program( example_opengl_handle_t * _handle )
+{
+    _handle->shaderCurrentProgram = _handle->shaderColorProgram;
+
+    glUseProgram( _handle->shaderCurrentProgram );
+}
+void opengl_use_texture_program( example_opengl_handle_t * _handle )
+{
+    _handle->shaderCurrentProgram = _handle->shaderTextureProgram;
+
+    glUseProgram( _handle->shaderCurrentProgram );
+}
+//////////////////////////////////////////////////////////////////////////
+void opengl_set_camera( example_opengl_handle_t * _handle, float _offsetX, float _offsetY, float _scale )
+{
+    glUseProgram( _handle->shaderCurrentProgram );
+
+    GLint uOffsetColorLocation = glGetUniformLocation( _handle->shaderCurrentProgram, "uOffset" );
+
+    if( uOffsetColorLocation >= 0 )
+    {
+        glUniform2f( uOffsetColorLocation, _offsetX, _offsetY );
+    }
+
+    GLint uScaleColorLocation = glGetUniformLocation( _handle->shaderCurrentProgram, "uScale" );
+
+    if( uScaleColorLocation >= 0 )
+    {
+        glUniform1f( uScaleColorLocation, _scale );
+    }
 }

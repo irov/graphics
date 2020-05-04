@@ -24,9 +24,15 @@ typedef struct example_opengl_handle_t
     GLuint VBO;
     GLuint IBO;
 
+    GLuint shaderCurrentProgram;
     GLuint shaderColorProgram;
     GLuint shaderTextureProgram;
 }example_opengl_handle_t;
 //////////////////////////////////////////////////////////////////////////
 bool initialize_opengl( example_opengl_handle_t ** _handle, float _width, float _height, int _max_vertex_count, int _max_index_count );
 void finalize_opengl( example_opengl_handle_t * _handle );
+//////////////////////////////////////////////////////////////////////////
+void opengl_use_color_program( example_opengl_handle_t * _handle );
+void opengl_use_texture_program( example_opengl_handle_t * _handle );
+void opengl_set_camera( example_opengl_handle_t * _handle, float _offsetX, float _offsetY, float _scale );
+//////////////////////////////////////////////////////////////////////////

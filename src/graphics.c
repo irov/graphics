@@ -144,7 +144,7 @@ gp_result_t gp_set_penumbra( gp_canvas_t * _canvas, float _penumbra )
     gp_state_t * state = GP_GET_STATE( _canvas );
 
 #if defined(GP_DEBUG)
-    if( _penumbra >= state->thickness * 0.5f )
+    if( _penumbra > state->thickness * 0.5f )
     {
         return GP_FAILURE;
     }

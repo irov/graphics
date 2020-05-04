@@ -57,11 +57,61 @@ static const char * idecls[] =
     "draw ellipse"
 };
 //////////////////////////////////////////////////////////////////////////
-static void framebuffer_size_callback( GLFWwindow * _window, int _width, int _height )
+float camera_scale = 1.f;
+float camera_scale_min = 0.125f;
+float camera_scale_max = 16.f;
+float camera_scale_step = 0.125f;
+float camera_offset_x = 0.f;
+float camera_offset_y = 0.f;
+//////////////////////////////////////////////////////////////////////////
+float mouse_pos_x = 0.f;
+float mouse_pos_y = 0.f;
+//////////////////////////////////////////////////////////////////////////
+static void glfw_framebufferSizeCallback( GLFWwindow * _window, int _width, int _height )
 {
     GP_UNUSED( _window );
 
     glViewport( 0, 0, _width, _height );
+}
+//////////////////////////////////////////////////////////////////////////
+static void glfw_scrollCallback( GLFWwindow * _window, double _x, double _y )
+{
+    camera_offset_x -= mouse_pos_x / camera_scale;
+    camera_offset_y -= mouse_pos_y / camera_scale;
+
+    float scroll = (float)_y * camera_scale_step;
+
+    if( camera_scale + scroll > camera_scale_max )
+    {
+        camera_scale = camera_scale_max;
+    }
+    else if( camera_scale + scroll < camera_scale_min )
+    {
+        camera_scale = camera_scale_min;
+    }
+    else
+    {
+        camera_scale += scroll;
+    }
+
+    camera_offset_x += mouse_pos_x / camera_scale;
+    camera_offset_y += mouse_pos_y / camera_scale;
+}
+//////////////////////////////////////////////////////////////////////////
+static void glfw_cursorPosCallback( GLFWwindow * _window, double _x, double _y )
+{    
+    if( glfwGetKey( _window, GLFW_KEY_SPACE ) == GLFW_PRESS &&
+        glfwGetMouseButton( _window, GLFW_MOUSE_BUTTON_LEFT ) == GLFW_PRESS )
+    {
+        const float dx = (float)_x - mouse_pos_x;
+        const float dy = (float)_y - mouse_pos_y;
+
+        camera_offset_x += dx / camera_scale;
+        camera_offset_y += dy / camera_scale;
+    }
+
+    mouse_pos_x = (float)_x;
+    mouse_pos_y = (float)_y;
 }
 //////////////////////////////////////////////////////////////////////////
 static void * gp_malloc( gp_size_t _size, void * _ud )
@@ -142,7 +192,16 @@ int main( int argc, char ** argv )
     }
 
     glfwMakeContextCurrent( fwWindow );
-    glfwSetFramebufferSizeCallback( fwWindow, framebuffer_size_callback );
+    glfwSetFramebufferSizeCallback( fwWindow, &glfw_framebufferSizeCallback );
+    glfwSetScrollCallback( fwWindow, &glfw_scrollCallback );
+    glfwSetCursorPosCallback( fwWindow, &glfw_cursorPosCallback );
+
+    double cursorPosX;
+    double cursorPosY;
+    glfwGetCursorPos( fwWindow, &cursorPosX, &cursorPosY );
+
+    mouse_pos_x = (float)cursorPosX;
+    mouse_pos_y = (float)cursorPosY;
 
     if( gladLoadGLLoader( (GLADloadproc)glfwGetProcAddress ) == 0 )
     {
@@ -193,7 +252,6 @@ int main( int argc, char ** argv )
     example_opengl_handle_t * opengl_handle;
     initialize_opengl( &opengl_handle, (float)window_width, (float)window_height, max_vertex_count, max_index_count );
 
-
     TextEditor editor;
     TextEditor::LanguageDefinition lang = TextEditor::LanguageDefinition::Lua();
 
@@ -218,6 +276,16 @@ int main( int argc, char ** argv )
 
         static bool wireframe = false;
         static bool texture = false;
+
+        ImGui::Text( "Content scale:" );
+        ImGui::SliderFloat( "##ContentScale", &camera_scale, camera_scale_min, camera_scale_max );
+        
+        if( ImGui::Button( "Reset scale" ) )
+        {
+            camera_scale = 1.f;
+            camera_offset_x = 0.f;
+            camera_offset_y = 0.f;
+        }
 
         ImGui::Checkbox( "wireframe", &wireframe );
         ImGui::Checkbox( "texture", &texture );
@@ -341,7 +409,7 @@ int main( int argc, char ** argv )
             glActiveTexture( GL_TEXTURE0 );
             glBindTexture( GL_TEXTURE_2D, opengl_handle->textureId );
 
-            glUseProgram( opengl_handle->shaderTextureProgram );
+            opengl_use_texture_program( opengl_handle );
 
             glEnableVertexAttribArray( 2 );
         }
@@ -350,10 +418,12 @@ int main( int argc, char ** argv )
             glActiveTexture( GL_TEXTURE0 );
             glBindTexture( GL_TEXTURE_2D, 0 );
 
-            glUseProgram( opengl_handle->shaderColorProgram );
+            opengl_use_color_program( opengl_handle );
 
             glDisableVertexAttribArray( 2 );
         }
+
+        opengl_set_camera( opengl_handle, camera_offset_x, camera_offset_y, camera_scale );
 
         glClearColor( 0.2f, 0.3f, 0.3f, 1.f );
         glClear( GL_COLOR_BUFFER_BIT );
@@ -361,7 +431,7 @@ int main( int argc, char ** argv )
         if( Custom == false )
         {
             gp_set_thickness( canvas, thickness );
-            gp_set_penumbra( canvas, thickness * penumbra * (0.5f - 0.0125f) );
+            gp_set_penumbra( canvas, thickness * penumbra * 0.5f );
 
             gp_set_curve_quality( canvas, curve_quality );
             gp_set_ellipse_quality( canvas, ellipse_quality );
