@@ -27,6 +27,7 @@ gp_result_t gp_canvas_clear( gp_canvas_t * _canvas );
 
 float gp_get_default_thickness( void );
 float gp_get_default_penumbra( void );
+float gp_get_default_outline_width( void );
 gp_uint8_t gp_get_default_curve_quality( void );
 gp_uint8_t gp_get_default_ellipse_quality( void );
 gp_uint8_t gp_get_default_rect_quality( void );

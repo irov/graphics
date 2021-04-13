@@ -575,6 +575,7 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
             const gp_vec2f_t * p1 = &GP_GET_POINT( 1 )->p;
 
             gp_argb_t argb0 = GP_GET_POINT( 0 )->argb;
+            gp_argb_t outline_argb0 = GP_GET_POINT( 0 )->outline_argb;
 
             gp_vec2f_t perp;
             __make_line_perp( &perp, p0, p1 );
@@ -604,11 +605,11 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
                 if( outline_width > 0.f )
                 {
                     GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 0, p0->x - perp.x * (half_thickness + outline_width), p0->y - perp.y * (half_thickness + outline_width)) );
-                    GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 0, argb0) );
+                    GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 0, outline_argb0) );
                     GP_CALL( gp_mesh_uv, (_canvas, _mesh, vertex_iterator + 0, 0.f, 0.f) );
 
                     GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 1, p0->x - perp.x * half_thickness, p0->y - perp.y * half_thickness) );
-                    GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 1, argb0) );
+                    GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 1, outline_argb0) );
                     GP_CALL( gp_mesh_uv, (_canvas, _mesh, vertex_iterator + 1, 0.f, 0.f) );
 
                     GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 2, p0->x - perp.x * half_thickness, p0->y - perp.y * half_thickness) );
@@ -620,11 +621,11 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
                     GP_CALL( gp_mesh_uv, (_canvas, _mesh, vertex_iterator + 3, 0.f, 1.f) );
 
                     GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 4, p0->x + perp.x * half_thickness, p0->y + perp.y * half_thickness) );
-                    GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 4, argb0) );
+                    GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 4, outline_argb0) );
                     GP_CALL( gp_mesh_uv, (_canvas, _mesh, vertex_iterator + 4, 0.f, 1.f) );
 
                     GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 5, p0->x + perp.x * (half_thickness + outline_width), p0->y + perp.y * (half_thickness + outline_width)) );
-                    GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 5, argb0) );
+                    GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 5, outline_argb0) );
                     GP_CALL( gp_mesh_uv, (_canvas, _mesh, vertex_iterator + 5, 0.f, 1.f) );
 
                     vertex_iterator += 6;
@@ -664,6 +665,7 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
             }
 
             gp_argb_t argb0 = GP_GET_POINT( index + 0 )->argb;
+            gp_argb_t outline_argb0 = GP_GET_POINT( index + 0 )->outline_argb;
 
             gp_vec2f_t perp01;
             __make_line_perp( &perp01, p0, p1 );
@@ -812,80 +814,88 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
                 if( outline_width > 0.f )
                 {
                     gp_vec2f_t linep40;
-                    linep40.x = p0->x - perp01.x * half_thickness_soft;
-                    linep40.y = p0->y - perp01.y * half_thickness_soft;
+                    linep40.x = p0->x - perp01.x * (half_thickness + outline_width);
+                    linep40.y = p0->y - perp01.y * (half_thickness + outline_width);
 
                     gp_vec2f_t linep41;
-                    linep41.x = p1->x - perp01.x * half_thickness_soft;
-                    linep41.y = p1->y - perp01.y * half_thickness_soft;
+                    linep41.x = p1->x - perp01.x * (half_thickness + outline_width);
+                    linep41.y = p1->y - perp01.y * (half_thickness + outline_width);
 
-                    gp_linef_t line01l_soft;
-                    __make_line_from_two_point_v2( &line01l_soft, &linep40, &linep41 );
+                    gp_linef_t line01l_outline;
+                    __make_line_from_two_point_v2( &line01l_outline, &linep40, &linep41 );
 
                     gp_vec2f_t linep50;
-                    linep50.x = p1->x - perp12.x * half_thickness_soft;
-                    linep50.y = p1->y - perp12.y * half_thickness_soft;
+                    linep50.x = p1->x - perp12.x * (half_thickness + outline_width);
+                    linep50.y = p1->y - perp12.y * (half_thickness + outline_width);
 
                     gp_vec2f_t linep51;
-                    linep51.x = p2->x - perp12.x * half_thickness_soft;
-                    linep51.y = p2->y - perp12.y * half_thickness_soft;
+                    linep51.x = p2->x - perp12.x * (half_thickness + outline_width);
+                    linep51.y = p2->y - perp12.y * (half_thickness + outline_width);
 
-                    gp_linef_t line12l_soft;
-                    __make_line_from_two_point_v2( &line12l_soft, &linep50, &linep51 );
+                    gp_linef_t line12l_outline;
+                    __make_line_from_two_point_v2( &line12l_outline, &linep50, &linep51 );
 
-                    gp_vec2f_t pl_soft;
-                    if( __intersect_line( &line01l_soft, &line12l_soft, &pl_soft ) == GP_FALSE )
+                    gp_vec2f_t pl_outline;
+                    if( __intersect_line( &line01l_outline, &line12l_outline, &pl_outline ) == GP_FALSE )
                     {
-                        pl_soft.x = p1->x - perp01.x * half_thickness_soft;
-                        pl_soft.y = p1->y - perp01.y * half_thickness_soft;
+                        pl_outline.x = p1->x - perp01.x * (half_thickness + outline_width);
+                        pl_outline.y = p1->y - perp01.y * (half_thickness + outline_width);
                     }
 
                     gp_vec2f_t linep60;
-                    linep60.x = p0->x + perp01.x * half_thickness_soft;
-                    linep60.y = p0->y + perp01.y * half_thickness_soft;
+                    linep60.x = p0->x + perp01.x * (half_thickness + outline_width);
+                    linep60.y = p0->y + perp01.y * (half_thickness + outline_width);
 
                     gp_vec2f_t linep61;
-                    linep61.x = p1->x + perp01.x * half_thickness_soft;
-                    linep61.y = p1->y + perp01.y * half_thickness_soft;
+                    linep61.x = p1->x + perp01.x * (half_thickness + outline_width);
+                    linep61.y = p1->y + perp01.y * (half_thickness + outline_width);
 
-                    gp_linef_t line01r_soft;
-                    __make_line_from_two_point_v2( &line01r_soft, &linep60, &linep61 );
+                    gp_linef_t line01r_outline;
+                    __make_line_from_two_point_v2( &line01r_outline, &linep60, &linep61 );
 
                     gp_vec2f_t linep70;
-                    linep70.x = p1->x + perp12.x * half_thickness_soft;
-                    linep70.y = p1->y + perp12.y * half_thickness_soft;
+                    linep70.x = p1->x + perp12.x * (half_thickness + outline_width);
+                    linep70.y = p1->y + perp12.y * (half_thickness + outline_width);
 
                     gp_vec2f_t linep71;
-                    linep71.x = p2->x + perp12.x * half_thickness_soft;
-                    linep71.y = p2->y + perp12.y * half_thickness_soft;
+                    linep71.x = p2->x + perp12.x * (half_thickness + outline_width);
+                    linep71.y = p2->y + perp12.y * (half_thickness + outline_width);
 
-                    gp_linef_t line12r_soft;
-                    __make_line_from_two_point_v2( &line12r_soft, &linep70, &linep71 );
+                    gp_linef_t line12r_outline;
+                    __make_line_from_two_point_v2( &line12r_outline, &linep70, &linep71 );
 
-                    gp_vec2f_t pr_soft;
-                    if( __intersect_line( &line01r_soft, &line12r_soft, &pr_soft ) == GP_FALSE )
+                    gp_vec2f_t pr_outline;
+                    if( __intersect_line( &line01r_outline, &line12r_outline, &pr_outline ) == GP_FALSE )
                     {
-                        pr_soft.x = p1->x + perp01.x * half_thickness_soft;
-                        pr_soft.y = p1->y + perp01.y * half_thickness_soft;
+                        pr_outline.x = p1->x + perp01.x * (half_thickness + outline_width);
+                        pr_outline.y = p1->y + perp01.y * (half_thickness + outline_width);
                     }
 
-                    GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 0, pl.x, pl.y) );
-                    GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 0, argb0 & 0x00ffffff) );
+                    GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 0, pl_outline.x, pl_outline.y) );
+                    GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 0, outline_argb0) );
                     GP_CALL( gp_mesh_uv, (_canvas, _mesh, vertex_iterator + 0, u, 0.f) );
 
-                    GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 1, pl_soft.x, pl_soft.y) );
-                    GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 1, argb0) );
-                    GP_CALL( gp_mesh_uv, (_canvas, _mesh, vertex_iterator + 1, u, 0.5f - uv_soft_offset) );
+                    GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 1, pl.x, pl.y) );
+                    GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 1, outline_argb0) );
+                    GP_CALL( gp_mesh_uv, (_canvas, _mesh, vertex_iterator + 1, u, 0.f) );
 
-                    GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 2, pr_soft.x, pr_soft.y) );
+                    GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 2, pl.x, pl.y) );
                     GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 2, argb0) );
-                    GP_CALL( gp_mesh_uv, (_canvas, _mesh, vertex_iterator + 2, u, 0.5f + uv_soft_offset) );
+                    GP_CALL( gp_mesh_uv, (_canvas, _mesh, vertex_iterator + 2, u, 0.f) );
 
                     GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 3, pr.x, pr.y) );
-                    GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 3, argb0 & 0x00ffffff) );
+                    GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 3, argb0) );
                     GP_CALL( gp_mesh_uv, (_canvas, _mesh, vertex_iterator + 3, u, 1.f) );
 
-                    vertex_iterator += 4;
+                    GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 4, pr.x, pr.y) );
+                    GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 4, outline_argb0) );
+                    GP_CALL( gp_mesh_uv, (_canvas, _mesh, vertex_iterator + 4, u, 1.f) );
+
+                    GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 5, pr_outline.x, pr_outline.y) );
+                    GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 5, outline_argb0) );
+                    GP_CALL( gp_mesh_uv, (_canvas, _mesh, vertex_iterator + 5, u, 1.f) );
+
+                    vertex_iterator += 6;
                 }
                 else
                 {
@@ -896,9 +906,9 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
                     GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 1, pr.x, pr.y) );
                     GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 1, argb0) );
                     GP_CALL( gp_mesh_uv, (_canvas, _mesh, vertex_iterator + 1, u, 1.f) );
-                }
 
-                vertex_iterator += 2;
+                    vertex_iterator += 2;
+                }
             }
         }
 
@@ -907,6 +917,7 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
             const gp_vec2f_t * p1 = &GP_GET_POINT( points_cache.size - 1 )->p;
 
             gp_argb_t argb0 = GP_GET_POINT( points_cache.size - 2 )->argb;
+            gp_argb_t outline_argb0 = GP_GET_POINT( points_cache.size - 2 )->outline_argb;
 
             gp_vec2f_t perp;
             __make_line_perp( &perp, p0, p1 );
@@ -936,11 +947,11 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
                 if( outline_width > 0.f )
                 {
                     GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 0, p1->x - perp.x * (half_thickness + outline_width), p1->y - perp.y * (half_thickness + outline_width)) );
-                    GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 0, argb0) );
+                    GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 0, outline_argb0) );
                     GP_CALL( gp_mesh_uv, (_canvas, _mesh, vertex_iterator + 0, 1.f, 0.f) );
 
                     GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 1, p1->x - perp.x * half_thickness, p1->y - perp.y * half_thickness) );
-                    GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 1, argb0) );
+                    GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 1, outline_argb0) );
                     GP_CALL( gp_mesh_uv, (_canvas, _mesh, vertex_iterator + 1, 1.f, 0.f) );
 
                     GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 2, p1->x - perp.x * half_thickness, p1->y - perp.y * half_thickness) );
@@ -952,11 +963,11 @@ gp_result_t gp_render_line( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh
                     GP_CALL( gp_mesh_uv, (_canvas, _mesh, vertex_iterator + 3, 1.f, 1.f) );
 
                     GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 4, p1->x + perp.x * half_thickness, p1->y + perp.y * half_thickness) );
-                    GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 4, argb0) );
+                    GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 4, outline_argb0) );
                     GP_CALL( gp_mesh_uv, (_canvas, _mesh, vertex_iterator + 4, 1.f, 1.f) );
 
                     GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 5, p1->x + perp.x * (half_thickness + outline_width), p1->y + perp.y * (half_thickness + outline_width)) );
-                    GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 5, argb0) );
+                    GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 5, outline_argb0) );
                     GP_CALL( gp_mesh_uv, (_canvas, _mesh, vertex_iterator + 5, 1.f, 1.f) );
 
                     vertex_iterator += 6;

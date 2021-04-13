@@ -83,6 +83,29 @@ static int __lua_f_penumbra( lua_State * L )
     return 0;
 }
 //////////////////////////////////////////////////////////////////////////
+static int __lua_f_outline_width( lua_State * L )
+{
+    int args_count = 1;
+
+    if( lua_gettop( L ) != args_count )
+    {
+        return luaL_error( L, "expecting exactly %d arguments", args_count );
+    }
+
+    example_script_handle_t * handle = *(example_script_handle_t **)lua_getextraspace( L );
+
+    lua_Number width = lua_tonumber( L, 1 );
+
+    if( gp_set_outline_width( handle->canvas, (float)width ) == GP_FAILURE )
+    {
+        handle->result = GP_FAILURE;
+        handle->error_msg = "invalid outline width";
+        handle->error_line = __lua_get_line( L );
+    }
+
+    return 0;
+}
+//////////////////////////////////////////////////////////////////////////
 static int __lua_f_color( lua_State * L )
 {
     int args_count = 4;
@@ -103,6 +126,32 @@ static int __lua_f_color( lua_State * L )
     {
         handle->result = GP_FAILURE;
         handle->error_msg = "invalid color";
+        handle->error_line = __lua_get_line( L );
+    }
+
+    return 0;
+}
+//////////////////////////////////////////////////////////////////////////
+static int __lua_f_outline_color( lua_State * L )
+{
+    int args_count = 4;
+
+    if( lua_gettop( L ) != args_count )
+    {
+        return luaL_error( L, "expecting exactly %d arguments", args_count );
+    }
+
+    example_script_handle_t * handle = *(example_script_handle_t **)lua_getextraspace( L );
+
+    lua_Number r = lua_tonumber( L, 1 );
+    lua_Number g = lua_tonumber( L, 2 );
+    lua_Number b = lua_tonumber( L, 3 );
+    lua_Number a = lua_tonumber( L, 4 );
+
+    if( gp_set_outline_color( handle->canvas, (float)r, (float)g, (float)b, (float)a ) == GP_FAILURE )
+    {
+        handle->result = GP_FAILURE;
+        handle->error_msg = "invalid outline color";
         handle->error_line = __lua_get_line( L );
     }
 
@@ -374,7 +423,9 @@ static int __lua_call( example_script_handle_t * _handle )
 static const struct luaL_Reg lua_functions[] = {
     {"thickness", &__lua_f_thickness}
     , {"penumbra", &__lua_f_penumbra}
+    , {"outline_width", &__lua_f_outline_width}
     , {"color", &__lua_f_color}
+    , {"outline_color", &__lua_f_outline_color}
     , {"begin_fill", &__lua_f_begin_fill}
     , {"end_fill", &__lua_f_end_fill}
     , {"move_to", &__lua_f_move_to}

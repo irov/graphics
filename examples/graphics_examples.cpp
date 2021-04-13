@@ -21,7 +21,9 @@ static const char * identifiers[] =
 {
     "thickness",
     "penumbra",
+    "outline_width",
     "color",
+    "outline_color",
 
     "begin_fill",
     "end_fill",
@@ -41,7 +43,9 @@ static const char * idecls[] =
 {
     "set edge thickness",
     "set edge penumbra",
+    "set outline width",
     "set color",
+    "set outline color",
 
     "begin figure fill",
     "end figure fill",
@@ -142,24 +146,32 @@ static void gp_free( void * _ptr, void * _ud )
 static void __draw_figure( gp_canvas_t * _canvas, float _dx, float _dy )
 {
     gp_set_color( _canvas, 1.f, 0.5f, 0.25f, 1.f );
+    gp_set_outline_color( _canvas, 0.5f, 1.f, 0.5f, 1.f );
     gp_move_to( _canvas, _dx + 0.f, _dy + 0.f );
     gp_set_color( _canvas, 0.5f, 1.0f, 0.25f, 1.f );
+    gp_set_outline_color( _canvas, 0.5f, 1.f, 0.5f, 1.f );
     gp_quadratic_curve_to( _canvas, _dx + 50.f, _dy + 100.f, _dx + 100.f, _dy + 100.f );
     gp_set_color( _canvas, 0.5f, 0.5f, 1.f, 1.f );
+    gp_set_outline_color( _canvas, 0.5f, 1.f, 0.5f, 1.f );
     gp_bezier_curve_to( _canvas, _dx + 125.f, _dy + 175.f, _dx + 175.f, _dy + 150.f, _dx + 200.f, _dy );
     gp_set_color( _canvas, 0.25f, 1.f, 1.f, 1.f );
+    gp_set_outline_color( _canvas, 0.5f, 0.25f, 0.75f, 1.f );
     gp_line_to( _canvas, _dx + 250.f, _dy + 100.f );
 
     gp_set_color( _canvas, 0.2f, 0.6f, 0.9f, 1.f );
+    gp_set_outline_color( _canvas, 0.5f, 1.f, 0.5f, 1.f );
     gp_rect( _canvas, _dx + 275.f, _dy + 0.f, 100.f, 50.f );
 
     gp_set_color( _canvas, 0.7f, 0.3f, 0.4f, 1.f );
+    gp_set_outline_color( _canvas, 0.5f, 1.f, 0.5f, 1.f );
     gp_rounded_rect( _canvas, _dx + 275.f, _dy + 75.f, 100.f, 50.f, 10.f );
 
     gp_set_color( _canvas, 0.1f, 0.8f, 0.2f, 1.f );
+    gp_set_outline_color( _canvas, 0.5f, 1.f, 0.5f, 1.f );
     gp_circle( _canvas, _dx + 100.f, _dy + 225.f, 50.f );
 
     gp_set_color( _canvas, 0.9f, 0.1f, 0.7f, 1.f );
+    gp_set_outline_color( _canvas, 0.5f, 1.f, 0.5f, 1.f );
     gp_ellipse( _canvas, _dx + 250.f, _dy + 225.f, 50.f, 25.f );
 }
 //////////////////////////////////////////////////////////////////////////
@@ -300,6 +312,9 @@ int main( int argc, char ** argv )
         static float penumbra = gp_get_default_penumbra() / gp_get_default_thickness() * 2.f;
         ImGui::DragFloat( "penumbra", &penumbra, 0.0125f, 0.f, 1.f );
 
+        static float outline_width = gp_get_default_outline_width();
+        ImGui::DragFloat( "outline width", &outline_width, 0.0125f, 0.f, 64.f );
+
         static int curve_quality = gp_get_default_curve_quality();
         ImGui::SliderInt( "curve quality", &curve_quality, 1, 64 );
 
@@ -432,6 +447,7 @@ int main( int argc, char ** argv )
         {
             gp_set_thickness( canvas, thickness );
             gp_set_penumbra( canvas, thickness * penumbra * 0.5f );
+            gp_set_outline_width( canvas, outline_width );
 
             gp_set_curve_quality( canvas, curve_quality );
             gp_set_ellipse_quality( canvas, ellipse_quality );
@@ -464,6 +480,8 @@ int main( int argc, char ** argv )
 
         void * vertices = glMapBuffer( GL_ARRAY_BUFFER, GL_WRITE_ONLY );
         void * indices = glMapBuffer( GL_ELEMENT_ARRAY_BUFFER, GL_WRITE_ONLY );
+
+        gl_vertex_t * v = (gl_vertex_t *)vertices;
 
         mesh.color.r = 1.f;
         mesh.color.g = 1.f;
