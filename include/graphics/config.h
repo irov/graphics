@@ -44,19 +44,19 @@ typedef struct gp_color_t
 #define GP_NULLPTR (0)
 
 #ifndef GP_COLOR_R
-#define GP_COLOR_R(Ñ) (_c->r)
+#define GP_COLOR_R(C) (C->r)
 #endif
 
 #ifndef GP_COLOR_G
-#define GP_COLOR_G(Ñ) (_c->g)
+#define GP_COLOR_G(C) (C->g)
 #endif
 
 #ifndef GP_COLOR_B
-#define GP_COLOR_B(Ñ) (_c->b)
+#define GP_COLOR_B(C) (C->b)
 #endif
 
 #ifndef GP_COLOR_A
-#define GP_COLOR_A(Ñ) (_c->a)
+#define GP_COLOR_A(C) (C->a)
 #endif
 
 #ifndef GP_LINE_POINTS_MAX
