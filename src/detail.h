@@ -9,9 +9,9 @@
 #define GP_FREE(c, p) (*c->free)((p), c->ud)
 
 #if defined(GP_DEBUG)
-#   define GP_DEBUG_CALL(m, args) if( m args == GP_FAILURE) return GP_FAILURE
+#   define GP_CALL(m, args) if( m args == GP_FAILURE) return GP_FAILURE
 #else
-#   define GP_DEBUG_CALL(m, args) m args
+#   define GP_CALL(m, args) m args
 #endif
 
 #define GP_LIST_FOREACH(t, list, e) for( t * e = list; e != GP_NULLPTR; e = e->next )

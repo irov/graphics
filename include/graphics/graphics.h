@@ -41,6 +41,12 @@ gp_result_t gp_get_thickness( const gp_canvas_t * _canvas, float * _thickness );
 gp_result_t gp_set_penumbra( gp_canvas_t * _canvas, float _penumbra );
 gp_result_t gp_get_penumbra( const gp_canvas_t * _canvas, float * _penumbra );
 
+gp_result_t gp_set_outline_width( gp_canvas_t * _canvas, float _width );
+gp_result_t gp_get_outline_width( const gp_canvas_t * _canvas, float * _width );
+
+gp_result_t gp_set_outline_color( gp_canvas_t * _canvas, float _r, float _g, float _b, float _a );
+gp_result_t gp_get_outline_color( const gp_canvas_t * _canvas, gp_color_t * _color );
+
 gp_result_t gp_set_color( gp_canvas_t * _canvas, float _r, float _g, float _b, float _a );
 gp_result_t gp_get_color( const gp_canvas_t * _canvas, gp_color_t * _color );
 

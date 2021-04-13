@@ -22,9 +22,11 @@ typedef struct gp_state_t
     gp_bool_t fill;
 
     float thickness;
+    float outline_width;
     float penumbra;
 
     gp_color_t color;
+    gp_color_t outline_color;
 
     float uv_ou;
     float uv_ov;
@@ -47,6 +49,7 @@ typedef struct gp_points_t
 {
     gp_vec2f_t p;
     gp_argb_t argb;
+    gp_argb_t outline_argb;
 } gp_points_t;
 //////////////////////////////////////////////////////////////////////////
 typedef struct gp_line_point_t

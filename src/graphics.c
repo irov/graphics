@@ -36,25 +36,30 @@ gp_uint8_t gp_get_default_rect_quality( void )
 //////////////////////////////////////////////////////////////////////////
 static void __canvas_default_state_setup( gp_canvas_t * _canvas )
 {
-    _canvas->state_cook[0].next = GP_NULLPTR;
-    _canvas->state_cook[0].prev = GP_NULLPTR;
+    _canvas->state_cook[0].fill = GP_FALSE;
     _canvas->state_cook[0].thickness = gp_get_default_thickness();
+    _canvas->state_cook[0].outline_width = 0.f;
     _canvas->state_cook[0].penumbra = gp_get_default_penumbra();
     _canvas->state_cook[0].color.r = 1.f;
     _canvas->state_cook[0].color.g = 1.f;
     _canvas->state_cook[0].color.b = 1.f;
     _canvas->state_cook[0].color.a = 1.f;
-    _canvas->state_cook[0].fill = GP_FALSE;
+    _canvas->state_cook[0].outline_color.r = 1.f;
+    _canvas->state_cook[0].outline_color.g = 1.f;
+    _canvas->state_cook[0].outline_color.b = 1.f;
+    _canvas->state_cook[0].outline_color.a = 1.f;
     _canvas->state_cook[0].uv_ou = 0.f;
     _canvas->state_cook[0].uv_ov = 0.f;
     _canvas->state_cook[0].uv_su = 1.f;
     _canvas->state_cook[0].uv_sv = 1.f;
     _canvas->state_cook[0].curve_quality = gp_get_default_curve_quality();
-    _canvas->state_cook[0].curve_quality_inv = 1.f / (float)_canvas->state_cook[0].curve_quality;
     _canvas->state_cook[0].ellipse_quality = gp_get_default_ellipse_quality();
-    _canvas->state_cook[0].ellipse_quality_inv = 1.f / (float)_canvas->state_cook[0].ellipse_quality;
     _canvas->state_cook[0].rect_quality = gp_get_default_rect_quality();
+    _canvas->state_cook[0].curve_quality_inv = 1.f / (float)_canvas->state_cook[0].curve_quality;
+    _canvas->state_cook[0].ellipse_quality_inv = 1.f / (float)_canvas->state_cook[0].ellipse_quality;
     _canvas->state_cook[0].rect_quality_inv = 1.f / (float)_canvas->state_cook[0].rect_quality;
+    _canvas->state_cook[0].next = GP_NULLPTR;
+    _canvas->state_cook[0].prev = GP_NULLPTR;
 }
 //////////////////////////////////////////////////////////////////////////
 gp_result_t gp_canvas_create( gp_canvas_t ** _canvas, gp_malloc_t _malloc, gp_realloc_t _realloc, gp_free_t _free, void * _ud )
@@ -167,6 +172,72 @@ gp_result_t gp_get_penumbra( const gp_canvas_t * _canvas, float * _penumbra )
     const gp_state_t * state = GP_GET_STATE( _canvas );
 
     *_penumbra = state->penumbra;
+
+    return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
+gp_result_t gp_set_outline_width( gp_canvas_t * _canvas, float _width )
+{
+    gp_state_t * state = GP_GET_STATE( _canvas );
+
+    if( state->outline_width == _width )
+    {
+        return GP_SUCCESSFUL;
+    }
+
+    state->outline_width = _width;
+
+    _canvas->state_invalidate = GP_TRUE;
+
+    return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
+gp_result_t gp_get_outline_width( const gp_canvas_t * _canvas, float * _width )
+{
+    const gp_state_t * state = GP_GET_STATE( _canvas );
+
+    *_width = state->outline_width;
+
+    return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
+gp_result_t gp_set_outline_color( gp_canvas_t * _canvas, float _r, float _g, float _b, float _a )
+{
+#if defined(GP_DEBUG)
+    if( _r > 1.f || _r < 0.f ||
+        _g > 1.f || _g < 0.f ||
+        _b > 1.f || _b < 0.f ||
+        _a > 1.f || _a < 0.f )
+    {
+        return GP_FAILURE;
+    }
+#endif
+
+    gp_state_t * state = GP_GET_STATE( _canvas );
+
+    if( state->outline_color.r == _r &&
+        state->outline_color.g == _g &&
+        state->outline_color.b == _b &&
+        state->outline_color.a == _a )
+    {
+        return GP_SUCCESSFUL;
+    }
+
+    state->outline_color.r = _r;
+    state->outline_color.g = _g;
+    state->outline_color.b = _b;
+    state->outline_color.a = _a;
+
+    _canvas->state_invalidate = GP_TRUE;
+
+    return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
+gp_result_t gp_get_outline_color( const gp_canvas_t * _canvas, gp_color_t * _color )
+{
+    const gp_state_t * state = GP_GET_STATE( _canvas );
+
+    *_color = state->outline_color;
 
     return GP_SUCCESSFUL;
 }
@@ -631,10 +702,10 @@ gp_result_t gp_calculate_mesh_size( const gp_canvas_t * _canvas, gp_mesh_t * _me
     _mesh->vertex_count = 0;
     _mesh->index_count = 0;
 
-    GP_DEBUG_CALL( gp_calculate_mesh_line_size, (_canvas, _mesh) );
-    GP_DEBUG_CALL( gp_calculate_mesh_rect_size, (_canvas, _mesh) );
-    GP_DEBUG_CALL( gp_calculate_mesh_rounded_rect_size, (_canvas, _mesh) );
-    GP_DEBUG_CALL( gp_calculate_mesh_ellipse_size, (_canvas, _mesh) );
+    GP_CALL( gp_calculate_mesh_line_size, (_canvas, _mesh) );
+    GP_CALL( gp_calculate_mesh_rect_size, (_canvas, _mesh) );
+    GP_CALL( gp_calculate_mesh_rounded_rect_size, (_canvas, _mesh) );
+    GP_CALL( gp_calculate_mesh_ellipse_size, (_canvas, _mesh) );
 
     _mesh->color.r = 1.f;
     _mesh->color.g = 1.f;
@@ -687,10 +758,10 @@ gp_result_t gp_render( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh )
     gp_uint16_t vertex_iterator = 0;
     gp_uint16_t index_iterator = 0;
 
-    GP_DEBUG_CALL( gp_render_line, (_canvas, _mesh, &vertex_iterator, &index_iterator) );
-    GP_DEBUG_CALL( gp_render_rect, (_canvas, _mesh, &vertex_iterator, &index_iterator) );
-    GP_DEBUG_CALL( gp_render_rounded_rect, (_canvas, _mesh, &vertex_iterator, &index_iterator) );
-    GP_DEBUG_CALL( gp_render_ellipse, (_canvas, _mesh, &vertex_iterator, &index_iterator) );
+    GP_CALL( gp_render_line, (_canvas, _mesh, &vertex_iterator, &index_iterator) );
+    GP_CALL( gp_render_rect, (_canvas, _mesh, &vertex_iterator, &index_iterator) );
+    GP_CALL( gp_render_rounded_rect, (_canvas, _mesh, &vertex_iterator, &index_iterator) );
+    GP_CALL( gp_render_ellipse, (_canvas, _mesh, &vertex_iterator, &index_iterator) );
 
     return GP_SUCCESSFUL;
 }

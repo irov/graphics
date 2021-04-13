@@ -15,10 +15,10 @@ gp_uint32_t gp_color_argb( const gp_color_t * _c )
 {
     const float rgba_255 = 255.5f;
 
-    gp_uint8_t r8 = (gp_uint8_t)(_c->GP_COLOR_R( r ) * rgba_255);
-    gp_uint8_t g8 = (gp_uint8_t)(_c->GP_COLOR_G( g ) * rgba_255);
-    gp_uint8_t b8 = (gp_uint8_t)(_c->GP_COLOR_B( b ) * rgba_255);
-    gp_uint8_t a8 = (gp_uint8_t)(_c->GP_COLOR_A( a ) * rgba_255);
+    gp_uint8_t r8 = (gp_uint8_t)(GP_COLOR_R( _c ) * rgba_255);
+    gp_uint8_t g8 = (gp_uint8_t)(GP_COLOR_G( _c ) * rgba_255);
+    gp_uint8_t b8 = (gp_uint8_t)(GP_COLOR_B( _c ) * rgba_255);
+    gp_uint8_t a8 = (gp_uint8_t)(GP_COLOR_A( _c ) * rgba_255);
 
     gp_uint32_t argb = (a8 << 24) | (r8 << 16) | (g8 << 8) | (b8 << 0);
 

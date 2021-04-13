@@ -335,6 +335,7 @@ void opengl_use_color_program( example_opengl_handle_t * _handle )
 
     glUseProgram( _handle->shaderCurrentProgram );
 }
+//////////////////////////////////////////////////////////////////////////
 void opengl_use_texture_program( example_opengl_handle_t * _handle )
 {
     _handle->shaderCurrentProgram = _handle->shaderTextureProgram;
