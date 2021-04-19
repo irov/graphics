@@ -138,263 +138,263 @@ gp_result_t gp_render_rounded_rect( const gp_canvas_t * _canvas, const gp_mesh_t
 
                 for( gp_uint16_t index = 0; index != 4; ++index )
                 {
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 0, vertex_iterator + (index * 8 + 0)) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 1, vertex_iterator + (index * 8 + 1)) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 2, vertex_iterator + (index * 8 + 4)) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 3, vertex_iterator + (index * 8 + 4)) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 4, vertex_iterator + (index * 8 + 1)) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 5, vertex_iterator + (index * 8 + 5)) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 0, vertex_iterator + (index * 8 + 0)) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 1, vertex_iterator + (index * 8 + 1)) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 2, vertex_iterator + (index * 8 + 4)) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 3, vertex_iterator + (index * 8 + 4)) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 4, vertex_iterator + (index * 8 + 1)) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 5, vertex_iterator + (index * 8 + 5)) );
 
                     index_iterator += 6;
 
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 0, vertex_iterator + (index * 8 + 1)) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 1, vertex_iterator + (index * 8 + 2)) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 2, vertex_iterator + (index * 8 + 5)) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 3, vertex_iterator + (index * 8 + 5)) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 4, vertex_iterator + (index * 8 + 2)) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 5, vertex_iterator + (index * 8 + 6)) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 0, vertex_iterator + (index * 8 + 1)) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 1, vertex_iterator + (index * 8 + 2)) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 2, vertex_iterator + (index * 8 + 5)) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 3, vertex_iterator + (index * 8 + 5)) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 4, vertex_iterator + (index * 8 + 2)) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 5, vertex_iterator + (index * 8 + 6)) );
 
                     index_iterator += 6;
 
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 0, vertex_iterator + (index * 8 + 2)) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 1, vertex_iterator + (index * 8 + 3)) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 2, vertex_iterator + (index * 8 + 6)) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 3, vertex_iterator + (index * 8 + 6)) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 4, vertex_iterator + (index * 8 + 3)) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 5, vertex_iterator + (index * 8 + 7)) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 0, vertex_iterator + (index * 8 + 2)) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 1, vertex_iterator + (index * 8 + 3)) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 2, vertex_iterator + (index * 8 + 6)) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 3, vertex_iterator + (index * 8 + 6)) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 4, vertex_iterator + (index * 8 + 3)) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 5, vertex_iterator + (index * 8 + 7)) );
 
                     index_iterator += 6;
                 }
 
                 float line_half_width_soft = half_thickness - penumbra;
 
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 0, p0.x + radius, p0.y - half_thickness) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 0, argb & 0x00ffffff) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 0, p0.x + radius, p0.y - half_thickness, u_offset, v_offset, total_width, total_height) );
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 0, p0.x + radius, p0.y - half_thickness) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 0, argb & 0x00ffffff) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 0, p0.x + radius, p0.y - half_thickness, u_offset, v_offset, total_width, total_height) );
 
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 1, p0.x + radius, p0.y - line_half_width_soft) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 1, argb) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 1, p0.x + radius, p0.y - line_half_width_soft, u_offset, v_offset, total_width, total_height) );
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 1, p0.x + radius, p0.y - line_half_width_soft) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 1, argb) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 1, p0.x + radius, p0.y - line_half_width_soft, u_offset, v_offset, total_width, total_height) );
 
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 2, p0.x + radius, p0.y + line_half_width_soft) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 2, argb) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 2, p0.x + radius, p0.y + line_half_width_soft, u_offset, v_offset, total_width, total_height) );
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 2, p0.x + radius, p0.y + line_half_width_soft) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 2, argb) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 2, p0.x + radius, p0.y + line_half_width_soft, u_offset, v_offset, total_width, total_height) );
 
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 3, p0.x + radius, p0.y + half_thickness) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 3, argb & 0x00ffffff) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 3, p0.x + radius, p0.y + half_thickness, u_offset, v_offset, total_width, total_height) );
-
-                vertex_iterator += 4;
-
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 0, p1.x - radius, p1.y - half_thickness) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 0, argb & 0x00ffffff) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 0, p1.x - radius, p1.y - half_thickness, u_offset, v_offset, total_width, total_height) );
-
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 1, p1.x - radius, p1.y - line_half_width_soft) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 1, argb) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 1, p1.x - radius, p1.y - line_half_width_soft, u_offset, v_offset, total_width, total_height) );
-
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 2, p1.x - radius, p1.y + line_half_width_soft) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 2, argb) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 2, p1.x - radius, p1.y + line_half_width_soft, u_offset, v_offset, total_width, total_height) );
-
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 3, p1.x - radius, p1.y + half_thickness) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 3, argb & 0x00ffffff) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 3, p1.x - radius, p1.y + half_thickness, u_offset, v_offset, total_width, total_height) );
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 3, p0.x + radius, p0.y + half_thickness) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 3, argb & 0x00ffffff) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 3, p0.x + radius, p0.y + half_thickness, u_offset, v_offset, total_width, total_height) );
 
                 vertex_iterator += 4;
 
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 0, p1.x + half_thickness, p1.y + radius) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 0, argb & 0x00ffffff) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 0, p1.x + half_thickness, p1.y + radius, u_offset, v_offset, total_width, total_height) );
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 0, p1.x - radius, p1.y - half_thickness) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 0, argb & 0x00ffffff) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 0, p1.x - radius, p1.y - half_thickness, u_offset, v_offset, total_width, total_height) );
 
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 1, p1.x + line_half_width_soft, p1.y + radius) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 1, argb) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 1, p1.x + line_half_width_soft, p1.y + radius, u_offset, v_offset, total_width, total_height) );
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 1, p1.x - radius, p1.y - line_half_width_soft) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 1, argb) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 1, p1.x - radius, p1.y - line_half_width_soft, u_offset, v_offset, total_width, total_height) );
 
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 2, p1.x - line_half_width_soft, p1.y + radius) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 2, argb) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 2, p1.x - line_half_width_soft, p1.y + radius, u_offset, v_offset, total_width, total_height) );
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 2, p1.x - radius, p1.y + line_half_width_soft) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 2, argb) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 2, p1.x - radius, p1.y + line_half_width_soft, u_offset, v_offset, total_width, total_height) );
 
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 3, p1.x - half_thickness, p1.y + radius) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 3, argb & 0x00ffffff) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 3, p1.x - half_thickness, p1.y + radius, u_offset, v_offset, total_width, total_height) );
-
-                vertex_iterator += 4;
-
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 0, p2.x + half_thickness, p2.y - radius) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 0, argb & 0x00ffffff) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 0, p2.x + half_thickness, p2.y - radius, u_offset, v_offset, total_width, total_height) );
-
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 1, p2.x + line_half_width_soft, p2.y - radius) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 1, argb) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 1, p2.x + line_half_width_soft, p2.y - radius, u_offset, v_offset, total_width, total_height) );
-
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 2, p2.x - line_half_width_soft, p2.y - radius) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 2, argb) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 2, p2.x - line_half_width_soft, p2.y - radius, u_offset, v_offset, total_width, total_height) );
-
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 3, p2.x - half_thickness, p2.y - radius) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 3, argb & 0x00ffffff) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 3, p2.x - half_thickness, p2.y - radius, u_offset, v_offset, total_width, total_height) );
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 3, p1.x - radius, p1.y + half_thickness) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 3, argb & 0x00ffffff) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 3, p1.x - radius, p1.y + half_thickness, u_offset, v_offset, total_width, total_height) );
 
                 vertex_iterator += 4;
 
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 0, p2.x - radius, p2.y + half_thickness) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 0, argb & 0x00ffffff) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 0, p2.x - radius, p2.y + half_thickness, u_offset, v_offset, total_width, total_height) );
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 0, p1.x + half_thickness, p1.y + radius) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 0, argb & 0x00ffffff) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 0, p1.x + half_thickness, p1.y + radius, u_offset, v_offset, total_width, total_height) );
 
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 1, p2.x - radius, p2.y + line_half_width_soft) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 1, argb) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 1, p2.x - radius, p2.y + line_half_width_soft, u_offset, v_offset, total_width, total_height) );
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 1, p1.x + line_half_width_soft, p1.y + radius) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 1, argb) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 1, p1.x + line_half_width_soft, p1.y + radius, u_offset, v_offset, total_width, total_height) );
 
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 2, p2.x - radius, p2.y - line_half_width_soft) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 2, argb) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 2, p2.x - radius, p2.y - line_half_width_soft, u_offset, v_offset, total_width, total_height) );
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 2, p1.x - line_half_width_soft, p1.y + radius) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 2, argb) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 2, p1.x - line_half_width_soft, p1.y + radius, u_offset, v_offset, total_width, total_height) );
 
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 3, p2.x - radius, p2.y - half_thickness) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 3, argb & 0x00ffffff) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 3, p2.x - radius, p2.y - half_thickness, u_offset, v_offset, total_width, total_height) );
-
-                vertex_iterator += 4;
-
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 0, p3.x + radius, p3.y + half_thickness) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 0, argb & 0x00ffffff) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 0, p3.x + radius, p3.y + half_thickness, u_offset, v_offset, total_width, total_height) );
-
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 1, p3.x + radius, p3.y + line_half_width_soft) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 1, argb) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 1, p3.x + radius, p3.y + line_half_width_soft, u_offset, v_offset, total_width, total_height) );
-
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 2, p3.x + radius, p3.y - line_half_width_soft) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 2, argb) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 2, p3.x + radius, p3.y - line_half_width_soft, u_offset, v_offset, total_width, total_height) );
-
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 3, p3.x + radius, p3.y - half_thickness) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 3, argb & 0x00ffffff) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 3, p3.x + radius, p3.y - half_thickness, u_offset, v_offset, total_width, total_height) );
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 3, p1.x - half_thickness, p1.y + radius) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 3, argb & 0x00ffffff) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 3, p1.x - half_thickness, p1.y + radius, u_offset, v_offset, total_width, total_height) );
 
                 vertex_iterator += 4;
 
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 0, p3.x - half_thickness, p3.y - radius) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 0, argb & 0x00ffffff) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 0, p3.x - half_thickness, p3.y - radius, u_offset, v_offset, total_width, total_height) );
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 0, p2.x + half_thickness, p2.y - radius) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 0, argb & 0x00ffffff) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 0, p2.x + half_thickness, p2.y - radius, u_offset, v_offset, total_width, total_height) );
 
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 1, p3.x - line_half_width_soft, p3.y - radius) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 1, argb) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 1, p3.x - line_half_width_soft, p3.y - radius, u_offset, v_offset, total_width, total_height) );
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 1, p2.x + line_half_width_soft, p2.y - radius) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 1, argb) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 1, p2.x + line_half_width_soft, p2.y - radius, u_offset, v_offset, total_width, total_height) );
 
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 2, p3.x + line_half_width_soft, p3.y - radius) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 2, argb) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 2, p3.x + line_half_width_soft, p3.y - radius, u_offset, v_offset, total_width, total_height) );
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 2, p2.x - line_half_width_soft, p2.y - radius) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 2, argb) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 2, p2.x - line_half_width_soft, p2.y - radius, u_offset, v_offset, total_width, total_height) );
 
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 3, p3.x + half_thickness, p3.y - radius) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 3, argb & 0x00ffffff) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 3, p3.x + half_thickness, p3.y - radius, u_offset, v_offset, total_width, total_height) );
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 3, p2.x - half_thickness, p2.y - radius) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 3, argb & 0x00ffffff) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 3, p2.x - half_thickness, p2.y - radius, u_offset, v_offset, total_width, total_height) );
 
                 vertex_iterator += 4;
 
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 0, p0.x - half_thickness, p0.y + radius) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 0, argb & 0x00ffffff) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 0, p0.x - half_thickness, p0.y + radius, u_offset, v_offset, total_width, total_height) );
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 0, p2.x - radius, p2.y + half_thickness) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 0, argb & 0x00ffffff) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 0, p2.x - radius, p2.y + half_thickness, u_offset, v_offset, total_width, total_height) );
 
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 1, p0.x - line_half_width_soft, p0.y + radius) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 1, argb) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 1, p0.x - line_half_width_soft, p0.y + radius, u_offset, v_offset, total_width, total_height) );
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 1, p2.x - radius, p2.y + line_half_width_soft) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 1, argb) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 1, p2.x - radius, p2.y + line_half_width_soft, u_offset, v_offset, total_width, total_height) );
 
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 2, p0.x + line_half_width_soft, p0.y + radius) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 2, argb) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 2, p0.x + line_half_width_soft, p0.y + radius, u_offset, v_offset, total_width, total_height) );
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 2, p2.x - radius, p2.y - line_half_width_soft) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 2, argb) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 2, p2.x - radius, p2.y - line_half_width_soft, u_offset, v_offset, total_width, total_height) );
 
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 3, p0.x + half_thickness, p0.y + radius) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 3, argb & 0x00ffffff) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 3, p0.x + half_thickness, p0.y + radius, u_offset, v_offset, total_width, total_height) );
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 3, p2.x - radius, p2.y - half_thickness) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 3, argb & 0x00ffffff) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 3, p2.x - radius, p2.y - half_thickness, u_offset, v_offset, total_width, total_height) );
+
+                vertex_iterator += 4;
+
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 0, p3.x + radius, p3.y + half_thickness) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 0, argb & 0x00ffffff) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 0, p3.x + radius, p3.y + half_thickness, u_offset, v_offset, total_width, total_height) );
+
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 1, p3.x + radius, p3.y + line_half_width_soft) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 1, argb) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 1, p3.x + radius, p3.y + line_half_width_soft, u_offset, v_offset, total_width, total_height) );
+
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 2, p3.x + radius, p3.y - line_half_width_soft) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 2, argb) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 2, p3.x + radius, p3.y - line_half_width_soft, u_offset, v_offset, total_width, total_height) );
+
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 3, p3.x + radius, p3.y - half_thickness) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 3, argb & 0x00ffffff) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 3, p3.x + radius, p3.y - half_thickness, u_offset, v_offset, total_width, total_height) );
+
+                vertex_iterator += 4;
+
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 0, p3.x - half_thickness, p3.y - radius) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 0, argb & 0x00ffffff) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 0, p3.x - half_thickness, p3.y - radius, u_offset, v_offset, total_width, total_height) );
+
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 1, p3.x - line_half_width_soft, p3.y - radius) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 1, argb) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 1, p3.x - line_half_width_soft, p3.y - radius, u_offset, v_offset, total_width, total_height) );
+
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 2, p3.x + line_half_width_soft, p3.y - radius) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 2, argb) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 2, p3.x + line_half_width_soft, p3.y - radius, u_offset, v_offset, total_width, total_height) );
+
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 3, p3.x + half_thickness, p3.y - radius) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 3, argb & 0x00ffffff) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 3, p3.x + half_thickness, p3.y - radius, u_offset, v_offset, total_width, total_height) );
+
+                vertex_iterator += 4;
+
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 0, p0.x - half_thickness, p0.y + radius) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 0, argb & 0x00ffffff) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 0, p0.x - half_thickness, p0.y + radius, u_offset, v_offset, total_width, total_height) );
+
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 1, p0.x - line_half_width_soft, p0.y + radius) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 1, argb) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 1, p0.x - line_half_width_soft, p0.y + radius, u_offset, v_offset, total_width, total_height) );
+
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 2, p0.x + line_half_width_soft, p0.y + radius) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 2, argb) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 2, p0.x + line_half_width_soft, p0.y + radius, u_offset, v_offset, total_width, total_height) );
+
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 3, p0.x + half_thickness, p0.y + radius) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 3, argb & 0x00ffffff) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 3, p0.x + half_thickness, p0.y + radius, u_offset, v_offset, total_width, total_height) );
 
                 vertex_iterator += 4;
 
                 for( gp_uint16_t index_arc = 0; index_arc != 4; ++index_arc )
                 {
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 0, base_vertex_iterator + (0 + 8 * index_arc) % 32) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 1, vertex_iterator + index_arc * (rect_quality - 1) * 4 + 0) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 2, base_vertex_iterator + (1 + 8 * index_arc) % 32) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 3, base_vertex_iterator + (1 + 8 * index_arc) % 32) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 4, vertex_iterator + index_arc * (rect_quality - 1) * 4 + 0) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 5, vertex_iterator + index_arc * (rect_quality - 1) * 4 + 1) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 0, base_vertex_iterator + (0 + 8 * index_arc) % 32) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 1, vertex_iterator + index_arc * (rect_quality - 1) * 4 + 0) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 2, base_vertex_iterator + (1 + 8 * index_arc) % 32) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 3, base_vertex_iterator + (1 + 8 * index_arc) % 32) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 4, vertex_iterator + index_arc * (rect_quality - 1) * 4 + 0) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 5, vertex_iterator + index_arc * (rect_quality - 1) * 4 + 1) );
 
                     index_iterator += 6;
 
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 0, base_vertex_iterator + (1 + 8 * index_arc) % 32) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 1, vertex_iterator + index_arc * (rect_quality - 1) * 4 + 1) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 2, base_vertex_iterator + (2 + 8 * index_arc) % 32) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 3, base_vertex_iterator + (2 + 8 * index_arc) % 32) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 4, vertex_iterator + index_arc * (rect_quality - 1) * 4 + 1) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 5, vertex_iterator + index_arc * (rect_quality - 1) * 4 + 2) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 0, base_vertex_iterator + (1 + 8 * index_arc) % 32) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 1, vertex_iterator + index_arc * (rect_quality - 1) * 4 + 1) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 2, base_vertex_iterator + (2 + 8 * index_arc) % 32) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 3, base_vertex_iterator + (2 + 8 * index_arc) % 32) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 4, vertex_iterator + index_arc * (rect_quality - 1) * 4 + 1) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 5, vertex_iterator + index_arc * (rect_quality - 1) * 4 + 2) );
 
                     index_iterator += 6;
 
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 0, base_vertex_iterator + (2 + 8 * index_arc) % 32) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 1, vertex_iterator + index_arc * (rect_quality - 1) * 4 + 2) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 2, base_vertex_iterator + (3 + 8 * index_arc) % 32) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 3, base_vertex_iterator + (3 + 8 * index_arc) % 32) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 4, vertex_iterator + index_arc * (rect_quality - 1) * 4 + 2) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 5, vertex_iterator + index_arc * (rect_quality - 1) * 4 + 3) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 0, base_vertex_iterator + (2 + 8 * index_arc) % 32) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 1, vertex_iterator + index_arc * (rect_quality - 1) * 4 + 2) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 2, base_vertex_iterator + (3 + 8 * index_arc) % 32) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 3, base_vertex_iterator + (3 + 8 * index_arc) % 32) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 4, vertex_iterator + index_arc * (rect_quality - 1) * 4 + 2) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 5, vertex_iterator + index_arc * (rect_quality - 1) * 4 + 3) );
 
                     index_iterator += 6;
 
                     for( gp_uint16_t index = 0; index != rect_quality - 2; ++index )
                     {
-                        GP_CALL( gp_mesh_index, (_mesh, index_iterator + 0, vertex_iterator + index_arc * (rect_quality - 1) * 4 + (index * 4 + 0)) );
-                        GP_CALL( gp_mesh_index, (_mesh, index_iterator + 1, vertex_iterator + index_arc * (rect_quality - 1) * 4 + (index * 4 + 1)) );
-                        GP_CALL( gp_mesh_index, (_mesh, index_iterator + 2, vertex_iterator + index_arc * (rect_quality - 1) * 4 + (index * 4 + 4)) );
-                        GP_CALL( gp_mesh_index, (_mesh, index_iterator + 3, vertex_iterator + index_arc * (rect_quality - 1) * 4 + (index * 4 + 4)) );
-                        GP_CALL( gp_mesh_index, (_mesh, index_iterator + 4, vertex_iterator + index_arc * (rect_quality - 1) * 4 + (index * 4 + 1)) );
-                        GP_CALL( gp_mesh_index, (_mesh, index_iterator + 5, vertex_iterator + index_arc * (rect_quality - 1) * 4 + (index * 4 + 5)) );
+                        GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 0, vertex_iterator + index_arc * (rect_quality - 1) * 4 + (index * 4 + 0)) );
+                        GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 1, vertex_iterator + index_arc * (rect_quality - 1) * 4 + (index * 4 + 1)) );
+                        GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 2, vertex_iterator + index_arc * (rect_quality - 1) * 4 + (index * 4 + 4)) );
+                        GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 3, vertex_iterator + index_arc * (rect_quality - 1) * 4 + (index * 4 + 4)) );
+                        GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 4, vertex_iterator + index_arc * (rect_quality - 1) * 4 + (index * 4 + 1)) );
+                        GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 5, vertex_iterator + index_arc * (rect_quality - 1) * 4 + (index * 4 + 5)) );
 
                         index_iterator += 6;
 
-                        GP_CALL( gp_mesh_index, (_mesh, index_iterator + 0, vertex_iterator + index_arc * (rect_quality - 1) * 4 + (index * 4 + 1)) );
-                        GP_CALL( gp_mesh_index, (_mesh, index_iterator + 1, vertex_iterator + index_arc * (rect_quality - 1) * 4 + (index * 4 + 2)) );
-                        GP_CALL( gp_mesh_index, (_mesh, index_iterator + 2, vertex_iterator + index_arc * (rect_quality - 1) * 4 + (index * 4 + 5)) );
-                        GP_CALL( gp_mesh_index, (_mesh, index_iterator + 3, vertex_iterator + index_arc * (rect_quality - 1) * 4 + (index * 4 + 5)) );
-                        GP_CALL( gp_mesh_index, (_mesh, index_iterator + 4, vertex_iterator + index_arc * (rect_quality - 1) * 4 + (index * 4 + 2)) );
-                        GP_CALL( gp_mesh_index, (_mesh, index_iterator + 5, vertex_iterator + index_arc * (rect_quality - 1) * 4 + (index * 4 + 6)) );
+                        GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 0, vertex_iterator + index_arc * (rect_quality - 1) * 4 + (index * 4 + 1)) );
+                        GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 1, vertex_iterator + index_arc * (rect_quality - 1) * 4 + (index * 4 + 2)) );
+                        GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 2, vertex_iterator + index_arc * (rect_quality - 1) * 4 + (index * 4 + 5)) );
+                        GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 3, vertex_iterator + index_arc * (rect_quality - 1) * 4 + (index * 4 + 5)) );
+                        GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 4, vertex_iterator + index_arc * (rect_quality - 1) * 4 + (index * 4 + 2)) );
+                        GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 5, vertex_iterator + index_arc * (rect_quality - 1) * 4 + (index * 4 + 6)) );
 
                         index_iterator += 6;
 
-                        GP_CALL( gp_mesh_index, (_mesh, index_iterator + 0, vertex_iterator + index_arc * (rect_quality - 1) * 4 + (index * 4 + 2)) );
-                        GP_CALL( gp_mesh_index, (_mesh, index_iterator + 1, vertex_iterator + index_arc * (rect_quality - 1) * 4 + (index * 4 + 3)) );
-                        GP_CALL( gp_mesh_index, (_mesh, index_iterator + 2, vertex_iterator + index_arc * (rect_quality - 1) * 4 + (index * 4 + 6)) );
-                        GP_CALL( gp_mesh_index, (_mesh, index_iterator + 3, vertex_iterator + index_arc * (rect_quality - 1) * 4 + (index * 4 + 6)) );
-                        GP_CALL( gp_mesh_index, (_mesh, index_iterator + 4, vertex_iterator + index_arc * (rect_quality - 1) * 4 + (index * 4 + 3)) );
-                        GP_CALL( gp_mesh_index, (_mesh, index_iterator + 5, vertex_iterator + index_arc * (rect_quality - 1) * 4 + (index * 4 + 7)) );
+                        GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 0, vertex_iterator + index_arc * (rect_quality - 1) * 4 + (index * 4 + 2)) );
+                        GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 1, vertex_iterator + index_arc * (rect_quality - 1) * 4 + (index * 4 + 3)) );
+                        GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 2, vertex_iterator + index_arc * (rect_quality - 1) * 4 + (index * 4 + 6)) );
+                        GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 3, vertex_iterator + index_arc * (rect_quality - 1) * 4 + (index * 4 + 6)) );
+                        GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 4, vertex_iterator + index_arc * (rect_quality - 1) * 4 + (index * 4 + 3)) );
+                        GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 5, vertex_iterator + index_arc * (rect_quality - 1) * 4 + (index * 4 + 7)) );
 
                         index_iterator += 6;
                     }
 
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 0, vertex_iterator + index_arc * (rect_quality - 1) * 4 + (rect_quality - 2) * 4 + 0) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 1, vertex_iterator + index_arc * (rect_quality - 1) * 4 + (rect_quality - 2) * 4 + 1) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 2, base_vertex_iterator + (28 + 8 * index_arc) % 32) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 3, base_vertex_iterator + (28 + 8 * index_arc) % 32) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 4, vertex_iterator + index_arc * (rect_quality - 1) * 4 + (rect_quality - 2) * 4 + 1) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 5, base_vertex_iterator + (29 + 8 * index_arc) % 32) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 0, vertex_iterator + index_arc * (rect_quality - 1) * 4 + (rect_quality - 2) * 4 + 0) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 1, vertex_iterator + index_arc * (rect_quality - 1) * 4 + (rect_quality - 2) * 4 + 1) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 2, base_vertex_iterator + (28 + 8 * index_arc) % 32) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 3, base_vertex_iterator + (28 + 8 * index_arc) % 32) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 4, vertex_iterator + index_arc * (rect_quality - 1) * 4 + (rect_quality - 2) * 4 + 1) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 5, base_vertex_iterator + (29 + 8 * index_arc) % 32) );
 
                     index_iterator += 6;
 
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 0, vertex_iterator + index_arc * (rect_quality - 1) * 4 + (rect_quality - 2) * 4 + 1) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 1, vertex_iterator + index_arc * (rect_quality - 1) * 4 + (rect_quality - 2) * 4 + 2) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 2, base_vertex_iterator + (29 + 8 * index_arc) % 32) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 3, base_vertex_iterator + (29 + 8 * index_arc) % 32) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 4, vertex_iterator + index_arc * (rect_quality - 1) * 4 + (rect_quality - 2) * 4 + 2) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 5, base_vertex_iterator + (30 + 8 * index_arc) % 32) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 0, vertex_iterator + index_arc * (rect_quality - 1) * 4 + (rect_quality - 2) * 4 + 1) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 1, vertex_iterator + index_arc * (rect_quality - 1) * 4 + (rect_quality - 2) * 4 + 2) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 2, base_vertex_iterator + (29 + 8 * index_arc) % 32) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 3, base_vertex_iterator + (29 + 8 * index_arc) % 32) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 4, vertex_iterator + index_arc * (rect_quality - 1) * 4 + (rect_quality - 2) * 4 + 2) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 5, base_vertex_iterator + (30 + 8 * index_arc) % 32) );
 
                     index_iterator += 6;
 
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 0, vertex_iterator + index_arc * (rect_quality - 1) * 4 + (rect_quality - 2) * 4 + 2) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 1, vertex_iterator + index_arc * (rect_quality - 1) * 4 + (rect_quality - 2) * 4 + 3) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 2, base_vertex_iterator + (30 + 8 * index_arc) % 32) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 3, base_vertex_iterator + (30 + 8 * index_arc) % 32) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 4, vertex_iterator + index_arc * (rect_quality - 1) * 4 + (rect_quality - 2) * 4 + 3) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 5, base_vertex_iterator + (31 + 8 * index_arc) % 32) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 0, vertex_iterator + index_arc * (rect_quality - 1) * 4 + (rect_quality - 2) * 4 + 2) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 1, vertex_iterator + index_arc * (rect_quality - 1) * 4 + (rect_quality - 2) * 4 + 3) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 2, base_vertex_iterator + (30 + 8 * index_arc) % 32) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 3, base_vertex_iterator + (30 + 8 * index_arc) % 32) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 4, vertex_iterator + index_arc * (rect_quality - 1) * 4 + (rect_quality - 2) * 4 + 3) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 5, base_vertex_iterator + (31 + 8 * index_arc) % 32) );
 
                     index_iterator += 6;
                 }
@@ -418,21 +418,21 @@ gp_result_t gp_render_rounded_rect( const gp_canvas_t * _canvas, const gp_mesh_t
                     float x1_soft = p0.x + radius + (radius - line_half_thickness_soft) * ct;
                     float y1_soft = p0.y + radius - (radius - line_half_thickness_soft) * st;
 
-                    GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 0, x0, y0) );
-                    GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 0, argb & 0x00ffffff) );
-                    GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 0, x0, y0, u_offset, v_offset, total_width, total_height) );
+                    GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 0, x0, y0) );
+                    GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 0, argb & 0x00ffffff) );
+                    GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 0, x0, y0, u_offset, v_offset, total_width, total_height) );
 
-                    GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 1, x0_soft, y0_soft) );
-                    GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 1, argb) );
-                    GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 1, x0_soft, y0_soft, u_offset, v_offset, total_width, total_height) );
+                    GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 1, x0_soft, y0_soft) );
+                    GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 1, argb) );
+                    GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 1, x0_soft, y0_soft, u_offset, v_offset, total_width, total_height) );
 
-                    GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 2, x1_soft, y1_soft) );
-                    GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 2, argb) );
-                    GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 2, x1_soft, y1_soft, u_offset, v_offset, total_width, total_height) );
+                    GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 2, x1_soft, y1_soft) );
+                    GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 2, argb) );
+                    GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 2, x1_soft, y1_soft, u_offset, v_offset, total_width, total_height) );
 
-                    GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 3, x1, y1) );
-                    GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 3, argb & 0x00ffffff) );
-                    GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 3, x1, y1, u_offset, v_offset, total_width, total_height) );
+                    GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 3, x1, y1) );
+                    GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 3, argb & 0x00ffffff) );
+                    GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 3, x1, y1, u_offset, v_offset, total_width, total_height) );
 
                     vertex_iterator += 4;
                 }
@@ -456,21 +456,21 @@ gp_result_t gp_render_rounded_rect( const gp_canvas_t * _canvas, const gp_mesh_t
                     float x1_soft = p1.x - radius + (radius - line_half_thickness_soft) * ct;
                     float y1_soft = p1.y + radius - (radius - line_half_thickness_soft) * st;
 
-                    GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 0, x0, y0) );
-                    GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 0, argb & 0x00ffffff) );
-                    GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 0, x0, y0, u_offset, v_offset, total_width, total_height) );
+                    GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 0, x0, y0) );
+                    GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 0, argb & 0x00ffffff) );
+                    GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 0, x0, y0, u_offset, v_offset, total_width, total_height) );
 
-                    GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 1, x0_soft, y0_soft) );
-                    GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 1, argb) );
-                    GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 1, x0_soft, y0_soft, u_offset, v_offset, total_width, total_height) );
+                    GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 1, x0_soft, y0_soft) );
+                    GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 1, argb) );
+                    GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 1, x0_soft, y0_soft, u_offset, v_offset, total_width, total_height) );
 
-                    GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 2, x1_soft, y1_soft) );
-                    GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 2, argb) );
-                    GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 2, x1_soft, y1_soft, u_offset, v_offset, total_width, total_height) );
+                    GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 2, x1_soft, y1_soft) );
+                    GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 2, argb) );
+                    GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 2, x1_soft, y1_soft, u_offset, v_offset, total_width, total_height) );
 
-                    GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 3, x1, y1) );
-                    GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 3, argb & 0x00ffffff) );
-                    GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 3, x1, y1, u_offset, v_offset, total_width, total_height) );
+                    GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 3, x1, y1) );
+                    GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 3, argb & 0x00ffffff) );
+                    GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 3, x1, y1, u_offset, v_offset, total_width, total_height) );
 
                     vertex_iterator += 4;
                 }
@@ -494,21 +494,21 @@ gp_result_t gp_render_rounded_rect( const gp_canvas_t * _canvas, const gp_mesh_t
                     float x1_soft = p2.x - radius + (radius - line_half_thickness_soft) * ct;
                     float y1_soft = p2.y - radius - (radius - line_half_thickness_soft) * st;
 
-                    GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 0, x0, y0) );
-                    GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 0, argb & 0x00ffffff) );
-                    GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 0, x0, y0, u_offset, v_offset, total_width, total_height) );
+                    GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 0, x0, y0) );
+                    GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 0, argb & 0x00ffffff) );
+                    GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 0, x0, y0, u_offset, v_offset, total_width, total_height) );
 
-                    GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 1, x0_soft, y0_soft) );
-                    GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 1, argb) );
-                    GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 1, x0_soft, y0_soft, u_offset, v_offset, total_width, total_height) );
+                    GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 1, x0_soft, y0_soft) );
+                    GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 1, argb) );
+                    GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 1, x0_soft, y0_soft, u_offset, v_offset, total_width, total_height) );
 
-                    GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 2, x1_soft, y1_soft) );
-                    GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 2, argb) );
-                    GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 2, x1_soft, y1_soft, u_offset, v_offset, total_width, total_height) );
+                    GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 2, x1_soft, y1_soft) );
+                    GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 2, argb) );
+                    GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 2, x1_soft, y1_soft, u_offset, v_offset, total_width, total_height) );
 
-                    GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 3, x1, y1) );
-                    GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 3, argb & 0x00ffffff) );
-                    GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 3, x1, y1, u_offset, v_offset, total_width, total_height) );
+                    GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 3, x1, y1) );
+                    GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 3, argb & 0x00ffffff) );
+                    GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 3, x1, y1, u_offset, v_offset, total_width, total_height) );
 
                     vertex_iterator += 4;
                 }
@@ -532,21 +532,21 @@ gp_result_t gp_render_rounded_rect( const gp_canvas_t * _canvas, const gp_mesh_t
                     float x1_soft = p3.x + radius + (radius - line_half_thickness_soft) * ct;
                     float y1_soft = p3.y - radius - (radius - line_half_thickness_soft) * st;
 
-                    GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 0, x0, y0) );
-                    GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 0, argb & 0x00ffffff) );
-                    GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 0, x0, y0, u_offset, v_offset, total_width, total_height) );
+                    GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 0, x0, y0) );
+                    GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 0, argb & 0x00ffffff) );
+                    GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 0, x0, y0, u_offset, v_offset, total_width, total_height) );
 
-                    GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 1, x0_soft, y0_soft) );
-                    GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 1, argb) );
-                    GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 1, x0_soft, y0_soft, u_offset, v_offset, total_width, total_height) );
+                    GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 1, x0_soft, y0_soft) );
+                    GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 1, argb) );
+                    GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 1, x0_soft, y0_soft, u_offset, v_offset, total_width, total_height) );
 
-                    GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 2, x1_soft, y1_soft) );
-                    GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 2, argb) );
-                    GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 2, x1_soft, y1_soft, u_offset, v_offset, total_width, total_height) );
+                    GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 2, x1_soft, y1_soft) );
+                    GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 2, argb) );
+                    GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 2, x1_soft, y1_soft, u_offset, v_offset, total_width, total_height) );
 
-                    GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 3, x1, y1) );
-                    GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 3, argb & 0x00ffffff) );
-                    GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 3, x1, y1, u_offset, v_offset, total_width, total_height) );
+                    GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 3, x1, y1) );
+                    GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 3, argb & 0x00ffffff) );
+                    GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 3, x1, y1, u_offset, v_offset, total_width, total_height) );
 
                     vertex_iterator += 4;
                 }
@@ -555,125 +555,125 @@ gp_result_t gp_render_rounded_rect( const gp_canvas_t * _canvas, const gp_mesh_t
             {
                 for( gp_uint16_t index = 0; index != 4; ++index )
                 {
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 0, vertex_iterator + (index * 4 + 0)) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 1, vertex_iterator + (index * 4 + 1)) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 2, vertex_iterator + (index * 4 + 2)) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 3, vertex_iterator + (index * 4 + 2)) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 4, vertex_iterator + (index * 4 + 1)) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 5, vertex_iterator + (index * 4 + 3)) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 0, vertex_iterator + (index * 4 + 0)) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 1, vertex_iterator + (index * 4 + 1)) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 2, vertex_iterator + (index * 4 + 2)) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 3, vertex_iterator + (index * 4 + 2)) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 4, vertex_iterator + (index * 4 + 1)) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 5, vertex_iterator + (index * 4 + 3)) );
 
                     index_iterator += 6;
                 }
 
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 0, p0.x + radius, p0.y - half_thickness) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 0, argb) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 0, p0.x + radius, p0.y - half_thickness, u_offset, v_offset, total_width, total_height) );
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 0, p0.x + radius, p0.y - half_thickness) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 0, argb) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 0, p0.x + radius, p0.y - half_thickness, u_offset, v_offset, total_width, total_height) );
 
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 1, p0.x + radius, p0.y + half_thickness) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 1, argb) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 1, p0.x + radius, p0.y + half_thickness, u_offset, v_offset, total_width, total_height) );
-
-                vertex_iterator += 2;
-
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 0, p1.x - radius, p1.y - half_thickness) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 0, argb) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 0, p1.x - radius, p1.y - half_thickness, u_offset, v_offset, total_width, total_height) );
-
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 1, p1.x - radius, p1.y + half_thickness) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 1, argb) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 1, p1.x - radius, p1.y + half_thickness, u_offset, v_offset, total_width, total_height) );
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 1, p0.x + radius, p0.y + half_thickness) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 1, argb) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 1, p0.x + radius, p0.y + half_thickness, u_offset, v_offset, total_width, total_height) );
 
                 vertex_iterator += 2;
 
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 0, p1.x + half_thickness, p1.y + radius) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 0, argb) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 0, p1.x + half_thickness, p1.y + radius, u_offset, v_offset, total_width, total_height) );
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 0, p1.x - radius, p1.y - half_thickness) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 0, argb) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 0, p1.x - radius, p1.y - half_thickness, u_offset, v_offset, total_width, total_height) );
 
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 1, p1.x - half_thickness, p1.y + radius) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 1, argb) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 1, p1.x - half_thickness, p1.y + radius, u_offset, v_offset, total_width, total_height) );
-
-                vertex_iterator += 2;
-
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 0, p2.x + half_thickness, p2.y - radius) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 0, argb) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 0, p2.x + half_thickness, p2.y - radius, u_offset, v_offset, total_width, total_height) );
-
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 1, p2.x - half_thickness, p2.y - radius) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 1, argb) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 1, p2.x - half_thickness, p2.y - radius, u_offset, v_offset, total_width, total_height) );
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 1, p1.x - radius, p1.y + half_thickness) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 1, argb) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 1, p1.x - radius, p1.y + half_thickness, u_offset, v_offset, total_width, total_height) );
 
                 vertex_iterator += 2;
 
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 0, p2.x - radius, p2.y + half_thickness) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 0, argb) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 0, p2.x - radius, p2.y + half_thickness, u_offset, v_offset, total_width, total_height) );
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 0, p1.x + half_thickness, p1.y + radius) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 0, argb) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 0, p1.x + half_thickness, p1.y + radius, u_offset, v_offset, total_width, total_height) );
 
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 1, p2.x - radius, p2.y - half_thickness) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 1, argb) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 1, p2.x - radius, p2.y - half_thickness, u_offset, v_offset, total_width, total_height) );
-
-                vertex_iterator += 2;
-
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 0, p3.x + radius, p3.y + half_thickness) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 0, argb) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 0, p3.x + radius, p3.y + half_thickness, u_offset, v_offset, total_width, total_height) );
-
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 1, p3.x + radius, p3.y - half_thickness) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 1, argb) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 1, p3.x + radius, p3.y - half_thickness, u_offset, v_offset, total_width, total_height) );
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 1, p1.x - half_thickness, p1.y + radius) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 1, argb) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 1, p1.x - half_thickness, p1.y + radius, u_offset, v_offset, total_width, total_height) );
 
                 vertex_iterator += 2;
 
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 0, p3.x - half_thickness, p3.y - radius) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 0, argb) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 0, p3.x - half_thickness, p3.y - radius, u_offset, v_offset, total_width, total_height) );
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 0, p2.x + half_thickness, p2.y - radius) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 0, argb) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 0, p2.x + half_thickness, p2.y - radius, u_offset, v_offset, total_width, total_height) );
 
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 1, p3.x + half_thickness, p3.y - radius) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 1, argb) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 1, p3.x + half_thickness, p3.y - radius, u_offset, v_offset, total_width, total_height) );
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 1, p2.x - half_thickness, p2.y - radius) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 1, argb) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 1, p2.x - half_thickness, p2.y - radius, u_offset, v_offset, total_width, total_height) );
 
                 vertex_iterator += 2;
 
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 0, p0.x - half_thickness, p0.y + radius) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 0, argb) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 0, p0.x - half_thickness, p0.y + radius, u_offset, v_offset, total_width, total_height) );
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 0, p2.x - radius, p2.y + half_thickness) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 0, argb) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 0, p2.x - radius, p2.y + half_thickness, u_offset, v_offset, total_width, total_height) );
 
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 1, p0.x + half_thickness, p0.y + radius) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 1, argb) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 1, p0.x + half_thickness, p0.y + radius, u_offset, v_offset, total_width, total_height) );
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 1, p2.x - radius, p2.y - half_thickness) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 1, argb) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 1, p2.x - radius, p2.y - half_thickness, u_offset, v_offset, total_width, total_height) );
+
+                vertex_iterator += 2;
+
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 0, p3.x + radius, p3.y + half_thickness) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 0, argb) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 0, p3.x + radius, p3.y + half_thickness, u_offset, v_offset, total_width, total_height) );
+
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 1, p3.x + radius, p3.y - half_thickness) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 1, argb) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 1, p3.x + radius, p3.y - half_thickness, u_offset, v_offset, total_width, total_height) );
+
+                vertex_iterator += 2;
+
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 0, p3.x - half_thickness, p3.y - radius) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 0, argb) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 0, p3.x - half_thickness, p3.y - radius, u_offset, v_offset, total_width, total_height) );
+
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 1, p3.x + half_thickness, p3.y - radius) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 1, argb) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 1, p3.x + half_thickness, p3.y - radius, u_offset, v_offset, total_width, total_height) );
+
+                vertex_iterator += 2;
+
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 0, p0.x - half_thickness, p0.y + radius) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 0, argb) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 0, p0.x - half_thickness, p0.y + radius, u_offset, v_offset, total_width, total_height) );
+
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 1, p0.x + half_thickness, p0.y + radius) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 1, argb) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 1, p0.x + half_thickness, p0.y + radius, u_offset, v_offset, total_width, total_height) );
 
                 vertex_iterator += 2;
 
                 for( gp_uint16_t index_arc = 0; index_arc != 4; ++index_arc )
                 {
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 0, base_vertex_iterator + (0 + 4 * index_arc) % 16) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 1, vertex_iterator + index_arc * (rect_quality - 1) * 2 + 0) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 2, base_vertex_iterator + (1 + 4 * index_arc) % 16) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 3, base_vertex_iterator + (1 + 4 * index_arc) % 16) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 4, vertex_iterator + index_arc * (rect_quality - 1) * 2 + 0) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 5, vertex_iterator + index_arc * (rect_quality - 1) * 2 + 1) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 0, base_vertex_iterator + (0 + 4 * index_arc) % 16) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 1, vertex_iterator + index_arc * (rect_quality - 1) * 2 + 0) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 2, base_vertex_iterator + (1 + 4 * index_arc) % 16) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 3, base_vertex_iterator + (1 + 4 * index_arc) % 16) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 4, vertex_iterator + index_arc * (rect_quality - 1) * 2 + 0) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 5, vertex_iterator + index_arc * (rect_quality - 1) * 2 + 1) );
 
                     index_iterator += 6;
 
                     for( gp_uint16_t index = 0; index != rect_quality - 2; ++index )
                     {
-                        GP_CALL( gp_mesh_index, (_mesh, index_iterator + 0, vertex_iterator + index_arc * (rect_quality - 1) * 2 + (index * 2 + 0)) );
-                        GP_CALL( gp_mesh_index, (_mesh, index_iterator + 1, vertex_iterator + index_arc * (rect_quality - 1) * 2 + (index * 2 + 1)) );
-                        GP_CALL( gp_mesh_index, (_mesh, index_iterator + 2, vertex_iterator + index_arc * (rect_quality - 1) * 2 + (index * 2 + 2)) );
-                        GP_CALL( gp_mesh_index, (_mesh, index_iterator + 3, vertex_iterator + index_arc * (rect_quality - 1) * 2 + (index * 2 + 2)) );
-                        GP_CALL( gp_mesh_index, (_mesh, index_iterator + 4, vertex_iterator + index_arc * (rect_quality - 1) * 2 + (index * 2 + 1)) );
-                        GP_CALL( gp_mesh_index, (_mesh, index_iterator + 5, vertex_iterator + index_arc * (rect_quality - 1) * 2 + (index * 2 + 3)) );
+                        GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 0, vertex_iterator + index_arc * (rect_quality - 1) * 2 + (index * 2 + 0)) );
+                        GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 1, vertex_iterator + index_arc * (rect_quality - 1) * 2 + (index * 2 + 1)) );
+                        GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 2, vertex_iterator + index_arc * (rect_quality - 1) * 2 + (index * 2 + 2)) );
+                        GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 3, vertex_iterator + index_arc * (rect_quality - 1) * 2 + (index * 2 + 2)) );
+                        GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 4, vertex_iterator + index_arc * (rect_quality - 1) * 2 + (index * 2 + 1)) );
+                        GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 5, vertex_iterator + index_arc * (rect_quality - 1) * 2 + (index * 2 + 3)) );
 
                         index_iterator += 6;
                     }
 
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 0, vertex_iterator + index_arc * (rect_quality - 1) * 2 + (rect_quality - 2) * 2 + 0) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 1, vertex_iterator + index_arc * (rect_quality - 1) * 2 + (rect_quality - 2) * 2 + 1) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 2, base_vertex_iterator + (14 + 4 * index_arc) % 16) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 3, base_vertex_iterator + (14 + 4 * index_arc) % 16) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 4, vertex_iterator + index_arc * (rect_quality - 1) * 2 + (rect_quality - 2) * 2 + 1) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 5, base_vertex_iterator + (15 + 4 * index_arc) % 16) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 0, vertex_iterator + index_arc * (rect_quality - 1) * 2 + (rect_quality - 2) * 2 + 0) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 1, vertex_iterator + index_arc * (rect_quality - 1) * 2 + (rect_quality - 2) * 2 + 1) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 2, base_vertex_iterator + (14 + 4 * index_arc) % 16) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 3, base_vertex_iterator + (14 + 4 * index_arc) % 16) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 4, vertex_iterator + index_arc * (rect_quality - 1) * 2 + (rect_quality - 2) * 2 + 1) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 5, base_vertex_iterator + (15 + 4 * index_arc) % 16) );
 
                     index_iterator += 6;
                 }
@@ -691,13 +691,13 @@ gp_result_t gp_render_rounded_rect( const gp_canvas_t * _canvas, const gp_mesh_t
                     float x1 = p0.x + radius + (radius - half_thickness) * ct;
                     float y1 = p0.y + radius - (radius - half_thickness) * st;
 
-                    GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 0, x0, y0) );
-                    GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 0, argb) );
-                    GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 0, x0, y0, u_offset, v_offset, total_width, total_height) );
+                    GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 0, x0, y0) );
+                    GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 0, argb) );
+                    GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 0, x0, y0, u_offset, v_offset, total_width, total_height) );
 
-                    GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 1, x1, y1) );
-                    GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 1, argb) );
-                    GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 1, x1, y1, u_offset, v_offset, total_width, total_height) );
+                    GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 1, x1, y1) );
+                    GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 1, argb) );
+                    GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 1, x1, y1, u_offset, v_offset, total_width, total_height) );
 
                     vertex_iterator += 2;
                 }
@@ -715,13 +715,13 @@ gp_result_t gp_render_rounded_rect( const gp_canvas_t * _canvas, const gp_mesh_t
                     float x1 = p1.x - radius + (radius - half_thickness) * ct;
                     float y1 = p1.y + radius - (radius - half_thickness) * st;
 
-                    GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 0, x0, y0) );
-                    GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 0, argb) );
-                    GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 0, x0, y0, u_offset, v_offset, total_width, total_height) );
+                    GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 0, x0, y0) );
+                    GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 0, argb) );
+                    GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 0, x0, y0, u_offset, v_offset, total_width, total_height) );
 
-                    GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 1, x1, y1) );
-                    GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 1, argb) );
-                    GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 1, x1, y1, u_offset, v_offset, total_width, total_height) );
+                    GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 1, x1, y1) );
+                    GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 1, argb) );
+                    GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 1, x1, y1, u_offset, v_offset, total_width, total_height) );
 
                     vertex_iterator += 2;
                 }
@@ -739,13 +739,13 @@ gp_result_t gp_render_rounded_rect( const gp_canvas_t * _canvas, const gp_mesh_t
                     float x1 = p2.x - radius + (radius - half_thickness) * ct;
                     float y1 = p2.y - radius - (radius - half_thickness) * st;
 
-                    GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 0, x0, y0) );
-                    GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 0, argb) );
-                    GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 0, x0, y0, u_offset, v_offset, total_width, total_height) );
+                    GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 0, x0, y0) );
+                    GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 0, argb) );
+                    GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 0, x0, y0, u_offset, v_offset, total_width, total_height) );
 
-                    GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 1, x1, y1) );
-                    GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 1, argb) );
-                    GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 1, x1, y1, u_offset, v_offset, total_width, total_height) );
+                    GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 1, x1, y1) );
+                    GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 1, argb) );
+                    GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 1, x1, y1, u_offset, v_offset, total_width, total_height) );
 
                     vertex_iterator += 2;
                 }
@@ -763,13 +763,13 @@ gp_result_t gp_render_rounded_rect( const gp_canvas_t * _canvas, const gp_mesh_t
                     float x1 = p3.x + radius + (radius - half_thickness) * ct;
                     float y1 = p3.y - radius - (radius - half_thickness) * st;
 
-                    GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 0, x0, y0) );
-                    GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 0, argb) );
-                    GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 0, x0, y0, u_offset, v_offset, total_width, total_height) );
+                    GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 0, x0, y0) );
+                    GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 0, argb) );
+                    GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 0, x0, y0, u_offset, v_offset, total_width, total_height) );
 
-                    GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 1, x1, y1) );
-                    GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 1, argb) );
-                    GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 1, x1, y1, u_offset, v_offset, total_width, total_height) );
+                    GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 1, x1, y1) );
+                    GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 1, argb) );
+                    GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 1, x1, y1, u_offset, v_offset, total_width, total_height) );
 
                     vertex_iterator += 2;
                 }
@@ -777,30 +777,30 @@ gp_result_t gp_render_rounded_rect( const gp_canvas_t * _canvas, const gp_mesh_t
         }
         else
         {
-            GP_CALL( gp_mesh_index, (_mesh, index_iterator + 0, vertex_iterator + 0) );
-            GP_CALL( gp_mesh_index, (_mesh, index_iterator + 1, vertex_iterator + 1) );
-            GP_CALL( gp_mesh_index, (_mesh, index_iterator + 2, vertex_iterator + 3) );
-            GP_CALL( gp_mesh_index, (_mesh, index_iterator + 3, vertex_iterator + 3) );
-            GP_CALL( gp_mesh_index, (_mesh, index_iterator + 4, vertex_iterator + 1) );
-            GP_CALL( gp_mesh_index, (_mesh, index_iterator + 5, vertex_iterator + 2) );
+            GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 0, vertex_iterator + 0) );
+            GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 1, vertex_iterator + 1) );
+            GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 2, vertex_iterator + 3) );
+            GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 3, vertex_iterator + 3) );
+            GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 4, vertex_iterator + 1) );
+            GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 5, vertex_iterator + 2) );
 
             index_iterator += 6;
 
-            GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 0, p0.x + radius, p0.y + radius) );
-            GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 0, argb) );
-            GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 0, p0.x + radius, p0.y + radius, u_offset, v_offset, total_width, total_height) );
+            GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 0, p0.x + radius, p0.y + radius) );
+            GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 0, argb) );
+            GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 0, p0.x + radius, p0.y + radius, u_offset, v_offset, total_width, total_height) );
 
-            GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 1, p1.x - radius, p1.y + radius) );
-            GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 1, argb) );
-            GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 1, p1.x - radius, p1.y + radius, u_offset, v_offset, total_width, total_height) );
+            GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 1, p1.x - radius, p1.y + radius) );
+            GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 1, argb) );
+            GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 1, p1.x - radius, p1.y + radius, u_offset, v_offset, total_width, total_height) );
 
-            GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 2, p2.x - radius, p2.y - radius) );
-            GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 2, argb) );
-            GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 2, p2.x - radius, p2.y - radius, u_offset, v_offset, total_width, total_height) );
+            GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 2, p2.x - radius, p2.y - radius) );
+            GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 2, argb) );
+            GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 2, p2.x - radius, p2.y - radius, u_offset, v_offset, total_width, total_height) );
 
-            GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 3, p3.x + radius, p3.y - radius) );
-            GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 3, argb) );
-            GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 3, p3.x + radius, p3.y - radius, u_offset, v_offset, total_width, total_height) );
+            GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 3, p3.x + radius, p3.y - radius) );
+            GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 3, argb) );
+            GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 3, p3.x + radius, p3.y - radius, u_offset, v_offset, total_width, total_height) );
 
             vertex_iterator += 4;
 
@@ -808,154 +808,154 @@ gp_result_t gp_render_rounded_rect( const gp_canvas_t * _canvas, const gp_mesh_t
             {
                 for( gp_uint16_t index = 0; index != 4; ++index )
                 {
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 0, vertex_iterator + (index * 4 + 0)) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 1, vertex_iterator + (index * 4 + 1)) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 2, vertex_iterator + (index * 4 + 2)) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 3, vertex_iterator + (index * 4 + 2)) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 4, vertex_iterator + (index * 4 + 1)) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 5, vertex_iterator + (index * 4 + 3)) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 0, vertex_iterator + (index * 4 + 0)) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 1, vertex_iterator + (index * 4 + 1)) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 2, vertex_iterator + (index * 4 + 2)) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 3, vertex_iterator + (index * 4 + 2)) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 4, vertex_iterator + (index * 4 + 1)) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 5, vertex_iterator + (index * 4 + 3)) );
 
                     index_iterator += 6;
 
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 0, vertex_iterator + (index * 4 + 1)) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 1, base_vertex_iterator + (index + 0) % 4) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 2, vertex_iterator + (index * 4 + 3)) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 3, vertex_iterator + (index * 4 + 3)) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 4, base_vertex_iterator + (index + 0) % 4) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 5, base_vertex_iterator + (index + 1) % 4) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 0, vertex_iterator + (index * 4 + 1)) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 1, base_vertex_iterator + (index + 0) % 4) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 2, vertex_iterator + (index * 4 + 3)) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 3, vertex_iterator + (index * 4 + 3)) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 4, base_vertex_iterator + (index + 0) % 4) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 5, base_vertex_iterator + (index + 1) % 4) );
 
                     index_iterator += 6;
                 }
 
                 float line_half_thickness_soft = half_thickness - penumbra;
 
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 0, p0.x + radius, p0.y - half_thickness) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 0, argb & 0x00ffffff) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 0, p0.x + radius, p0.y - half_thickness, u_offset, v_offset, total_width, total_height) );
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 0, p0.x + radius, p0.y - half_thickness) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 0, argb & 0x00ffffff) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 0, p0.x + radius, p0.y - half_thickness, u_offset, v_offset, total_width, total_height) );
 
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 1, p0.x + radius, p0.y - line_half_thickness_soft) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 1, argb) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 1, p0.x + radius, p0.y - line_half_thickness_soft, u_offset, v_offset, total_width, total_height) );
-
-                vertex_iterator += 2;
-
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 0, p1.x - radius, p1.y - half_thickness) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 0, argb & 0x00ffffff) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 0, p1.x - radius, p1.y - half_thickness, u_offset, v_offset, total_width, total_height) );
-
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 1, p1.x - radius, p1.y - line_half_thickness_soft) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 1, argb) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 1, p1.x - radius, p1.y - line_half_thickness_soft, u_offset, v_offset, total_width, total_height) );
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 1, p0.x + radius, p0.y - line_half_thickness_soft) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 1, argb) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 1, p0.x + radius, p0.y - line_half_thickness_soft, u_offset, v_offset, total_width, total_height) );
 
                 vertex_iterator += 2;
 
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 0, p1.x + half_thickness, p1.y + radius) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 0, argb & 0x00ffffff) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 0, p1.x + half_thickness, p1.y + radius, u_offset, v_offset, total_width, total_height) );
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 0, p1.x - radius, p1.y - half_thickness) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 0, argb & 0x00ffffff) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 0, p1.x - radius, p1.y - half_thickness, u_offset, v_offset, total_width, total_height) );
 
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 1, p1.x + line_half_thickness_soft, p1.y + radius) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 1, argb) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 1, p1.x + line_half_thickness_soft, p1.y + radius, u_offset, v_offset, total_width, total_height) );
-
-                vertex_iterator += 2;
-
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 0, p2.x + half_thickness, p2.y - radius) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 0, argb & 0x00ffffff) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 0, p2.x + half_thickness, p2.y - radius, u_offset, v_offset, total_width, total_height) );
-
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 1, p2.x + line_half_thickness_soft, p2.y - radius) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 1, argb) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 1, p2.x + line_half_thickness_soft, p2.y - radius, u_offset, v_offset, total_width, total_height) );
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 1, p1.x - radius, p1.y - line_half_thickness_soft) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 1, argb) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 1, p1.x - radius, p1.y - line_half_thickness_soft, u_offset, v_offset, total_width, total_height) );
 
                 vertex_iterator += 2;
 
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 0, p2.x - radius, p2.y + half_thickness) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 0, argb & 0x00ffffff) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 0, p2.x - radius, p2.y + half_thickness, u_offset, v_offset, total_width, total_height) );
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 0, p1.x + half_thickness, p1.y + radius) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 0, argb & 0x00ffffff) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 0, p1.x + half_thickness, p1.y + radius, u_offset, v_offset, total_width, total_height) );
 
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 1, p2.x - radius, p2.y + line_half_thickness_soft) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 1, argb) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 1, p2.x - radius, p2.y + line_half_thickness_soft, u_offset, v_offset, total_width, total_height) );
-
-                vertex_iterator += 2;
-
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 0, p3.x + radius, p3.y + half_thickness) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 0, argb & 0x00ffffff) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 0, p3.x + radius, p3.y + half_thickness, u_offset, v_offset, total_width, total_height) );
-
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 1, p3.x + radius, p3.y + line_half_thickness_soft) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 1, argb) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 1, p3.x + radius, p3.y + line_half_thickness_soft, u_offset, v_offset, total_width, total_height) );
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 1, p1.x + line_half_thickness_soft, p1.y + radius) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 1, argb) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 1, p1.x + line_half_thickness_soft, p1.y + radius, u_offset, v_offset, total_width, total_height) );
 
                 vertex_iterator += 2;
 
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 0, p3.x - half_thickness, p3.y - radius) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 0, argb & 0x00ffffff) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 0, p3.x - half_thickness, p3.y - radius, u_offset, v_offset, total_width, total_height) );
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 0, p2.x + half_thickness, p2.y - radius) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 0, argb & 0x00ffffff) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 0, p2.x + half_thickness, p2.y - radius, u_offset, v_offset, total_width, total_height) );
 
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 1, p3.x - line_half_thickness_soft, p3.y - radius) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 1, argb) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 1, p3.x - line_half_thickness_soft, p3.y - radius, u_offset, v_offset, total_width, total_height) );
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 1, p2.x + line_half_thickness_soft, p2.y - radius) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 1, argb) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 1, p2.x + line_half_thickness_soft, p2.y - radius, u_offset, v_offset, total_width, total_height) );
 
                 vertex_iterator += 2;
 
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 0, p0.x - half_thickness, p0.y + radius) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 0, argb & 0x00ffffff) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 0, p0.x - half_thickness, p0.y + radius, u_offset, v_offset, total_width, total_height) );
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 0, p2.x - radius, p2.y + half_thickness) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 0, argb & 0x00ffffff) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 0, p2.x - radius, p2.y + half_thickness, u_offset, v_offset, total_width, total_height) );
 
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 1, p0.x - line_half_thickness_soft, p0.y + radius) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 1, argb) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 1, p0.x - line_half_thickness_soft, p0.y + radius, u_offset, v_offset, total_width, total_height) );
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 1, p2.x - radius, p2.y + line_half_thickness_soft) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 1, argb) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 1, p2.x - radius, p2.y + line_half_thickness_soft, u_offset, v_offset, total_width, total_height) );
+
+                vertex_iterator += 2;
+
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 0, p3.x + radius, p3.y + half_thickness) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 0, argb & 0x00ffffff) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 0, p3.x + radius, p3.y + half_thickness, u_offset, v_offset, total_width, total_height) );
+
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 1, p3.x + radius, p3.y + line_half_thickness_soft) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 1, argb) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 1, p3.x + radius, p3.y + line_half_thickness_soft, u_offset, v_offset, total_width, total_height) );
+
+                vertex_iterator += 2;
+
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 0, p3.x - half_thickness, p3.y - radius) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 0, argb & 0x00ffffff) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 0, p3.x - half_thickness, p3.y - radius, u_offset, v_offset, total_width, total_height) );
+
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 1, p3.x - line_half_thickness_soft, p3.y - radius) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 1, argb) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 1, p3.x - line_half_thickness_soft, p3.y - radius, u_offset, v_offset, total_width, total_height) );
+
+                vertex_iterator += 2;
+
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 0, p0.x - half_thickness, p0.y + radius) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 0, argb & 0x00ffffff) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 0, p0.x - half_thickness, p0.y + radius, u_offset, v_offset, total_width, total_height) );
+
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 1, p0.x - line_half_thickness_soft, p0.y + radius) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 1, argb) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 1, p0.x - line_half_thickness_soft, p0.y + radius, u_offset, v_offset, total_width, total_height) );
 
                 vertex_iterator += 2;
 
                 for( gp_uint16_t index_arc = 0; index_arc != 4; ++index_arc )
                 {
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 0, base_vertex_iterator + 4 + (0 + 4 * index_arc) % 16) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 1, vertex_iterator + index_arc * (rect_quality - 1) * 2 + 0) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 2, base_vertex_iterator + 4 + (1 + 4 * index_arc) % 16) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 3, base_vertex_iterator + 4 + (1 + 4 * index_arc) % 16) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 4, vertex_iterator + index_arc * (rect_quality - 1) * 2 + 0) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 5, vertex_iterator + index_arc * (rect_quality - 1) * 2 + 1) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 0, base_vertex_iterator + 4 + (0 + 4 * index_arc) % 16) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 1, vertex_iterator + index_arc * (rect_quality - 1) * 2 + 0) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 2, base_vertex_iterator + 4 + (1 + 4 * index_arc) % 16) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 3, base_vertex_iterator + 4 + (1 + 4 * index_arc) % 16) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 4, vertex_iterator + index_arc * (rect_quality - 1) * 2 + 0) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 5, vertex_iterator + index_arc * (rect_quality - 1) * 2 + 1) );
 
                     index_iterator += 6;
 
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 0, base_vertex_iterator + 4 + (1 + 4 * index_arc) % 16) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 1, base_vertex_iterator + index_arc) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 2, vertex_iterator + index_arc * (rect_quality - 1) * 2 + 1) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 0, base_vertex_iterator + 4 + (1 + 4 * index_arc) % 16) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 1, base_vertex_iterator + index_arc) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 2, vertex_iterator + index_arc * (rect_quality - 1) * 2 + 1) );
 
                     index_iterator += 3;
 
                     for( gp_uint16_t index = 0; index != rect_quality - 2; ++index )
                     {
-                        GP_CALL( gp_mesh_index, (_mesh, index_iterator + 0, vertex_iterator + index_arc * (rect_quality - 1) * 2 + (index * 2 + 0)) );
-                        GP_CALL( gp_mesh_index, (_mesh, index_iterator + 1, vertex_iterator + index_arc * (rect_quality - 1) * 2 + (index * 2 + 1)) );
-                        GP_CALL( gp_mesh_index, (_mesh, index_iterator + 2, vertex_iterator + index_arc * (rect_quality - 1) * 2 + (index * 2 + 2)) );
-                        GP_CALL( gp_mesh_index, (_mesh, index_iterator + 3, vertex_iterator + index_arc * (rect_quality - 1) * 2 + (index * 2 + 2)) );
-                        GP_CALL( gp_mesh_index, (_mesh, index_iterator + 4, vertex_iterator + index_arc * (rect_quality - 1) * 2 + (index * 2 + 1)) );
-                        GP_CALL( gp_mesh_index, (_mesh, index_iterator + 5, vertex_iterator + index_arc * (rect_quality - 1) * 2 + (index * 2 + 3)) );
+                        GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 0, vertex_iterator + index_arc * (rect_quality - 1) * 2 + (index * 2 + 0)) );
+                        GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 1, vertex_iterator + index_arc * (rect_quality - 1) * 2 + (index * 2 + 1)) );
+                        GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 2, vertex_iterator + index_arc * (rect_quality - 1) * 2 + (index * 2 + 2)) );
+                        GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 3, vertex_iterator + index_arc * (rect_quality - 1) * 2 + (index * 2 + 2)) );
+                        GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 4, vertex_iterator + index_arc * (rect_quality - 1) * 2 + (index * 2 + 1)) );
+                        GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 5, vertex_iterator + index_arc * (rect_quality - 1) * 2 + (index * 2 + 3)) );
 
                         index_iterator += 6;
 
-                        GP_CALL( gp_mesh_index, (_mesh, index_iterator + 0, vertex_iterator + index_arc * (rect_quality - 1) * 2 + (index * 2 + 1)) );
-                        GP_CALL( gp_mesh_index, (_mesh, index_iterator + 1, base_vertex_iterator + index_arc) );
-                        GP_CALL( gp_mesh_index, (_mesh, index_iterator + 2, vertex_iterator + index_arc * (rect_quality - 1) * 2 + (index * 2 + 3)) );
+                        GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 0, vertex_iterator + index_arc * (rect_quality - 1) * 2 + (index * 2 + 1)) );
+                        GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 1, base_vertex_iterator + index_arc) );
+                        GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 2, vertex_iterator + index_arc * (rect_quality - 1) * 2 + (index * 2 + 3)) );
 
                         index_iterator += 3;
                     }
 
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 0, vertex_iterator + index_arc * (rect_quality - 1) * 2 + (rect_quality - 2) * 2 + 0) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 1, vertex_iterator + index_arc * (rect_quality - 1) * 2 + (rect_quality - 2) * 2 + 1) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 2, base_vertex_iterator + 4 + (14 + 4 * index_arc) % 16) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 3, base_vertex_iterator + 4 + (14 + 4 * index_arc) % 16) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 4, vertex_iterator + index_arc * (rect_quality - 1) * 2 + (rect_quality - 2) * 2 + 1) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 5, base_vertex_iterator + 4 + (15 + 4 * index_arc) % 16) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 0, vertex_iterator + index_arc * (rect_quality - 1) * 2 + (rect_quality - 2) * 2 + 0) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 1, vertex_iterator + index_arc * (rect_quality - 1) * 2 + (rect_quality - 2) * 2 + 1) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 2, base_vertex_iterator + 4 + (14 + 4 * index_arc) % 16) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 3, base_vertex_iterator + 4 + (14 + 4 * index_arc) % 16) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 4, vertex_iterator + index_arc * (rect_quality - 1) * 2 + (rect_quality - 2) * 2 + 1) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 5, base_vertex_iterator + 4 + (15 + 4 * index_arc) % 16) );
 
                     index_iterator += 6;
 
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 0, vertex_iterator + index_arc * (rect_quality - 1) * 2 + (rect_quality - 2) * 2 + 1) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 1, base_vertex_iterator + index_arc) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 2, base_vertex_iterator + 4 + (15 + 4 * index_arc) % 16) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 0, vertex_iterator + index_arc * (rect_quality - 1) * 2 + (rect_quality - 2) * 2 + 1) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 1, base_vertex_iterator + index_arc) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 2, base_vertex_iterator + 4 + (15 + 4 * index_arc) % 16) );
 
                     index_iterator += 3;
                 }
@@ -975,13 +975,13 @@ gp_result_t gp_render_rounded_rect( const gp_canvas_t * _canvas, const gp_mesh_t
                     float x0_soft = p0.x + radius + (radius + line_half_thickness_soft) * ct;
                     float y0_soft = p0.y + radius - (radius + line_half_thickness_soft) * st;
 
-                    GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 0, x0, y0) );
-                    GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 0, argb & 0x00ffffff) );
-                    GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 0, x0, y0, u_offset, v_offset, total_width, total_height) );
+                    GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 0, x0, y0) );
+                    GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 0, argb & 0x00ffffff) );
+                    GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 0, x0, y0, u_offset, v_offset, total_width, total_height) );
 
-                    GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 1, x0_soft, y0_soft) );
-                    GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 1, argb) );
-                    GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 1, x0_soft, y0_soft, u_offset, v_offset, total_width, total_height) );
+                    GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 1, x0_soft, y0_soft) );
+                    GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 1, argb) );
+                    GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 1, x0_soft, y0_soft, u_offset, v_offset, total_width, total_height) );
 
                     vertex_iterator += 2;
                 }
@@ -999,13 +999,13 @@ gp_result_t gp_render_rounded_rect( const gp_canvas_t * _canvas, const gp_mesh_t
                     float x0_soft = p1.x - radius + (radius + line_half_thickness_soft) * ct;
                     float y0_soft = p1.y + radius - (radius + line_half_thickness_soft) * st;
 
-                    GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 0, x0, y0) );
-                    GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 0, argb & 0x00ffffff) );
-                    GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 0, x0, y0, u_offset, v_offset, total_width, total_height) );
+                    GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 0, x0, y0) );
+                    GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 0, argb & 0x00ffffff) );
+                    GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 0, x0, y0, u_offset, v_offset, total_width, total_height) );
 
-                    GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 1, x0_soft, y0_soft) );
-                    GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 1, argb) );
-                    GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 1, x0_soft, y0_soft, u_offset, v_offset, total_width, total_height) );
+                    GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 1, x0_soft, y0_soft) );
+                    GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 1, argb) );
+                    GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 1, x0_soft, y0_soft, u_offset, v_offset, total_width, total_height) );
 
                     vertex_iterator += 2;
                 }
@@ -1023,13 +1023,13 @@ gp_result_t gp_render_rounded_rect( const gp_canvas_t * _canvas, const gp_mesh_t
                     float x0_soft = p2.x - radius + (radius + line_half_thickness_soft) * ct;
                     float y0_soft = p2.y - radius - (radius + line_half_thickness_soft) * st;
 
-                    GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 0, x0, y0) );
-                    GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 0, argb & 0x00ffffff) );
-                    GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 0, x0, y0, u_offset, v_offset, total_width, total_height) );
+                    GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 0, x0, y0) );
+                    GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 0, argb & 0x00ffffff) );
+                    GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 0, x0, y0, u_offset, v_offset, total_width, total_height) );
 
-                    GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 1, x0_soft, y0_soft) );
-                    GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 1, argb) );
-                    GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 1, x0_soft, y0_soft, u_offset, v_offset, total_width, total_height) );
+                    GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 1, x0_soft, y0_soft) );
+                    GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 1, argb) );
+                    GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 1, x0_soft, y0_soft, u_offset, v_offset, total_width, total_height) );
 
                     vertex_iterator += 2;
                 }
@@ -1047,13 +1047,13 @@ gp_result_t gp_render_rounded_rect( const gp_canvas_t * _canvas, const gp_mesh_t
                     float x0_soft = p3.x + radius + (radius + line_half_thickness_soft) * ct;
                     float y0_soft = p3.y - radius - (radius + line_half_thickness_soft) * st;
 
-                    GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 0, x0, y0) );
-                    GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 0, argb & 0x00ffffff) );
-                    GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 0, x0, y0, u_offset, v_offset, total_width, total_height) );
+                    GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 0, x0, y0) );
+                    GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 0, argb & 0x00ffffff) );
+                    GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 0, x0, y0, u_offset, v_offset, total_width, total_height) );
 
-                    GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 1, x0_soft, y0_soft) );
-                    GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 1, argb) );
-                    GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 1, x0_soft, y0_soft, u_offset, v_offset, total_width, total_height) );
+                    GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 1, x0_soft, y0_soft) );
+                    GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 1, argb) );
+                    GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 1, x0_soft, y0_soft, u_offset, v_offset, total_width, total_height) );
 
                     vertex_iterator += 2;
                 }
@@ -1062,84 +1062,84 @@ gp_result_t gp_render_rounded_rect( const gp_canvas_t * _canvas, const gp_mesh_t
             {
                 for( gp_uint16_t index = 0; index != 4; ++index )
                 {
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 0, vertex_iterator + (index * 2 + 0) % 8) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 1, vertex_iterator + (index * 2 + 1) % 8) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 2, base_vertex_iterator + (index + 0) % 4) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 3, base_vertex_iterator + (index + 0) % 4) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 4, vertex_iterator + (index * 2 + 1) % 8) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 5, base_vertex_iterator + (index + 1) % 4) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 0, vertex_iterator + (index * 2 + 0) % 8) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 1, vertex_iterator + (index * 2 + 1) % 8) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 2, base_vertex_iterator + (index + 0) % 4) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 3, base_vertex_iterator + (index + 0) % 4) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 4, vertex_iterator + (index * 2 + 1) % 8) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 5, base_vertex_iterator + (index + 1) % 4) );
 
                     index_iterator += 6;
                 }
 
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 0, p0.x + radius, p0.y - half_thickness) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 0, argb) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 0, p0.x + radius, p0.y - half_thickness, u_offset, v_offset, total_width, total_height) );
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 0, p0.x + radius, p0.y - half_thickness) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 0, argb) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 0, p0.x + radius, p0.y - half_thickness, u_offset, v_offset, total_width, total_height) );
 
                 vertex_iterator += 1;
 
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 0, p1.x - radius, p1.y - half_thickness) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 0, argb) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 0, p1.x - radius, p1.y - half_thickness, u_offset, v_offset, total_width, total_height) );
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 0, p1.x - radius, p1.y - half_thickness) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 0, argb) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 0, p1.x - radius, p1.y - half_thickness, u_offset, v_offset, total_width, total_height) );
 
                 vertex_iterator += 1;
 
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 0, p1.x + half_thickness, p1.y + radius) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 0, argb) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 0, p1.x + half_thickness, p1.y + radius, u_offset, v_offset, total_width, total_height) );
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 0, p1.x + half_thickness, p1.y + radius) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 0, argb) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 0, p1.x + half_thickness, p1.y + radius, u_offset, v_offset, total_width, total_height) );
 
                 vertex_iterator += 1;
 
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 0, p2.x + half_thickness, p2.y - radius) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 0, argb) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 0, p2.x + half_thickness, p2.y - radius, u_offset, v_offset, total_width, total_height) );
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 0, p2.x + half_thickness, p2.y - radius) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 0, argb) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 0, p2.x + half_thickness, p2.y - radius, u_offset, v_offset, total_width, total_height) );
 
                 vertex_iterator += 1;
 
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 0, p2.x - radius, p2.y + half_thickness) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 0, argb) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 0, p2.x - radius, p2.y + half_thickness, u_offset, v_offset, total_width, total_height) );
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 0, p2.x - radius, p2.y + half_thickness) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 0, argb) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 0, p2.x - radius, p2.y + half_thickness, u_offset, v_offset, total_width, total_height) );
 
                 vertex_iterator += 1;
 
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 0, p3.x + radius, p3.y + half_thickness) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 0, argb) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 0, p3.x + radius, p3.y + half_thickness, u_offset, v_offset, total_width, total_height) );
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 0, p3.x + radius, p3.y + half_thickness) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 0, argb) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 0, p3.x + radius, p3.y + half_thickness, u_offset, v_offset, total_width, total_height) );
 
                 vertex_iterator += 1;
 
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 0, p3.x - half_thickness, p3.y - radius) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 0, argb) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 0, p3.x - half_thickness, p3.y - radius, u_offset, v_offset, total_width, total_height) );
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 0, p3.x - half_thickness, p3.y - radius) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 0, argb) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 0, p3.x - half_thickness, p3.y - radius, u_offset, v_offset, total_width, total_height) );
 
                 vertex_iterator += 1;
 
-                GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 0, p0.x - half_thickness, p0.y + radius) );
-                GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 0, argb) );
-                GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 0, p0.x - half_thickness, p0.y + radius, u_offset, v_offset, total_width, total_height) );
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 0, p0.x - half_thickness, p0.y + radius) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 0, argb) );
+                GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 0, p0.x - half_thickness, p0.y + radius, u_offset, v_offset, total_width, total_height) );
 
                 vertex_iterator += 1;
 
                 for( gp_uint16_t index_arc = 0; index_arc != 4; ++index_arc )
                 {
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 0, base_vertex_iterator + 4 + (2 * index_arc + 0) % 8) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 1, base_vertex_iterator + index_arc) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 2, vertex_iterator + index_arc * (rect_quality - 1)) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 0, base_vertex_iterator + 4 + (2 * index_arc + 0) % 8) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 1, base_vertex_iterator + index_arc) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 2, vertex_iterator + index_arc * (rect_quality - 1)) );
 
                     index_iterator += 3;
 
                     for( gp_uint16_t index = 0; index != rect_quality - 2; ++index )
                     {
-                        GP_CALL( gp_mesh_index, (_mesh, index_iterator + 0, vertex_iterator + index_arc * (rect_quality - 1) + (index + 0)) );
-                        GP_CALL( gp_mesh_index, (_mesh, index_iterator + 1, base_vertex_iterator + index_arc) );
-                        GP_CALL( gp_mesh_index, (_mesh, index_iterator + 2, vertex_iterator + index_arc * (rect_quality - 1) + (index + 1)) );
+                        GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 0, vertex_iterator + index_arc * (rect_quality - 1) + (index + 0)) );
+                        GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 1, base_vertex_iterator + index_arc) );
+                        GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 2, vertex_iterator + index_arc * (rect_quality - 1) + (index + 1)) );
 
                         index_iterator += 3;
                     }
 
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 0, vertex_iterator + index_arc * (rect_quality - 1) + (rect_quality - 1) - 1) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 1, base_vertex_iterator + index_arc) );
-                    GP_CALL( gp_mesh_index, (_mesh, index_iterator + 2, base_vertex_iterator + 4 + (2 * index_arc + 7) % 8) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 0, vertex_iterator + index_arc * (rect_quality - 1) + (rect_quality - 1) - 1) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 1, base_vertex_iterator + index_arc) );
+                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 2, base_vertex_iterator + 4 + (2 * index_arc + 7) % 8) );
 
                     index_iterator += 3;
                 }
@@ -1154,9 +1154,9 @@ gp_result_t gp_render_rounded_rect( const gp_canvas_t * _canvas, const gp_mesh_t
                     float x0 = p0.x + radius + (radius + half_thickness) * ct;
                     float y0 = p0.y + radius - (radius + half_thickness) * st;
 
-                    GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 0, x0, y0) );
-                    GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 0, argb) );
-                    GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 0, x0, y0, u_offset, v_offset, total_width, total_height) );
+                    GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 0, x0, y0) );
+                    GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 0, argb) );
+                    GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 0, x0, y0, u_offset, v_offset, total_width, total_height) );
 
                     vertex_iterator += 1;
                 }
@@ -1171,9 +1171,9 @@ gp_result_t gp_render_rounded_rect( const gp_canvas_t * _canvas, const gp_mesh_t
                     float x0 = p1.x - radius + (radius + half_thickness) * ct;
                     float y0 = p1.y + radius - (radius + half_thickness) * st;
 
-                    GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 0, x0, y0) );
-                    GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 0, argb) );
-                    GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 0, x0, y0, u_offset, v_offset, total_width, total_height) );
+                    GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 0, x0, y0) );
+                    GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 0, argb) );
+                    GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 0, x0, y0, u_offset, v_offset, total_width, total_height) );
 
                     vertex_iterator += 1;
                 }
@@ -1188,9 +1188,9 @@ gp_result_t gp_render_rounded_rect( const gp_canvas_t * _canvas, const gp_mesh_t
                     float x0 = p2.x - radius + (radius + half_thickness) * ct;
                     float y0 = p2.y - radius - (radius + half_thickness) * st;
 
-                    GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 0, x0, y0) );
-                    GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 0, argb) );
-                    GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 0, x0, y0, u_offset, v_offset, total_width, total_height) );
+                    GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 0, x0, y0) );
+                    GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 0, argb) );
+                    GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 0, x0, y0, u_offset, v_offset, total_width, total_height) );
 
                     vertex_iterator += 1;
                 }
@@ -1205,9 +1205,9 @@ gp_result_t gp_render_rounded_rect( const gp_canvas_t * _canvas, const gp_mesh_t
                     float x0 = p3.x + radius + (radius + half_thickness) * ct;
                     float y0 = p3.y - radius - (radius + half_thickness) * st;
 
-                    GP_CALL( gp_mesh_position, (_mesh, vertex_iterator + 0, x0, y0) );
-                    GP_CALL( gp_mesh_color, (_mesh, vertex_iterator + 0, argb) );
-                    GP_CALL( gp_mesh_uv_map, (_canvas, _mesh, vertex_iterator + 0, x0, y0, u_offset, v_offset, total_width, total_height) );
+                    GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 0, x0, y0) );
+                    GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 0, argb) );
+                    GP_CALL( gp_mesh_push_uv_map, (_canvas, _mesh, vertex_iterator + 0, x0, y0, u_offset, v_offset, total_width, total_height) );
 
                     vertex_iterator += 1;
                 }
