@@ -2,13 +2,14 @@ include(ExternalProject)
 
 ExternalProject_Add(glad_download PREFIX glad
         GIT_REPOSITORY https://github.com/Dav1dde/glad.git
-		GIT_TAG "v0.1.30"
-		GIT_PROGRESS TRUE
+        GIT_TAG "v0.1.30"
+        GIT_PROGRESS TRUE
             
         UPDATE_COMMAND ""
       
         CMAKE_ARGS 
             -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
+            -DCMAKE_POLICY_VERSION_MINIMUM=3.5
             -DGLAD_API=gl=3.3
             -DGLAD_INSTALL=ON
     )

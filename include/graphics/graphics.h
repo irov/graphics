@@ -73,10 +73,10 @@ gp_result_t gp_pop_state( gp_canvas_t * _canvas );
 *
 *************************************************************************/
 
-gp_result_t gp_move_to( gp_canvas_t * _canvas, float _x, float _y );
-gp_result_t gp_line_to( gp_canvas_t * _canvas, float _x, float _y );
-gp_result_t gp_quadratic_curve_to( gp_canvas_t * _canvas, float _p0x, float _p0y, float _x, float _y );
-gp_result_t gp_bezier_curve_to( gp_canvas_t * _canvas, float _p0x, float _p0y, float _p1x, float _p1y, float _x, float _y );
+gp_result_t gp_point_move_to( gp_canvas_t * _canvas, float _x, float _y );
+gp_result_t gp_point_line_to( gp_canvas_t * _canvas, float _x, float _y );
+gp_result_t gp_point_quadratic_curve_to( gp_canvas_t * _canvas, float _p0x, float _p0y, float _x, float _y );
+gp_result_t gp_point_bezier_curve_to( gp_canvas_t * _canvas, float _p0x, float _p0y, float _p1x, float _p1y, float _x, float _y );
 
 gp_result_t gp_rect( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height );
 gp_result_t gp_rounded_rect( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height, float _radius );

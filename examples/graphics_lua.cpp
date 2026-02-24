@@ -214,7 +214,7 @@ static int __lua_f_move_to( lua_State * L )
     lua_Number x = lua_tonumber( L, 1 );
     lua_Number y = lua_tonumber( L, 2 );
 
-    if( gp_move_to( handle->canvas, (float)x, (float)y ) == GP_FAILURE )
+    if( gp_point_move_to( handle->canvas, (float)x, (float)y ) == GP_FAILURE )
     {
         handle->result = GP_FAILURE;
         handle->error_msg = "invalid move to";
@@ -238,7 +238,7 @@ static int __lua_f_line_to( lua_State * L )
     lua_Number x = lua_tonumber( L, 1 );
     lua_Number y = lua_tonumber( L, 2 );
 
-    if( gp_line_to( handle->canvas, (float)x, (float)y ) == GP_FAILURE )
+    if( gp_point_line_to( handle->canvas, (float)x, (float)y ) == GP_FAILURE )
     {
         handle->result = GP_FAILURE;
         handle->error_msg = "invalid line to";
@@ -264,7 +264,7 @@ static int __lua_f_quadratic_curve_to( lua_State * L )
     lua_Number x = lua_tonumber( L, 3 );
     lua_Number y = lua_tonumber( L, 4 );
 
-    if( gp_quadratic_curve_to( handle->canvas, (float)p0x, (float)p0y, (float)x, (float)y ) == GP_FAILURE )
+    if( gp_point_quadratic_curve_to( handle->canvas, (float)p0x, (float)p0y, (float)x, (float)y ) == GP_FAILURE )
     {
         handle->result = GP_FAILURE;
         handle->error_msg = "invalid quadratic curve to";
@@ -292,7 +292,7 @@ static int __lua_f_bezier_curve_to( lua_State * L )
     lua_Number x = lua_tonumber( L, 5 );
     lua_Number y = lua_tonumber( L, 6 );
 
-    if( gp_bezier_curve_to( handle->canvas, (float)p0x, (float)p0y, (float)p1x, (float)p1y, (float)x, (float)y ) == GP_FAILURE )
+    if( gp_point_bezier_curve_to( handle->canvas, (float)p0x, (float)p0y, (float)p1x, (float)p1y, (float)x, (float)y ) == GP_FAILURE )
     {
         handle->result = GP_FAILURE;
         handle->error_msg = "invalid bezier curve to";
@@ -442,7 +442,7 @@ static const struct luaL_Reg lua_functions[] = {
 //////////////////////////////////////////////////////////////////////////
 bool initialize_script( example_script_handle_t ** _handle, gp_canvas_t * _canvas )
 {
-    lua_State * L = lua_newstate( &__lua_alloc, nullptr );
+    lua_State * L = lua_newstate( &__lua_alloc, nullptr, 0U );
 
     lua_atpanic( L, &__lua_panic );
 

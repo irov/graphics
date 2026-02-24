@@ -51,13 +51,13 @@ typedef gp_uint16_t gl_index_t;
 static gp_result_t __draw_figure( gp_canvas_t * _canvas, float _dx, float _dy )
 {
     GP_CALL( gp_set_color, (_canvas, 1.f, 0.5f, 0.25f, 1.f) );
-    GP_CALL( gp_move_to, (_canvas, _dx + 0.f, _dy + 0.f) );
+    GP_CALL( gp_point_move_to, (_canvas, _dx + 0.f, _dy + 0.f) );
     GP_CALL( gp_set_color, (_canvas, 0.5f, 1.0f, 0.25f, 1.f) );
-    GP_CALL( gp_quadratic_curve_to, (_canvas, _dx + 50.f, _dy + 100.f, _dx + 100.f, _dy + 100.f) );
+    GP_CALL( gp_point_quadratic_curve_to, (_canvas, _dx + 50.f, _dy + 100.f, _dx + 100.f, _dy + 100.f) );
     GP_CALL( gp_set_color, (_canvas, 0.5f, 0.5f, 1.f, 1.f) );
-    GP_CALL( gp_bezier_curve_to, (_canvas, _dx + 125.f, _dy + 175.f, _dx + 175.f, _dy + 150.f, _dx + 200.f, _dy) );
+    GP_CALL( gp_point_bezier_curve_to, (_canvas, _dx + 125.f, _dy + 175.f, _dx + 175.f, _dy + 150.f, _dx + 200.f, _dy) );
     GP_CALL( gp_set_color, (_canvas, 0.25f, 1.f, 1.f, 1.f) );
-    GP_CALL( gp_line_to, (_canvas, _dx + 250.f, _dy + 100.f) );
+    GP_CALL( gp_point_line_to, (_canvas, _dx + 250.f, _dy + 100.f) );
 
     GP_CALL( gp_set_color, (_canvas, 0.2f, 0.6f, 0.9f, 1.f) );
     GP_CALL( gp_rect, (_canvas, _dx + 275.f, _dy + 0.f, 100.f, 50.f) );

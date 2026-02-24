@@ -2,7 +2,7 @@ include(ExternalProject)
 
 ExternalProject_Add(lua_download PREFIX lua
         GIT_REPOSITORY https://github.com/lua/lua.git
-		GIT_TAG "v5.3.5"
+		GIT_TAG "v5.5.0"
 		GIT_PROGRESS TRUE
             
         UPDATE_COMMAND ${CMAKE_COMMAND} -E copy 

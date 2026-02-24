@@ -513,7 +513,7 @@ static const gp_state_t * __copy_state( gp_canvas_t * _canvas )
 //////////////////////////////////////////////////////////////////////////
 #define GP_COPY_STATE(canvas) __copy_state( canvas )
 //////////////////////////////////////////////////////////////////////////
-gp_result_t gp_move_to( gp_canvas_t * _canvas, float _x, float _y )
+gp_result_t gp_point_move_to( gp_canvas_t * _canvas, float _x, float _y )
 {
 #if defined(GP_DEBUG)
     if( _canvas->lines != GP_NULLPTR )
@@ -551,7 +551,7 @@ gp_result_t gp_move_to( gp_canvas_t * _canvas, float _x, float _y )
     return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
-gp_result_t gp_line_to( gp_canvas_t * _canvas, float _x, float _y )
+gp_result_t gp_point_line_to( gp_canvas_t * _canvas, float _x, float _y )
 {
 #if defined(GP_DEBUG)
     if( _canvas->lines == GP_NULLPTR )
@@ -584,7 +584,7 @@ gp_result_t gp_line_to( gp_canvas_t * _canvas, float _x, float _y )
     return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
-gp_result_t gp_quadratic_curve_to( gp_canvas_t * _canvas, float _p0x, float _p0y, float _x, float _y )
+gp_result_t gp_point_quadratic_curve_to( gp_canvas_t * _canvas, float _p0x, float _p0y, float _x, float _y )
 {
     gp_line_point_t * p = GP_NEW( _canvas, gp_line_point_t );
     p->next = GP_NULLPTR;
@@ -611,7 +611,7 @@ gp_result_t gp_quadratic_curve_to( gp_canvas_t * _canvas, float _p0x, float _p0y
     return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
-gp_result_t gp_bezier_curve_to( gp_canvas_t * _canvas, float _p0x, float _p0y, float _p1x, float _p1y, float _x, float _y )
+gp_result_t gp_point_bezier_curve_to( gp_canvas_t * _canvas, float _p0x, float _p0y, float _p1x, float _p1y, float _x, float _y )
 {
     gp_line_point_t * p = GP_NEW( _canvas, gp_line_point_t );
     p->next = GP_NULLPTR;

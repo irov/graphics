@@ -11,6 +11,8 @@ ExternalProject_Add(imguicolortextedit_download PREFIX imguicolortextedit
         CMAKE_ARGS 
             -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
             -DIMGUI_INCLUDE_DIR=${IMGUI_INCLUDE_DIR}
+            -DCMAKE_CXX_COMPILER_WORKS=TRUE
+            -DCMAKE_CXX_COMPILER_FORCED=TRUE
     )
     
 ExternalProject_Add_StepDependencies(imguicolortextedit_download build imgui_download)

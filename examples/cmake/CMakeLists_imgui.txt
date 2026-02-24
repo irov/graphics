@@ -1,4 +1,4 @@
-CMAKE_MINIMUM_REQUIRED(VERSION 3.2)
+CMAKE_MINIMUM_REQUIRED(VERSION 3.10)
 
 project(imgui)
 
@@ -6,6 +6,7 @@ add_library(${PROJECT_NAME} STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/imgui.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/imgui_draw.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/imgui_widgets.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/imgui_tables.cpp
 )
 
 install(TARGETS ${PROJECT_NAME} DESTINATION lib)
@@ -18,19 +19,19 @@ include_directories(${GLAD_INCLUDE_DIR})
 include_directories(${GLFW_INCLUDE_DIR})
 
 add_library(${PROJECT_NAME} STATIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/examples/imgui_impl_glfw.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/backends/imgui_impl_glfw.cpp
 )
 
 install(TARGETS ${PROJECT_NAME} DESTINATION lib)
-install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/examples/imgui_impl_glfw.h DESTINATION include)
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/backends/imgui_impl_glfw.h DESTINATION include)
 
 project(imgui_opengl3)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 add_library(${PROJECT_NAME} STATIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/examples/imgui_impl_opengl3.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp
 )
 
 install(TARGETS ${PROJECT_NAME} DESTINATION lib)
-install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/examples/imgui_impl_opengl3.h DESTINATION include)
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/backends/imgui_impl_opengl3.h DESTINATION include)

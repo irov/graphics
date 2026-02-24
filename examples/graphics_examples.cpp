@@ -147,16 +147,16 @@ static void __draw_figure( gp_canvas_t * _canvas, float _dx, float _dy )
 {
     gp_set_color( _canvas, 1.f, 0.5f, 0.25f, 1.f );
     gp_set_outline_color( _canvas, 0.5f, 1.f, 0.5f, 1.f );
-    gp_move_to( _canvas, _dx + 0.f, _dy + 0.f );
+    gp_point_move_to( _canvas, _dx + 0.f, _dy + 0.f );
     gp_set_color( _canvas, 0.5f, 1.0f, 0.25f, 1.f );
     gp_set_outline_color( _canvas, 0.5f, 1.f, 0.5f, 1.f );
-    gp_quadratic_curve_to( _canvas, _dx + 50.f, _dy + 100.f, _dx + 100.f, _dy + 100.f );
+    gp_point_quadratic_curve_to( _canvas, _dx + 50.f, _dy + 100.f, _dx + 100.f, _dy + 100.f );
     gp_set_color( _canvas, 0.5f, 0.5f, 1.f, 1.f );
     gp_set_outline_color( _canvas, 0.5f, 1.f, 0.5f, 1.f );
-    gp_bezier_curve_to( _canvas, _dx + 125.f, _dy + 175.f, _dx + 175.f, _dy + 150.f, _dx + 200.f, _dy );
+    gp_point_bezier_curve_to( _canvas, _dx + 125.f, _dy + 175.f, _dx + 175.f, _dy + 150.f, _dx + 200.f, _dy );
     gp_set_color( _canvas, 0.25f, 1.f, 1.f, 1.f );
     gp_set_outline_color( _canvas, 0.5f, 0.25f, 0.75f, 1.f );
-    gp_line_to( _canvas, _dx + 250.f, _dy + 100.f );
+    gp_point_line_to( _canvas, _dx + 250.f, _dy + 100.f );
 
     gp_set_color( _canvas, 0.2f, 0.6f, 0.9f, 1.f );
     gp_set_outline_color( _canvas, 0.5f, 1.f, 0.5f, 1.f );
@@ -238,11 +238,6 @@ int main( int argc, char ** argv )
     const char * glsl_version = "#version 330";
 
     if( ImGui_ImplOpenGL3_Init( glsl_version ) == false )
-    {
-        return EXIT_FAILURE;
-    }
-
-    if( ImGui_ImplOpenGL3_CreateFontsTexture() == false )
     {
         return EXIT_FAILURE;
     }

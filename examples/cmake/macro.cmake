@@ -1,5 +1,3 @@
-cmake_minimum_required(VERSION 3.0)
-
 if(APPLE)
   macro(ADD_APPLE_FRAMEWORK appname fwname)
     find_library(FRAMEWORK_${fwname}
