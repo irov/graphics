@@ -86,7 +86,7 @@ gp_result_t gp_mesh_push_color( const gp_mesh_t * _mesh, gp_uint16_t _iterator, 
     return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
-gp_result_t gp_mesh_push_uv( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh, gp_uint16_t _iterator, float _u, float _v )
+gp_result_t gp_mesh_push_uv( const gp_state_t * _state, const gp_mesh_t * _mesh, gp_uint16_t _iterator, float _u, float _v )
 {
     if( _mesh->uv_buffer == GP_NULLPTR )
     {
@@ -100,23 +100,21 @@ gp_result_t gp_mesh_push_uv( const gp_canvas_t * _canvas, const gp_mesh_t * _mes
     }
 #endif
 
-    const gp_state_t * state = GP_GET_STATE( _canvas );
-
     gp_vec2f_t uv;
-    uv.x = state->uv_ou + _u * state->uv_su;
-    uv.y = state->uv_ov + _v * state->uv_sv;
+    uv.x = _state->uv_ou + _u * _state->uv_su;
+    uv.y = _state->uv_ov + _v * _state->uv_sv;
 
     *(gp_vec2f_t *)((gp_uint8_t *)_mesh->uv_buffer + _mesh->uv_offset + _mesh->uv_stride * _iterator) = uv;
 
     return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
-gp_result_t gp_mesh_push_uv_map( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh, gp_uint16_t _iterator, float _x, float _y, float _ox, float _oy, float _w, float _h )
+gp_result_t gp_mesh_push_uv_map( const gp_state_t * _state, const gp_mesh_t * _mesh, gp_uint16_t _iterator, float _x, float _y, float _ox, float _oy, float _w, float _h )
 {
     float u = (_x + _ox) / _w;
     float v = (_y + _oy) / _h;
 
-    gp_result_t result = gp_mesh_push_uv( _canvas, _mesh, _iterator, u, v );
+    gp_result_t result = gp_mesh_push_uv( _state, _mesh, _iterator, u, v );
 
     return result;
 }

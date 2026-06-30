@@ -71,6 +71,12 @@ static gp_result_t __draw_figure( gp_canvas_t * _canvas, float _dx, float _dy )
     GP_CALL( gp_set_color, (_canvas, 0.9f, 0.1f, 0.7f, 1.f) );
     GP_CALL( gp_ellipse, (_canvas, _dx + 250.f, _dy + 225.f, 50.f, 25.f) );
 
+    GP_CALL( gp_set_color, (_canvas, 1.0f, 0.9f, 0.2f, 1.f) );
+    GP_CALL( gp_arc, (_canvas, _dx + 400.f, _dy + 225.f, 45.f, 0.f, 3.1415926535f) );
+
+    GP_CALL( gp_set_color, (_canvas, 0.8f, 0.4f, 1.0f, 1.f) );
+    GP_CALL( gp_ellipse_arc, (_canvas, _dx + 525.f, _dy + 225.f, 55.f, 30.f, 3.1415926535f, 6.2831853071f) );
+
     return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////

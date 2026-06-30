@@ -45,6 +45,7 @@ static void __canvas_default_state_setup( gp_canvas_t * _canvas )
     _canvas->state_cook[0].thickness = gp_get_default_thickness();
     _canvas->state_cook[0].outline_width = 0.f;
     _canvas->state_cook[0].penumbra = gp_get_default_penumbra();
+    _canvas->state_cook[0].inner_radius = 0.f;
     _canvas->state_cook[0].color.r = 1.f;
     _canvas->state_cook[0].color.g = 1.f;
     _canvas->state_cook[0].color.b = 1.f;
@@ -79,6 +80,8 @@ gp_result_t gp_canvas_create( gp_canvas_t ** _canvas, gp_malloc_t _malloc, gp_re
     canvas->rects = GP_NULLPTR;
     canvas->rounded_rects = GP_NULLPTR;
     canvas->ellipses = GP_NULLPTR;
+    canvas->ellipse_arcs = GP_NULLPTR;
+    canvas->render_order = GP_NULLPTR;
 
     __canvas_default_state_setup( canvas );
 
@@ -115,6 +118,8 @@ gp_result_t gp_canvas_clear( gp_canvas_t * _canvas )
     GP_LIST_DESTROY( _canvas, gp_rect_t, _canvas->rects );
     GP_LIST_DESTROY( _canvas, gp_rounded_rect_t, _canvas->rounded_rects );
     GP_LIST_DESTROY( _canvas, gp_ellipse_t, _canvas->ellipses );
+    GP_LIST_DESTROY( _canvas, gp_ellipse_arc_t, _canvas->ellipse_arcs );
+    GP_LIST_DESTROY( _canvas, gp_render_order_t, _canvas->render_order );
 
     _canvas->state_stack = 0;
     _canvas->state_invalidate = GP_TRUE;
@@ -177,6 +182,38 @@ gp_result_t gp_get_penumbra( const gp_canvas_t * _canvas, float * _penumbra )
     const gp_state_t * state = GP_GET_STATE( _canvas );
 
     *_penumbra = state->penumbra;
+
+    return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
+gp_result_t gp_set_inner_radius( gp_canvas_t * _canvas, float _inner_radius )
+{
+#if defined(GP_DEBUG)
+    if( _inner_radius < 0.f || _inner_radius > 1.f )
+    {
+        return GP_FAILURE;
+    }
+#endif
+
+    gp_state_t * state = GP_GET_STATE( _canvas );
+
+    if( state->inner_radius == _inner_radius )
+    {
+        return GP_SUCCESSFUL;
+    }
+
+    state->inner_radius = _inner_radius;
+
+    _canvas->state_invalidate = GP_TRUE;
+
+    return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
+gp_result_t gp_get_inner_radius( const gp_canvas_t * _canvas, float * _inner_radius )
+{
+    const gp_state_t * state = GP_GET_STATE( _canvas );
+
+    *_inner_radius = state->inner_radius;
 
     return GP_SUCCESSFUL;
 }
@@ -513,6 +550,19 @@ static const gp_state_t * __copy_state( gp_canvas_t * _canvas )
 //////////////////////////////////////////////////////////////////////////
 #define GP_COPY_STATE(canvas) __copy_state( canvas )
 //////////////////////////////////////////////////////////////////////////
+static gp_result_t __push_render_order( gp_canvas_t * _canvas, gp_render_order_type_e _type, void * _primitive )
+{
+    gp_render_order_t * order = GP_NEW( _canvas, gp_render_order_t );
+    order->next = GP_NULLPTR;
+    order->prev = GP_NULLPTR;
+    order->type = _type;
+    order->primitive = _primitive;
+
+    GP_LIST_PUSHBACK( gp_render_order_t, _canvas->render_order, order );
+
+    return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
 gp_result_t gp_point_move_to( gp_canvas_t * _canvas, float _x, float _y )
 {
 #if defined(GP_DEBUG)
@@ -545,8 +595,12 @@ gp_result_t gp_point_move_to( gp_canvas_t * _canvas, float _x, float _y )
 
     l->edges = GP_NULLPTR;
     l->state = p->state;
+    l->realloc = _canvas->realloc;
+    l->free = _canvas->free;
+    l->ud = _canvas->ud;
 
     GP_LIST_PUSHBACK( gp_line_t, _canvas->lines, l );
+    GP_CALL( __push_render_order, (_canvas, GP_RENDER_ORDER_LINE, l) );
 
     return GP_SUCCESSFUL;
 }
@@ -654,6 +708,7 @@ gp_result_t gp_rect( gp_canvas_t * _canvas, float _x, float _y, float _width, fl
     r->state = GP_COPY_STATE( _canvas );
 
     GP_LIST_PUSHBACK( gp_rect_t, _canvas->rects, r );
+    GP_CALL( __push_render_order, (_canvas, GP_RENDER_ORDER_RECT, r) );
 
     return GP_SUCCESSFUL;
 }
@@ -673,6 +728,7 @@ gp_result_t gp_rounded_rect( gp_canvas_t * _canvas, float _x, float _y, float _w
     rr->state = GP_COPY_STATE( _canvas );
 
     GP_LIST_PUSHBACK( gp_rounded_rect_t, _canvas->rounded_rects, rr );
+    GP_CALL( __push_render_order, (_canvas, GP_RENDER_ORDER_ROUNDED_RECT, rr) );
 
     return GP_SUCCESSFUL;
 }
@@ -698,8 +754,116 @@ gp_result_t gp_ellipse( gp_canvas_t * _canvas, float _x, float _y, float _width,
     e->state = GP_COPY_STATE( _canvas );
 
     GP_LIST_PUSHBACK( gp_ellipse_t, _canvas->ellipses, e );
+    GP_CALL( __push_render_order, (_canvas, GP_RENDER_ORDER_ELLIPSE, e) );
 
     return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
+gp_result_t gp_arc( gp_canvas_t * _canvas, float _x, float _y, float _radius, float _angle_from, float _angle_to )
+{
+    gp_result_t result = gp_ellipse_arc( _canvas, _x, _y, _radius, _radius, _angle_from, _angle_to );
+
+    return result;
+}
+//////////////////////////////////////////////////////////////////////////
+gp_result_t gp_arc_to( gp_canvas_t * _canvas, float _x, float _y, float _radius, float _angle_from, float _angle_to )
+{
+    gp_result_t result = gp_ellipse_arc_to( _canvas, _x, _y, _radius, _radius, _angle_from, _angle_to );
+
+    return result;
+}
+//////////////////////////////////////////////////////////////////////////
+static gp_result_t gp_ellipse_arc_internal( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height, float _angle_from, float _angle_to, gp_bool_t _move_to )
+{
+#if defined(GP_DEBUG)
+    if( _width <= 0.f || _height <= 0.f )
+    {
+        return GP_FAILURE;
+    }
+#endif
+
+    float angle_delta = _angle_to - _angle_from;
+    if( GP_EQUAL_F( angle_delta, 0.000001f ) == GP_TRUE )
+    {
+        return GP_SUCCESSFUL;
+    }
+
+    const gp_state_t * state = GP_GET_STATE( _canvas );
+    if( state->fill == GP_TRUE && _move_to == GP_TRUE )
+    {
+        gp_ellipse_arc_t * a = GP_NEW( _canvas, gp_ellipse_arc_t );
+        a->next = GP_NULLPTR;
+        a->prev = GP_NULLPTR;
+
+        a->point.x = _x;
+        a->point.y = _y;
+        a->radius_width = _width;
+        a->radius_height = _height;
+        a->angle_from = _angle_from;
+        a->angle_to = _angle_to;
+
+        a->state = GP_COPY_STATE( _canvas );
+
+        GP_LIST_PUSHBACK( gp_ellipse_arc_t, _canvas->ellipse_arcs, a );
+        GP_CALL( __push_render_order, (_canvas, GP_RENDER_ORDER_ELLIPSE_ARC, a) );
+
+        return GP_SUCCESSFUL;
+    }
+
+    float angle_delta_abs = angle_delta < 0.f ? -angle_delta : angle_delta;
+    float segment_factor = angle_delta_abs / gp_constant_two_pi * (float)state->ellipse_quality;
+    gp_uint32_t segment_count = (gp_uint32_t)segment_factor;
+    if( (float)segment_count < segment_factor )
+    {
+        ++segment_count;
+    }
+
+    if( segment_count == 0 )
+    {
+        segment_count = 1;
+    }
+
+#if defined(GP_DISABLE_EXTRA_LINE_POINTS)
+    if( segment_count >= GP_LINE_POINTS_MAX )
+    {
+        segment_count = GP_LINE_POINTS_MAX - 1;
+    }
+#endif
+
+    float x = _x + GP_MATH_COSF( _angle_from ) * _width;
+    float y = _y + GP_MATH_SINF( _angle_from ) * _height;
+    if( _move_to == GP_TRUE )
+    {
+        GP_CALL( gp_point_move_to, (_canvas, x, y) );
+    }
+    else
+    {
+        GP_CALL( gp_point_line_to, (_canvas, x, y) );
+    }
+
+    for( gp_uint32_t index = 1; index != segment_count + 1; ++index )
+    {
+        float t = _angle_from + angle_delta * (float)index / (float)segment_count;
+        x = _x + GP_MATH_COSF( t ) * _width;
+        y = _y + GP_MATH_SINF( t ) * _height;
+        GP_CALL( gp_point_line_to, (_canvas, x, y) );
+    }
+
+    return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
+gp_result_t gp_ellipse_arc( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height, float _angle_from, float _angle_to )
+{
+    gp_result_t result = gp_ellipse_arc_internal( _canvas, _x, _y, _width, _height, _angle_from, _angle_to, GP_TRUE );
+
+    return result;
+}
+//////////////////////////////////////////////////////////////////////////
+gp_result_t gp_ellipse_arc_to( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height, float _angle_from, float _angle_to )
+{
+    gp_result_t result = gp_ellipse_arc_internal( _canvas, _x, _y, _width, _height, _angle_from, _angle_to, GP_FALSE );
+
+    return result;
 }
 //////////////////////////////////////////////////////////////////////////
 gp_result_t gp_calculate_mesh_size( const gp_canvas_t * _canvas, gp_mesh_t * _mesh )
@@ -763,10 +927,39 @@ gp_result_t gp_render( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh )
     gp_uint16_t vertex_iterator = 0;
     gp_uint16_t index_iterator = 0;
 
-    GP_CALL( gp_render_line, (_canvas, _mesh, &vertex_iterator, &index_iterator) );
-    GP_CALL( gp_render_rect, (_canvas, _mesh, &vertex_iterator, &index_iterator) );
-    GP_CALL( gp_render_rounded_rect, (_canvas, _mesh, &vertex_iterator, &index_iterator) );
-    GP_CALL( gp_render_ellipse, (_canvas, _mesh, &vertex_iterator, &index_iterator) );
+    for( const gp_render_order_t * order = _canvas->render_order; order != GP_NULLPTR; order = order->next )
+    {
+        switch( order->type )
+        {
+        case GP_RENDER_ORDER_LINE:
+        {
+            const gp_line_t * line = (const gp_line_t *)order->primitive;
+            GP_CALL( gp_render_line, (line, line->state, _mesh, &vertex_iterator, &index_iterator) );
+        } break;
+        case GP_RENDER_ORDER_RECT:
+        {
+            const gp_rect_t * rect = (const gp_rect_t *)order->primitive;
+            GP_CALL( gp_render_rect, (rect, rect->state, _mesh, &vertex_iterator, &index_iterator) );
+        } break;
+        case GP_RENDER_ORDER_ROUNDED_RECT:
+        {
+            const gp_rounded_rect_t * rounded_rect = (const gp_rounded_rect_t *)order->primitive;
+            GP_CALL( gp_render_rounded_rect, (rounded_rect, rounded_rect->state, _mesh, &vertex_iterator, &index_iterator) );
+        } break;
+        case GP_RENDER_ORDER_ELLIPSE:
+        {
+            const gp_ellipse_t * ellipse = (const gp_ellipse_t *)order->primitive;
+            GP_CALL( gp_render_ellipse, (ellipse, ellipse->state, _mesh, &vertex_iterator, &index_iterator) );
+        } break;
+        case GP_RENDER_ORDER_ELLIPSE_ARC:
+        {
+            const gp_ellipse_arc_t * ellipse_arc = (const gp_ellipse_arc_t *)order->primitive;
+            GP_CALL( gp_render_ellipse_arc, (ellipse_arc, ellipse_arc->state, _mesh, &vertex_iterator, &index_iterator) );
+        } break;
+        default:
+            return GP_FAILURE;
+        }
+    }
 
     return GP_SUCCESSFUL;
 }

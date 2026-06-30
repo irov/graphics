@@ -36,7 +36,9 @@ static const char * identifiers[] =
     "rect",
     "rounded_rect",
     "circle",
-    "ellipse"
+    "ellipse",
+    "arc",
+    "ellipse_arc"
 };
 //////////////////////////////////////////////////////////////////////////
 static const char * idecls[] =
@@ -58,7 +60,9 @@ static const char * idecls[] =
     "draw rect",
     "draw rounded_rect",
     "draw circle",
-    "draw ellipse"
+    "draw ellipse",
+    "draw arc",
+    "draw ellipse arc"
 };
 //////////////////////////////////////////////////////////////////////////
 float camera_scale = 1.f;
@@ -173,6 +177,14 @@ static void __draw_figure( gp_canvas_t * _canvas, float _dx, float _dy )
     gp_set_color( _canvas, 0.9f, 0.1f, 0.7f, 1.f );
     gp_set_outline_color( _canvas, 0.5f, 1.f, 0.5f, 1.f );
     gp_ellipse( _canvas, _dx + 250.f, _dy + 225.f, 50.f, 25.f );
+
+    gp_set_color( _canvas, 1.0f, 0.9f, 0.2f, 1.f );
+    gp_set_outline_color( _canvas, 0.5f, 1.f, 0.5f, 1.f );
+    gp_arc( _canvas, _dx + 400.f, _dy + 225.f, 45.f, 0.f, 3.1415926535f );
+
+    gp_set_color( _canvas, 0.8f, 0.4f, 1.0f, 1.f );
+    gp_set_outline_color( _canvas, 0.5f, 1.f, 0.5f, 1.f );
+    gp_ellipse_arc( _canvas, _dx + 525.f, _dy + 225.f, 55.f, 30.f, 3.1415926535f, 6.2831853071f );
 }
 //////////////////////////////////////////////////////////////////////////
 int main( int argc, char ** argv )

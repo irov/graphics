@@ -42,6 +42,9 @@ gp_result_t gp_get_thickness( const gp_canvas_t * _canvas, float * _thickness );
 gp_result_t gp_set_penumbra( gp_canvas_t * _canvas, float _penumbra );
 gp_result_t gp_get_penumbra( const gp_canvas_t * _canvas, float * _penumbra );
 
+gp_result_t gp_set_inner_radius( gp_canvas_t * _canvas, float _inner_radius );
+gp_result_t gp_get_inner_radius( const gp_canvas_t * _canvas, float * _inner_radius );
+
 gp_result_t gp_set_outline_width( gp_canvas_t * _canvas, float _width );
 gp_result_t gp_get_outline_width( const gp_canvas_t * _canvas, float * _width );
 
@@ -82,6 +85,10 @@ gp_result_t gp_rect( gp_canvas_t * _canvas, float _x, float _y, float _width, fl
 gp_result_t gp_rounded_rect( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height, float _radius );
 gp_result_t gp_circle( gp_canvas_t * _canvas, float _x, float _y, float _radius );
 gp_result_t gp_ellipse( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height );
+gp_result_t gp_arc( gp_canvas_t * _canvas, float _x, float _y, float _radius, float _angle_from, float _angle_to );
+gp_result_t gp_arc_to( gp_canvas_t * _canvas, float _x, float _y, float _radius, float _angle_from, float _angle_to );
+gp_result_t gp_ellipse_arc( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height, float _angle_from, float _angle_to );
+gp_result_t gp_ellipse_arc_to( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height, float _angle_from, float _angle_to );
 
 /*************************************************************************
 *

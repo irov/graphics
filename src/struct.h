@@ -24,6 +24,7 @@ typedef struct gp_state_t
     float thickness;
     float outline_width;
     float penumbra;
+    float inner_radius;
 
     gp_color_t color;
     gp_color_t outline_color;
@@ -77,6 +78,9 @@ typedef struct gp_line_t
     gp_line_edge_t * edges;
 
     const gp_state_t * state;
+    gp_realloc_t realloc;
+    gp_free_t free;
+    void * ud;
 
     struct gp_line_t * next;
     struct gp_line_t * prev;
@@ -119,6 +123,38 @@ typedef struct gp_ellipse_t
     struct gp_ellipse_t * prev;
 } gp_ellipse_t;
 //////////////////////////////////////////////////////////////////////////
+typedef struct gp_ellipse_arc_t
+{
+    gp_vec2f_t point;
+    float radius_width;
+    float radius_height;
+    float angle_from;
+    float angle_to;
+
+    const gp_state_t * state;
+
+    struct gp_ellipse_arc_t * next;
+    struct gp_ellipse_arc_t * prev;
+} gp_ellipse_arc_t;
+//////////////////////////////////////////////////////////////////////////
+typedef enum gp_render_order_type_e
+{
+    GP_RENDER_ORDER_LINE,
+    GP_RENDER_ORDER_RECT,
+    GP_RENDER_ORDER_ROUNDED_RECT,
+    GP_RENDER_ORDER_ELLIPSE,
+    GP_RENDER_ORDER_ELLIPSE_ARC
+} gp_render_order_type_e;
+//////////////////////////////////////////////////////////////////////////
+typedef struct gp_render_order_t
+{
+    gp_render_order_type_e type;
+    void * primitive;
+
+    struct gp_render_order_t * next;
+    struct gp_render_order_t * prev;
+} gp_render_order_t;
+//////////////////////////////////////////////////////////////////////////
 typedef struct gp_canvas_t
 {
     gp_state_t state_cook[GP_STATE_STACK_MAX];
@@ -131,6 +167,8 @@ typedef struct gp_canvas_t
     gp_rect_t * rects;
     gp_rounded_rect_t * rounded_rects;
     gp_ellipse_t * ellipses;
+    gp_ellipse_arc_t * ellipse_arcs;
+    gp_render_order_t * render_order;
 
     gp_malloc_t malloc;
     gp_realloc_t realloc;

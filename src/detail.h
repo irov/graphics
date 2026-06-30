@@ -36,8 +36,8 @@ gp_uint32_t gp_color_argb( const gp_color_t * _c );
 gp_result_t gp_mesh_push_index( const gp_mesh_t * _mesh, gp_uint16_t _iterator, gp_uint16_t _index );
 gp_result_t gp_mesh_push_position( const gp_mesh_t * _mesh, gp_uint16_t _iterator, float _x, float _y );
 gp_result_t gp_mesh_push_color( const gp_mesh_t * _mesh, gp_uint16_t _iterator, gp_argb_t _c );
-gp_result_t gp_mesh_push_uv( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh, gp_uint16_t _iterator, float _u, float _v );
-gp_result_t gp_mesh_push_uv_map( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh, gp_uint16_t _iterator, float _x, float _y, float _ox, float _oy, float _w, float _h );
+gp_result_t gp_mesh_push_uv( const gp_state_t * _state, const gp_mesh_t * _mesh, gp_uint16_t _iterator, float _u, float _v );
+gp_result_t gp_mesh_push_uv_map( const gp_state_t * _state, const gp_mesh_t * _mesh, gp_uint16_t _iterator, float _x, float _y, float _ox, float _oy, float _w, float _h );
 
 gp_result_t gp_mesh_get_position( const gp_mesh_t * _mesh, gp_uint16_t _iterator, gp_vec2f_t * const _pos );
 
