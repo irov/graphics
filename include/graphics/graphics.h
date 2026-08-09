@@ -83,6 +83,7 @@ gp_result_t gp_point_bezier_curve_to( gp_canvas_t * _canvas, float _p0x, float _
 
 gp_result_t gp_rect( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height );
 gp_result_t gp_rounded_rect( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height, float _radius );
+gp_result_t gp_rounded_polygon( gp_canvas_t * _canvas, const void * _points, gp_size_t _point_count, gp_size_t _point_stride, float _radius );
 gp_result_t gp_circle( gp_canvas_t * _canvas, float _x, float _y, float _radius );
 gp_result_t gp_ellipse( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height );
 gp_result_t gp_arc( gp_canvas_t * _canvas, float _x, float _y, float _radius, float _angle_from, float _angle_to );

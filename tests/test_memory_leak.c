@@ -50,6 +50,14 @@ typedef gp_uint16_t gl_index_t;
 //////////////////////////////////////////////////////////////////////////
 static gp_result_t __draw_figure( gp_canvas_t * _canvas, float _dx, float _dy )
 {
+    const float rounded_polygon_points[][2] = {
+        {_dx + 400.f, _dy + 0.f},
+        {_dx + 550.f, _dy + 0.f},
+        {_dx + 500.f, _dy + 50.f},
+        {_dx + 550.f, _dy + 100.f},
+        {_dx + 400.f, _dy + 100.f}
+    };
+
     GP_CALL( gp_set_color, (_canvas, 1.f, 0.5f, 0.25f, 1.f) );
     GP_CALL( gp_point_move_to, (_canvas, _dx + 0.f, _dy + 0.f) );
     GP_CALL( gp_set_color, (_canvas, 0.5f, 1.0f, 0.25f, 1.f) );
@@ -64,6 +72,9 @@ static gp_result_t __draw_figure( gp_canvas_t * _canvas, float _dx, float _dy )
 
     GP_CALL( gp_set_color, (_canvas, 0.7f, 0.3f, 0.4f, 1.f) );
     GP_CALL( gp_rounded_rect, (_canvas, _dx + 275.f, _dy + 75.f, 100.f, 50.f, 10.f) );
+
+    GP_CALL( gp_set_color, (_canvas, 0.9f, 0.5f, 0.1f, 1.f) );
+    GP_CALL( gp_rounded_polygon, (_canvas, &rounded_polygon_points[0][0], 5, sizeof( rounded_polygon_points[0] ), 10.f) );
 
     GP_CALL( gp_set_color, (_canvas, 0.1f, 0.8f, 0.2f, 1.f) );
     GP_CALL( gp_circle, (_canvas, _dx + 100.f, _dy + 225.f, 50.f) );
