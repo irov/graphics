@@ -4,10 +4,10 @@
 #include "detail.h"
 
 //////////////////////////////////////////////////////////////////////////
-static gp_result_t __calculate_mesh_rect_size( const gp_canvas_t * _canvas, gp_uint16_t * _vertex_count, gp_uint16_t * _index_count )
+static gp_result_t __calculate_mesh_rect_size( const gp_canvas_t * _canvas, gp_uint32_t * _vertex_count, gp_uint32_t * _index_count )
 {
-    gp_uint16_t vertex_count = 0;
-    gp_uint16_t index_count = 0;
+    gp_uint32_t vertex_count = 0;
+    gp_uint32_t index_count = 0;
 
     for( const gp_rect_t * r = _canvas->rects; r != GP_NULLPTR; r = r->next )
     {
@@ -47,8 +47,8 @@ static gp_result_t __calculate_mesh_rect_size( const gp_canvas_t * _canvas, gp_u
 //////////////////////////////////////////////////////////////////////////
 gp_result_t gp_calculate_mesh_rect_size( const gp_canvas_t * _canvas, gp_mesh_t * _mesh )
 {
-    gp_uint16_t vertex_count;
-    gp_uint16_t index_count;
+    gp_uint32_t vertex_count;
+    gp_uint32_t index_count;
 
     GP_CALL( __calculate_mesh_rect_size, (_canvas, &vertex_count, &index_count) );
 
@@ -58,10 +58,10 @@ gp_result_t gp_calculate_mesh_rect_size( const gp_canvas_t * _canvas, gp_mesh_t 
     return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
-gp_result_t gp_render_rect( const gp_rect_t * _rect, const gp_state_t * _state, const gp_mesh_t * _mesh, gp_uint16_t * _vertex_iterator, gp_uint16_t * _index_iterator )
+gp_result_t gp_render_rect( const gp_rect_t * _rect, const gp_state_t * _state, const gp_mesh_t * _mesh, gp_uint32_t * _vertex_iterator, gp_uint32_t * _index_iterator )
 {
-    gp_uint16_t vertex_iterator = *_vertex_iterator;
-    gp_uint16_t index_iterator = *_index_iterator;
+    gp_uint32_t vertex_iterator = *_vertex_iterator;
+    gp_uint32_t index_iterator = *_index_iterator;
 
     const gp_rect_t * r = _rect;
     if( r == GP_NULLPTR )

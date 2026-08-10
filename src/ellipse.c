@@ -4,10 +4,10 @@
 #include "struct.h"
 
 //////////////////////////////////////////////////////////////////////////
-static gp_result_t __calculate_mesh_ellipse_size( const gp_canvas_t * _canvas, gp_uint16_t * _vertex_count, gp_uint16_t * _index_count )
+static gp_result_t __calculate_mesh_ellipse_size( const gp_canvas_t * _canvas, gp_uint32_t * _vertex_count, gp_uint32_t * _index_count )
 {
-    gp_uint16_t vertex_count = 0;
-    gp_uint16_t index_count = 0;
+    gp_uint32_t vertex_count = 0;
+    gp_uint32_t index_count = 0;
 
     for( const gp_ellipse_t * e = _canvas->ellipses; e != GP_NULLPTR; e = e->next )
     {
@@ -50,7 +50,7 @@ static gp_result_t __calculate_mesh_ellipse_size( const gp_canvas_t * _canvas, g
 
         float angle_delta_abs = angle_delta < 0.f ? -angle_delta : angle_delta;
         float segment_factor = angle_delta_abs / gp_constant_two_pi * (float)a->state->ellipse_quality;
-        gp_uint16_t segment_count = (gp_uint16_t)segment_factor;
+        gp_uint32_t segment_count = (gp_uint32_t)segment_factor;
         if( (float)segment_count < segment_factor )
         {
             ++segment_count;
@@ -91,8 +91,8 @@ static gp_result_t __calculate_mesh_ellipse_size( const gp_canvas_t * _canvas, g
 //////////////////////////////////////////////////////////////////////////
 gp_result_t gp_calculate_mesh_ellipse_size( const gp_canvas_t * _canvas, gp_mesh_t * _mesh )
 {
-    gp_uint16_t vertex_count;
-    gp_uint16_t index_count;
+    gp_uint32_t vertex_count;
+    gp_uint32_t index_count;
 
     GP_CALL( __calculate_mesh_ellipse_size, (_canvas, &vertex_count, &index_count) );
 
@@ -102,10 +102,10 @@ gp_result_t gp_calculate_mesh_ellipse_size( const gp_canvas_t * _canvas, gp_mesh
     return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
-gp_result_t gp_render_ellipse( const gp_ellipse_t * _ellipse, const gp_state_t * _state, const gp_mesh_t * _mesh, gp_uint16_t * _vertex_iterator, gp_uint16_t * _index_iterator )
+gp_result_t gp_render_ellipse( const gp_ellipse_t * _ellipse, const gp_state_t * _state, const gp_mesh_t * _mesh, gp_uint32_t * _vertex_iterator, gp_uint32_t * _index_iterator )
 {
-    gp_uint16_t vertex_iterator = *_vertex_iterator;
-    gp_uint16_t index_iterator = *_index_iterator;
+    gp_uint32_t vertex_iterator = *_vertex_iterator;
+    gp_uint32_t index_iterator = *_index_iterator;
 
     const gp_ellipse_t * e = _ellipse;
     if( e == GP_NULLPTR )
@@ -350,10 +350,10 @@ gp_result_t gp_render_ellipse( const gp_ellipse_t * _ellipse, const gp_state_t *
     return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
-gp_result_t gp_render_ellipse_arc( const gp_ellipse_arc_t * _ellipse_arc, const gp_state_t * _state, const gp_mesh_t * _mesh, gp_uint16_t * _vertex_iterator, gp_uint16_t * _index_iterator )
+gp_result_t gp_render_ellipse_arc( const gp_ellipse_arc_t * _ellipse_arc, const gp_state_t * _state, const gp_mesh_t * _mesh, gp_uint32_t * _vertex_iterator, gp_uint32_t * _index_iterator )
 {
-    gp_uint16_t vertex_iterator = *_vertex_iterator;
-    gp_uint16_t index_iterator = *_index_iterator;
+    gp_uint32_t vertex_iterator = *_vertex_iterator;
+    gp_uint32_t index_iterator = *_index_iterator;
 
     const gp_ellipse_arc_t * a = _ellipse_arc;
     if( a == GP_NULLPTR )
@@ -369,7 +369,7 @@ gp_result_t gp_render_ellipse_arc( const gp_ellipse_arc_t * _ellipse_arc, const 
 
     float angle_delta_abs = angle_delta < 0.f ? -angle_delta : angle_delta;
     float segment_factor = angle_delta_abs / gp_constant_two_pi * (float)a->state->ellipse_quality;
-    gp_uint16_t segment_count = (gp_uint16_t)segment_factor;
+    gp_uint32_t segment_count = (gp_uint32_t)segment_factor;
     if( (float)segment_count < segment_factor )
     {
         ++segment_count;
@@ -401,7 +401,7 @@ gp_result_t gp_render_ellipse_arc( const gp_ellipse_arc_t * _ellipse_arc, const 
 
     if( inner_ratio > 0.0001f )
     {
-        for( gp_uint16_t index = 0; index != segment_count; ++index )
+        for( gp_uint32_t index = 0; index != segment_count; ++index )
         {
             GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 0, vertex_iterator + index * 2 + 0) );
             GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 1, vertex_iterator + index * 2 + 1) );
@@ -413,7 +413,7 @@ gp_result_t gp_render_ellipse_arc( const gp_ellipse_arc_t * _ellipse_arc, const 
             index_iterator += 6;
         }
 
-        for( gp_uint16_t index = 0; index != segment_count + 1; ++index )
+        for( gp_uint32_t index = 0; index != segment_count + 1; ++index )
         {
             float t = a->angle_from + angle_delta * (float)index / (float)segment_count;
             float ct = GP_MATH_COSF( t );
@@ -437,7 +437,7 @@ gp_result_t gp_render_ellipse_arc( const gp_ellipse_arc_t * _ellipse_arc, const 
     }
     else
     {
-        for( gp_uint16_t index = 0; index != segment_count; ++index )
+        for( gp_uint32_t index = 0; index != segment_count; ++index )
         {
             GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 0, vertex_iterator) );
             GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 1, vertex_iterator + index + 1) );
@@ -452,7 +452,7 @@ gp_result_t gp_render_ellipse_arc( const gp_ellipse_arc_t * _ellipse_arc, const 
 
         vertex_iterator += 1;
 
-        for( gp_uint16_t index = 0; index != segment_count + 1; ++index )
+        for( gp_uint32_t index = 0; index != segment_count + 1; ++index )
         {
             float t = a->angle_from + angle_delta * (float)index / (float)segment_count;
             float x = a->point.x + a->radius_width * GP_MATH_COSF( t );

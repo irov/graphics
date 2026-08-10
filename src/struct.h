@@ -21,10 +21,19 @@ typedef struct gp_state_t
 {
     gp_bool_t fill;
 
+    gp_line_cap_t line_cap;
+    gp_line_join_t line_join;
+    gp_fill_rule_t fill_rule;
+
     float thickness;
     float outline_width;
     float penumbra;
     float inner_radius;
+    float miter_limit;
+    float dash_offset;
+
+    float dash_pattern[GP_DASH_PATTERN_MAX];
+    gp_uint8_t dash_count;
 
     gp_color_t color;
     gp_color_t outline_color;
@@ -78,6 +87,8 @@ typedef struct gp_line_t
     gp_line_edge_t * edges;
 
     const gp_state_t * state;
+    gp_bool_t closed;
+    struct gp_compound_fill_t * compound_fill;
     gp_realloc_t realloc;
     gp_free_t free;
     void * ud;
@@ -85,6 +96,16 @@ typedef struct gp_line_t
     struct gp_line_t * next;
     struct gp_line_t * prev;
 } gp_line_t;
+//////////////////////////////////////////////////////////////////////////
+typedef struct gp_compound_fill_t
+{
+    gp_line_t * first_line;
+    gp_line_t * last_line;
+    gp_fill_rule_t fill_rule;
+
+    struct gp_compound_fill_t * next;
+    struct gp_compound_fill_t * prev;
+} gp_compound_fill_t;
 //////////////////////////////////////////////////////////////////////////
 typedef struct gp_rect_t
 {
@@ -143,7 +164,8 @@ typedef enum gp_render_order_type_e
     GP_RENDER_ORDER_RECT,
     GP_RENDER_ORDER_ROUNDED_RECT,
     GP_RENDER_ORDER_ELLIPSE,
-    GP_RENDER_ORDER_ELLIPSE_ARC
+    GP_RENDER_ORDER_ELLIPSE_ARC,
+    GP_RENDER_ORDER_COMPOUND_FILL
 } gp_render_order_type_e;
 //////////////////////////////////////////////////////////////////////////
 typedef struct gp_render_order_t
@@ -168,6 +190,9 @@ typedef struct gp_canvas_t
     gp_rounded_rect_t * rounded_rects;
     gp_ellipse_t * ellipses;
     gp_ellipse_arc_t * ellipse_arcs;
+    gp_compound_fill_t * compound_fills;
+    gp_compound_fill_t * active_compound_fill;
+    gp_bool_t compound_previous_fill;
     gp_render_order_t * render_order;
 
     gp_malloc_t malloc;

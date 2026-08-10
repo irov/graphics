@@ -4,9 +4,12 @@
 #include "rect.h"
 #include "rounded_rect.h"
 #include "ellipse.h"
+#include "compound.h"
 
 #include "struct.h"
 #include "detail.h"
+
+static gp_result_t __push_render_order( gp_canvas_t * _canvas, gp_render_order_type_e _type, void * _primitive );
 
 //////////////////////////////////////////////////////////////////////////
 float gp_get_default_thickness( void )
@@ -22,6 +25,11 @@ float gp_get_default_penumbra( void )
 float gp_get_default_outline_width( void )
 {
     return 0.f;
+}
+//////////////////////////////////////////////////////////////////////////
+float gp_get_default_miter_limit( void )
+{
+    return 10.f;
 }
 //////////////////////////////////////////////////////////////////////////
 gp_uint8_t gp_get_default_curve_quality( void )
@@ -42,10 +50,16 @@ gp_uint8_t gp_get_default_rect_quality( void )
 static void __canvas_default_state_setup( gp_canvas_t * _canvas )
 {
     _canvas->state_cook[0].fill = GP_FALSE;
+    _canvas->state_cook[0].line_cap = GP_LINE_CAP_BUTT;
+    _canvas->state_cook[0].line_join = GP_LINE_JOIN_MITER;
+    _canvas->state_cook[0].fill_rule = GP_FILL_RULE_NON_ZERO;
     _canvas->state_cook[0].thickness = gp_get_default_thickness();
     _canvas->state_cook[0].outline_width = 0.f;
     _canvas->state_cook[0].penumbra = gp_get_default_penumbra();
     _canvas->state_cook[0].inner_radius = 0.f;
+    _canvas->state_cook[0].miter_limit = gp_get_default_miter_limit();
+    _canvas->state_cook[0].dash_offset = 0.f;
+    _canvas->state_cook[0].dash_count = 0;
     _canvas->state_cook[0].color.r = 1.f;
     _canvas->state_cook[0].color.g = 1.f;
     _canvas->state_cook[0].color.b = 1.f;
@@ -81,6 +95,9 @@ gp_result_t gp_canvas_create( gp_canvas_t ** _canvas, gp_malloc_t _malloc, gp_re
     canvas->rounded_rects = GP_NULLPTR;
     canvas->ellipses = GP_NULLPTR;
     canvas->ellipse_arcs = GP_NULLPTR;
+    canvas->compound_fills = GP_NULLPTR;
+    canvas->active_compound_fill = GP_NULLPTR;
+    canvas->compound_previous_fill = GP_FALSE;
     canvas->render_order = GP_NULLPTR;
 
     __canvas_default_state_setup( canvas );
@@ -119,10 +136,13 @@ gp_result_t gp_canvas_clear( gp_canvas_t * _canvas )
     GP_LIST_DESTROY( _canvas, gp_rounded_rect_t, _canvas->rounded_rects );
     GP_LIST_DESTROY( _canvas, gp_ellipse_t, _canvas->ellipses );
     GP_LIST_DESTROY( _canvas, gp_ellipse_arc_t, _canvas->ellipse_arcs );
+    GP_LIST_DESTROY( _canvas, gp_compound_fill_t, _canvas->compound_fills );
     GP_LIST_DESTROY( _canvas, gp_render_order_t, _canvas->render_order );
 
     _canvas->state_stack = 0;
     _canvas->state_invalidate = GP_TRUE;
+    _canvas->active_compound_fill = GP_NULLPTR;
+    _canvas->compound_previous_fill = GP_FALSE;
 
     __canvas_default_state_setup( _canvas );
 
@@ -280,6 +300,158 @@ gp_result_t gp_get_outline_color( const gp_canvas_t * _canvas, gp_color_t * _col
     const gp_state_t * state = GP_GET_STATE( _canvas );
 
     *_color = state->outline_color;
+
+    return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
+gp_result_t gp_set_line_cap( gp_canvas_t * _canvas, gp_line_cap_t _cap )
+{
+#if defined(GP_DEBUG)
+    if( _cap != GP_LINE_CAP_BUTT && _cap != GP_LINE_CAP_SQUARE && _cap != GP_LINE_CAP_ROUND )
+    {
+        return GP_FAILURE;
+    }
+#endif
+
+    gp_state_t * state = GP_GET_STATE( _canvas );
+    if( state->line_cap == _cap )
+    {
+        return GP_SUCCESSFUL;
+    }
+
+    state->line_cap = _cap;
+    _canvas->state_invalidate = GP_TRUE;
+
+    return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
+gp_result_t gp_get_line_cap( const gp_canvas_t * _canvas, gp_line_cap_t * _cap )
+{
+    *_cap = GP_GET_STATE( _canvas )->line_cap;
+
+    return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
+gp_result_t gp_set_line_join( gp_canvas_t * _canvas, gp_line_join_t _join )
+{
+#if defined(GP_DEBUG)
+    if( _join != GP_LINE_JOIN_MITER && _join != GP_LINE_JOIN_BEVEL && _join != GP_LINE_JOIN_ROUND )
+    {
+        return GP_FAILURE;
+    }
+#endif
+
+    gp_state_t * state = GP_GET_STATE( _canvas );
+    if( state->line_join == _join )
+    {
+        return GP_SUCCESSFUL;
+    }
+
+    state->line_join = _join;
+    _canvas->state_invalidate = GP_TRUE;
+
+    return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
+gp_result_t gp_get_line_join( const gp_canvas_t * _canvas, gp_line_join_t * _join )
+{
+    *_join = GP_GET_STATE( _canvas )->line_join;
+
+    return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
+gp_result_t gp_set_miter_limit( gp_canvas_t * _canvas, float _limit )
+{
+#if defined(GP_DEBUG)
+    if( _limit < 1.f )
+    {
+        return GP_FAILURE;
+    }
+#endif
+
+    gp_state_t * state = GP_GET_STATE( _canvas );
+    if( state->miter_limit == _limit )
+    {
+        return GP_SUCCESSFUL;
+    }
+
+    state->miter_limit = _limit;
+    _canvas->state_invalidate = GP_TRUE;
+
+    return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
+gp_result_t gp_get_miter_limit( const gp_canvas_t * _canvas, float * _limit )
+{
+    *_limit = GP_GET_STATE( _canvas )->miter_limit;
+
+    return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
+gp_result_t gp_set_fill_rule( gp_canvas_t * _canvas, gp_fill_rule_t _rule )
+{
+#if defined(GP_DEBUG)
+    if( _rule != GP_FILL_RULE_NON_ZERO && _rule != GP_FILL_RULE_EVEN_ODD )
+    {
+        return GP_FAILURE;
+    }
+#endif
+
+    gp_state_t * state = GP_GET_STATE( _canvas );
+    if( state->fill_rule == _rule )
+    {
+        return GP_SUCCESSFUL;
+    }
+
+    state->fill_rule = _rule;
+    _canvas->state_invalidate = GP_TRUE;
+
+    return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
+gp_result_t gp_get_fill_rule( const gp_canvas_t * _canvas, gp_fill_rule_t * _rule )
+{
+    *_rule = GP_GET_STATE( _canvas )->fill_rule;
+
+    return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
+gp_result_t gp_set_line_dash( gp_canvas_t * _canvas, const float * _pattern, gp_uint8_t _count, float _offset )
+{
+#if defined(GP_DEBUG)
+    if( _pattern == GP_NULLPTR || _count == 0 || _count > GP_DASH_PATTERN_MAX )
+    {
+        return GP_FAILURE;
+    }
+
+    for( gp_uint8_t index = 0; index != _count; ++index )
+    {
+        if( _pattern[index] <= 0.f )
+        {
+            return GP_FAILURE;
+        }
+    }
+#endif
+
+    gp_state_t * state = GP_GET_STATE( _canvas );
+    for( gp_uint8_t index = 0; index != _count; ++index )
+    {
+        state->dash_pattern[index] = _pattern[index];
+    }
+
+    state->dash_count = _count;
+    state->dash_offset = _offset;
+    _canvas->state_invalidate = GP_TRUE;
+
+    return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
+gp_result_t gp_clear_line_dash( gp_canvas_t * _canvas )
+{
+    gp_state_t * state = GP_GET_STATE( _canvas );
+    state->dash_count = 0;
+    state->dash_offset = 0.f;
+    _canvas->state_invalidate = GP_TRUE;
 
     return GP_SUCCESSFUL;
 }
@@ -469,7 +641,7 @@ gp_result_t gp_begin_fill( gp_canvas_t * _canvas )
     {
         return GP_FAILURE;
     }
-#endif    
+#endif
 
     state->fill = GP_TRUE;
 
@@ -492,6 +664,56 @@ gp_result_t gp_end_fill( gp_canvas_t * _canvas )
     state->fill = GP_FALSE;
 
     _canvas->state_invalidate = GP_TRUE;
+
+    return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
+gp_result_t gp_begin_compound_fill( gp_canvas_t * _canvas, gp_fill_rule_t _rule )
+{
+#if defined(GP_DEBUG)
+    if( _canvas->active_compound_fill != GP_NULLPTR ||
+        (_rule != GP_FILL_RULE_NON_ZERO && _rule != GP_FILL_RULE_EVEN_ODD) )
+    {
+        return GP_FAILURE;
+    }
+#endif
+
+    gp_compound_fill_t * compound = GP_NEW( _canvas, gp_compound_fill_t );
+    compound->next = GP_NULLPTR;
+    compound->prev = GP_NULLPTR;
+    compound->first_line = GP_NULLPTR;
+    compound->last_line = GP_NULLPTR;
+    compound->fill_rule = _rule;
+
+    GP_LIST_PUSHBACK( gp_compound_fill_t, _canvas->compound_fills, compound );
+
+    gp_state_t * state = GP_GET_STATE( _canvas );
+    _canvas->compound_previous_fill = state->fill;
+    _canvas->active_compound_fill = compound;
+
+    state->fill = GP_TRUE;
+    _canvas->state_invalidate = GP_TRUE;
+
+    return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
+gp_result_t gp_end_compound_fill( gp_canvas_t * _canvas )
+{
+#if defined(GP_DEBUG)
+    if( _canvas->active_compound_fill == GP_NULLPTR || _canvas->active_compound_fill->first_line == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
+#endif
+
+    gp_compound_fill_t * compound = _canvas->active_compound_fill;
+    _canvas->active_compound_fill = GP_NULLPTR;
+
+    gp_state_t * state = GP_GET_STATE( _canvas );
+    state->fill = _canvas->compound_previous_fill;
+    _canvas->state_invalidate = GP_TRUE;
+
+    GP_CALL( __push_render_order, (_canvas, GP_RENDER_ORDER_COMPOUND_FILL, compound) );
 
     return GP_SUCCESSFUL;
 }
@@ -522,6 +744,8 @@ gp_result_t gp_pop_state( gp_canvas_t * _canvas )
 #endif
 
     --_canvas->state_stack;
+
+    _canvas->state_invalidate = GP_TRUE;
 
     return GP_SUCCESSFUL;
 }
@@ -595,12 +819,28 @@ gp_result_t gp_point_move_to( gp_canvas_t * _canvas, float _x, float _y )
 
     l->edges = GP_NULLPTR;
     l->state = p->state;
+    l->closed = GP_FALSE;
+    l->compound_fill = _canvas->active_compound_fill;
     l->realloc = _canvas->realloc;
     l->free = _canvas->free;
     l->ud = _canvas->ud;
 
     GP_LIST_PUSHBACK( gp_line_t, _canvas->lines, l );
-    GP_CALL( __push_render_order, (_canvas, GP_RENDER_ORDER_LINE, l) );
+
+    if( _canvas->active_compound_fill == GP_NULLPTR )
+    {
+        GP_CALL( __push_render_order, (_canvas, GP_RENDER_ORDER_LINE, l) );
+    }
+    else
+    {
+        gp_compound_fill_t * compound = _canvas->active_compound_fill;
+        if( compound->first_line == GP_NULLPTR )
+        {
+            compound->first_line = l;
+        }
+
+        compound->last_line = l;
+    }
 
     return GP_SUCCESSFUL;
 }
@@ -690,6 +930,129 @@ gp_result_t gp_point_bezier_curve_to( gp_canvas_t * _canvas, float _p0x, float _
     e->p[1].y = _p1y;
 
     GP_LIST_PUSHBACK( gp_line_edge_t, line_back->edges, e );
+
+    return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
+gp_result_t gp_point_close( gp_canvas_t * _canvas )
+{
+#if defined(GP_DEBUG)
+    if( _canvas->lines == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
+#endif
+
+    gp_line_t * line = GP_LIST_BACK( _canvas->lines );
+
+#if defined(GP_DEBUG)
+    if( line->edges == GP_NULLPTR || line->closed == GP_TRUE )
+    {
+        return GP_FAILURE;
+    }
+#endif
+
+    line->closed = GP_TRUE;
+
+    return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
+gp_result_t gp_point_tangent_arc_to( gp_canvas_t * _canvas, float _x1, float _y1, float _x2, float _y2, float _radius )
+{
+#if defined(GP_DEBUG)
+    if( _canvas->lines == GP_NULLPTR || _radius < 0.f )
+    {
+        return GP_FAILURE;
+    }
+#endif
+
+    gp_line_t * line = GP_LIST_BACK( _canvas->lines );
+    const gp_line_point_t * current = GP_LIST_BACK( line->points );
+
+    float incoming_x = current->p.x - _x1;
+    float incoming_y = current->p.y - _y1;
+    float outgoing_x = _x2 - _x1;
+    float outgoing_y = _y2 - _y1;
+    float incoming_length = GP_MATH_SQRTF( incoming_x * incoming_x + incoming_y * incoming_y );
+    float outgoing_length = GP_MATH_SQRTF( outgoing_x * outgoing_x + outgoing_y * outgoing_y );
+
+    if( incoming_length <= 0.0001f || outgoing_length <= 0.0001f || _radius <= 0.0001f )
+    {
+        return gp_point_line_to( _canvas, _x1, _y1 );
+    }
+
+    incoming_x /= incoming_length;
+    incoming_y /= incoming_length;
+    outgoing_x /= outgoing_length;
+    outgoing_y /= outgoing_length;
+
+    float dot = incoming_x * outgoing_x + incoming_y * outgoing_y;
+    if( dot < -1.f )
+    {
+        dot = -1.f;
+    }
+    else if( dot > 1.f )
+    {
+        dot = 1.f;
+    }
+
+    float angle = GP_MATH_ACOSF( dot );
+    float half_angle = angle * 0.5f;
+    float sin_half_angle = GP_MATH_SINF( half_angle );
+    float tan_half_angle = sin_half_angle / GP_MATH_COSF( half_angle );
+    if( sin_half_angle <= 0.0001f || tan_half_angle <= 0.0001f )
+    {
+        return gp_point_line_to( _canvas, _x1, _y1 );
+    }
+
+    float tangent_distance = _radius / tan_half_angle;
+    if( tangent_distance > incoming_length )
+    {
+        tangent_distance = incoming_length;
+    }
+    if( tangent_distance > outgoing_length )
+    {
+        tangent_distance = outgoing_length;
+    }
+
+    float effective_radius = tangent_distance * tan_half_angle;
+    float tangent0_x = _x1 + incoming_x * tangent_distance;
+    float tangent0_y = _y1 + incoming_y * tangent_distance;
+    float tangent1_x = _x1 + outgoing_x * tangent_distance;
+    float tangent1_y = _y1 + outgoing_y * tangent_distance;
+    float bisector_x = incoming_x + outgoing_x;
+    float bisector_y = incoming_y + outgoing_y;
+    float bisector_length = GP_MATH_SQRTF( bisector_x * bisector_x + bisector_y * bisector_y );
+    if( bisector_length <= 0.0001f )
+    {
+        return gp_point_line_to( _canvas, _x1, _y1 );
+    }
+
+    bisector_x /= bisector_length;
+    bisector_y /= bisector_length;
+    float center_distance = effective_radius / sin_half_angle;
+    float center_x = _x1 + bisector_x * center_distance;
+    float center_y = _y1 + bisector_y * center_distance;
+    float angle_from = GP_MATH_ATAN2F( tangent0_y - center_y, tangent0_x - center_x );
+    float angle_to = GP_MATH_ATAN2F( tangent1_y - center_y, tangent1_x - center_x );
+    float turn = (-incoming_x) * outgoing_y - (-incoming_y) * outgoing_x;
+
+    if( turn > 0.f )
+    {
+        while( angle_to < angle_from )
+        {
+            angle_to += gp_constant_two_pi;
+        }
+    }
+    else
+    {
+        while( angle_to > angle_from )
+        {
+            angle_to -= gp_constant_two_pi;
+        }
+    }
+
+    GP_CALL( gp_arc_to, (_canvas, center_x, center_y, effective_radius, angle_from, angle_to) );
 
     return GP_SUCCESSFUL;
 }
@@ -875,6 +1238,14 @@ gp_result_t gp_calculate_mesh_size( const gp_canvas_t * _canvas, gp_mesh_t * _me
     GP_CALL( gp_calculate_mesh_rect_size, (_canvas, _mesh) );
     GP_CALL( gp_calculate_mesh_rounded_rect_size, (_canvas, _mesh) );
     GP_CALL( gp_calculate_mesh_ellipse_size, (_canvas, _mesh) );
+    GP_CALL( gp_calculate_mesh_compound_fill_size, (_canvas, _mesh) );
+
+#if defined(GP_DEBUG)
+    if( _mesh->vertex_count > UINT16_MAX )
+    {
+        return GP_FAILURE;
+    }
+#endif
 
     _mesh->color.r = 1.f;
     _mesh->color.g = 1.f;
@@ -924,8 +1295,8 @@ gp_result_t gp_render( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh )
     }
 #endif
 
-    gp_uint16_t vertex_iterator = 0;
-    gp_uint16_t index_iterator = 0;
+    gp_uint32_t vertex_iterator = 0;
+    gp_uint32_t index_iterator = 0;
 
     for( const gp_render_order_t * order = _canvas->render_order; order != GP_NULLPTR; order = order->next )
     {
@@ -955,6 +1326,11 @@ gp_result_t gp_render( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh )
         {
             const gp_ellipse_arc_t * ellipse_arc = (const gp_ellipse_arc_t *)order->primitive;
             GP_CALL( gp_render_ellipse_arc, (ellipse_arc, ellipse_arc->state, _mesh, &vertex_iterator, &index_iterator) );
+        } break;
+        case GP_RENDER_ORDER_COMPOUND_FILL:
+        {
+            const gp_compound_fill_t * compound = (const gp_compound_fill_t *)order->primitive;
+            GP_CALL( gp_render_compound_fill, (compound, _mesh, &vertex_iterator, &index_iterator) );
         } break;
         default:
             return GP_FAILURE;

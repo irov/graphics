@@ -67,8 +67,8 @@ typedef struct gp_color_t
 #define GP_STATE_STACK_MAX 8
 #endif
 
-#ifndef GP_ENABLE_EXTRA_LINE_POINTS
-#define GP_DISABLE_EXTRA_LINE_POINTS
+#ifndef GP_DASH_PATTERN_MAX
+#define GP_DASH_PATTERN_MAX 8
 #endif
 
 #ifndef GP_MATH_SQRTF
@@ -84,6 +84,16 @@ typedef struct gp_color_t
 #ifndef GP_MATH_SINF
 #include <math.h>
 #define GP_MATH_SINF (sinf)
+#endif
+
+#ifndef GP_MATH_ATAN2F
+#include <math.h>
+#define GP_MATH_ATAN2F (atan2f)
+#endif
+
+#ifndef GP_MATH_ACOSF
+#include <math.h>
+#define GP_MATH_ACOSF (acosf)
 #endif
 
 #endif

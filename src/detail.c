@@ -25,7 +25,7 @@ gp_uint32_t gp_color_argb( const gp_color_t * _c )
     return argb;
 }
 //////////////////////////////////////////////////////////////////////////
-gp_result_t gp_mesh_push_index( const gp_mesh_t * _mesh, gp_uint16_t _iterator, gp_uint16_t _index )
+gp_result_t gp_mesh_push_index( const gp_mesh_t * _mesh, gp_uint32_t _iterator, gp_uint32_t _index )
 {
     if( _mesh->indices_buffer == GP_NULLPTR )
     {
@@ -33,18 +33,18 @@ gp_result_t gp_mesh_push_index( const gp_mesh_t * _mesh, gp_uint16_t _iterator, 
     }
 
 #if defined(GP_DEBUG)
-    if( _mesh->index_count <= _iterator )
+    if( _mesh->index_count <= _iterator || _index >= UINT16_MAX )
     {
         return GP_FAILURE;
     }
 #endif
 
-    * (gp_uint16_t *)((gp_uint8_t *)_mesh->indices_buffer + _mesh->indices_offset + _mesh->indices_stride * _iterator) = _index;
+    * (gp_uint16_t *)((gp_uint8_t *)_mesh->indices_buffer + _mesh->indices_offset + _mesh->indices_stride * _iterator) = (gp_uint16_t)_index;
 
     return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
-gp_result_t gp_mesh_push_position( const gp_mesh_t * _mesh, gp_uint16_t _iterator, float _x, float _y )
+gp_result_t gp_mesh_push_position( const gp_mesh_t * _mesh, gp_uint32_t _iterator, float _x, float _y )
 {
     if( _mesh->positions_buffer == GP_NULLPTR )
     {
@@ -67,7 +67,7 @@ gp_result_t gp_mesh_push_position( const gp_mesh_t * _mesh, gp_uint16_t _iterato
     return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
-gp_result_t gp_mesh_push_color( const gp_mesh_t * _mesh, gp_uint16_t _iterator, gp_argb_t _c )
+gp_result_t gp_mesh_push_color( const gp_mesh_t * _mesh, gp_uint32_t _iterator, gp_argb_t _c )
 {
     if( _mesh->colors_buffer == GP_NULLPTR )
     {
@@ -86,7 +86,7 @@ gp_result_t gp_mesh_push_color( const gp_mesh_t * _mesh, gp_uint16_t _iterator, 
     return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
-gp_result_t gp_mesh_push_uv( const gp_state_t * _state, const gp_mesh_t * _mesh, gp_uint16_t _iterator, float _u, float _v )
+gp_result_t gp_mesh_push_uv( const gp_state_t * _state, const gp_mesh_t * _mesh, gp_uint32_t _iterator, float _u, float _v )
 {
     if( _mesh->uv_buffer == GP_NULLPTR )
     {
@@ -109,7 +109,7 @@ gp_result_t gp_mesh_push_uv( const gp_state_t * _state, const gp_mesh_t * _mesh,
     return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
-gp_result_t gp_mesh_push_uv_map( const gp_state_t * _state, const gp_mesh_t * _mesh, gp_uint16_t _iterator, float _x, float _y, float _ox, float _oy, float _w, float _h )
+gp_result_t gp_mesh_push_uv_map( const gp_state_t * _state, const gp_mesh_t * _mesh, gp_uint32_t _iterator, float _x, float _y, float _ox, float _oy, float _w, float _h )
 {
     float u = (_x + _ox) / _w;
     float v = (_y + _oy) / _h;
@@ -119,7 +119,7 @@ gp_result_t gp_mesh_push_uv_map( const gp_state_t * _state, const gp_mesh_t * _m
     return result;
 }
 //////////////////////////////////////////////////////////////////////////
-gp_result_t gp_mesh_get_position( const gp_mesh_t * _mesh, gp_uint16_t _iterator, gp_vec2f_t * const _pos )
+gp_result_t gp_mesh_get_position( const gp_mesh_t * _mesh, gp_uint32_t _iterator, gp_vec2f_t * const _pos )
 {
 #if defined(GP_DEBUG)
     if( _mesh->vertex_count <= _iterator )
