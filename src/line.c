@@ -4,123 +4,850 @@
 #include "detail.h"
 
 //////////////////////////////////////////////////////////////////////////
-static gp_result_t __calculate_mesh_line_size( const gp_canvas_t * _canvas, gp_uint32_t * const _vertex_count, gp_uint32_t * const _index_count )
+typedef struct gp_cooked_point_t
 {
-    gp_uint32_t vertex_count = 0;
-    gp_uint32_t index_count = 0;
+    gp_vec2f_t position;
+    float half_width;
+    gp_color_t color;
+    gp_color_t outline_color;
+    float length;
+    gp_bool_t join;
+} gp_cooked_point_t;
+//////////////////////////////////////////////////////////////////////////
+typedef struct gp_cooked_path_t
+{
+    gp_cooked_point_t * points;
+    gp_uint32_t count;
+    gp_uint32_t capacity;
+    gp_bool_t closed;
+} gp_cooked_path_t;
+//////////////////////////////////////////////////////////////////////////
+typedef struct gp_cooked_span_t
+{
+    gp_cooked_point_t * points;
+    gp_uint32_t count;
+    gp_uint32_t capacity;
+    gp_bool_t closed;
+} gp_cooked_span_t;
+//////////////////////////////////////////////////////////////////////////
+typedef struct gp_cooked_stroke_t
+{
+    gp_cooked_span_t * spans;
+    gp_uint32_t count;
+    gp_uint32_t capacity;
+} gp_cooked_stroke_t;
+//////////////////////////////////////////////////////////////////////////
+typedef struct gp_round_sector_t
+{
+    float angle_from;
+    float angle_delta;
+    gp_uint32_t segment_count;
+} gp_round_sector_t;
+//////////////////////////////////////////////////////////////////////////
+static float __line_lerp( float _from, float _to, float _t )
+{
+    return _from * (1.f - _t) + _to * _t;
+}
+//////////////////////////////////////////////////////////////////////////
+static void __line_lerp_color( gp_color_t * const _color, const gp_color_t * _from, const gp_color_t * _to, float _t )
+{
+    _color->r = __line_lerp( _from->r, _to->r, _t );
+    _color->g = __line_lerp( _from->g, _to->g, _t );
+    _color->b = __line_lerp( _from->b, _to->b, _t );
+    _color->a = __line_lerp( _from->a, _to->a, _t );
+}
+//////////////////////////////////////////////////////////////////////////
+static float __line_distance( const gp_vec2f_t * _from, const gp_vec2f_t * _to )
+{
+    float dx = _to->x - _from->x;
+    float dy = _to->y - _from->y;
 
-    GP_LIST_FOREACH( gp_line_t, _canvas->lines, l )
+    return GP_MATH_SQRTF( dx * dx + dy * dy );
+}
+//////////////////////////////////////////////////////////////////////////
+static gp_bool_t __line_same_point( const gp_vec2f_t * _from, const gp_vec2f_t * _to )
+{
+    return GP_EQUAL_F( _from->x - _to->x, 0.00001f ) && GP_EQUAL_F( _from->y - _to->y, 0.00001f );
+}
+//////////////////////////////////////////////////////////////////////////
+static void __line_direction( gp_vec2f_t * const _direction, const gp_vec2f_t * _from, const gp_vec2f_t * _to )
+{
+    float dx = _to->x - _from->x;
+    float dy = _to->y - _from->y;
+    float length = GP_MATH_SQRTF( dx * dx + dy * dy );
+    float length_inv = 1.f / length;
+
+    _direction->x = dx * length_inv;
+    _direction->y = dy * length_inv;
+}
+//////////////////////////////////////////////////////////////////////////
+static void __line_perpendicular( gp_vec2f_t * const _perpendicular, const gp_vec2f_t * _from, const gp_vec2f_t * _to )
+{
+    gp_vec2f_t direction;
+    __line_direction( &direction, _from, _to );
+
+    _perpendicular->x = -direction.y;
+    _perpendicular->y = direction.x;
+}
+//////////////////////////////////////////////////////////////////////////
+static void __line_reserve_points( const gp_line_t * _line, gp_cooked_point_t ** _points, gp_uint32_t _count, gp_uint32_t * _capacity, gp_uint32_t _required )
+{
+    if( _required <= *_capacity )
     {
-        if( l->compound_fill != GP_NULLPTR )
+        return;
+    }
+
+    gp_uint32_t capacity = *_capacity == 0 ? 16 : *_capacity;
+    while( capacity < _required )
+    {
+        capacity *= 2;
+    }
+
+    gp_cooked_point_t * points = (gp_cooked_point_t *)(*_line->realloc)(GP_NULLPTR, sizeof( gp_cooked_point_t ) * capacity, _line->ud);
+    for( gp_uint32_t index = 0; index != _count; ++index )
+    {
+        points[index] = (*_points)[index];
+    }
+    if( *_points != GP_NULLPTR )
+    {
+        (*_line->free)(*_points, _line->ud);
+    }
+
+    *_points = points;
+    *_capacity = capacity;
+}
+//////////////////////////////////////////////////////////////////////////
+static void __line_push_point( const gp_line_t * _line, gp_cooked_path_t * _path, const gp_cooked_point_t * _point )
+{
+    if( _path->count != 0 && __line_same_point( &_path->points[_path->count - 1].position, &_point->position ) == GP_TRUE )
+    {
+        gp_bool_t join = _path->points[_path->count - 1].join == GP_TRUE || _point->join == GP_TRUE
+            ? GP_TRUE
+            : GP_FALSE;
+        _path->points[_path->count - 1] = *_point;
+        _path->points[_path->count - 1].join = join;
+        if( _path->count == 1 )
         {
-            continue;
-        }
-
-        if( l->edges == GP_NULLPTR )
-        {
-            continue;
-        }
-
-        const gp_state_t * state = l->state;
-
-        uint8_t curve_quality = state->curve_quality;
-
-        gp_uint32_t point_count = 0;
-
-        for( const gp_line_edge_t * e = l->edges; e != GP_NULLPTR; e = e->next )
-        {
-            switch( e->controls )
-            {
-            case 0:
-                point_count += 1;
-                break;
-            case 1:
-                point_count += curve_quality;
-                break;
-            case 2:
-                point_count += curve_quality;
-                break;
-            default:
-                return GP_FAILURE;
-            }
-        }
-
-        point_count += 1;
-
-        const gp_line_point_t * first_line_point = l->points;
-        const gp_line_point_t * last_line_point = GP_LIST_BACK( l->points );
-        gp_bool_t endpoints_equal = GP_EQUAL_F( first_line_point->p.x - last_line_point->p.x, 0.00001f ) &&
-            GP_EQUAL_F( first_line_point->p.y - last_line_point->p.y, 0.00001f );
-
-        if( l->closed == GP_TRUE && state->fill == GP_FALSE && endpoints_equal == GP_FALSE )
-        {
-            point_count += 1;
-        }
-
-        if( state->fill == GP_TRUE )
-        {
-            if( point_count >= 3 )
-            {
-                vertex_count += point_count;
-                index_count += (point_count - 2) * 3;
-            }
-
-            continue;
-        }
-
-        float penumbra = state->penumbra;
-        float outline_width = state->outline_width;
-
-        if( penumbra > 0.f )
-        {
-            vertex_count += point_count * 4;
-            index_count += (point_count - 1) * 18;
+            _path->points[0].length = 0.f;
         }
         else
         {
-            if( outline_width > 0.f )
-            {
-                vertex_count += point_count * 6;
-                index_count += (point_count - 1) * 18;
-
-                for( gp_uint32_t index = 0; index != 4; ++index )
-                {
-                    vertex_count += 1;
-                    vertex_count += state->rect_quality - 1;
-                    
-                    index_count += state->rect_quality * 3;
-                }
-
-                index_count += 12;
-            }
-            else
-            {
-                vertex_count += point_count * 2;
-                index_count += (point_count - 1) * 6;
-            }
+            _path->points[_path->count - 1].length = _path->points[_path->count - 2].length +
+                __line_distance( &_path->points[_path->count - 2].position, &_point->position );
         }
 
-        gp_uint32_t round_count = 0;
-        if( l->closed == GP_FALSE && state->line_cap == GP_LINE_CAP_ROUND )
+        return;
+    }
+
+    __line_reserve_points( _line, &_path->points, _path->count, &_path->capacity, _path->count + 1 );
+
+    gp_cooked_point_t * point = _path->points + _path->count;
+    *point = *_point;
+    point->length = _path->count == 0
+        ? 0.f
+        : _path->points[_path->count - 1].length + __line_distance( &_path->points[_path->count - 1].position, &_point->position );
+    ++_path->count;
+}
+//////////////////////////////////////////////////////////////////////////
+static void __line_edge_tangent( gp_vec2f_t * const _tangent, const gp_line_point_t * _from, const gp_line_point_t * _to, const gp_line_edge_t * _edge, gp_bool_t _end )
+{
+    switch( _edge->controls )
+    {
+    case 0:
+        _tangent->x = _to->p.x - _from->p.x;
+        _tangent->y = _to->p.y - _from->p.y;
+        break;
+    case 1:
+        if( _end == GP_TRUE )
         {
-            round_count += 2;
+            _tangent->x = _to->p.x - _edge->p[0].x;
+            _tangent->y = _to->p.y - _edge->p[0].y;
         }
-        if( state->line_join == GP_LINE_JOIN_ROUND )
+        else
         {
-            round_count += l->closed == GP_TRUE ? point_count - 1 : point_count - 2;
+            _tangent->x = _edge->p[0].x - _from->p.x;
+            _tangent->y = _edge->p[0].y - _from->p.y;
+        }
+        break;
+    case 2:
+        if( _end == GP_TRUE )
+        {
+            _tangent->x = _to->p.x - _edge->p[1].x;
+            _tangent->y = _to->p.y - _edge->p[1].y;
+        }
+        else
+        {
+            _tangent->x = _edge->p[0].x - _from->p.x;
+            _tangent->y = _edge->p[0].y - _from->p.y;
+        }
+        break;
+    case 3:
+        {
+            float angle = _end == GP_TRUE ? _edge->p[2].y : _edge->p[2].x;
+            float angle_delta = _edge->p[2].y - _edge->p[2].x;
+            _tangent->x = -GP_MATH_SINF( angle ) * _edge->p[1].x * angle_delta;
+            _tangent->y = GP_MATH_COSF( angle ) * _edge->p[1].y * angle_delta;
+        }break;
+    default:
+        _tangent->x = _to->p.x - _from->p.x;
+        _tangent->y = _to->p.y - _from->p.y;
+        break;
+    }
+
+    if( GP_EQUAL_F( _tangent->x, 0.00001f ) == GP_TRUE && GP_EQUAL_F( _tangent->y, 0.00001f ) == GP_TRUE )
+    {
+        _tangent->x = _to->p.x - _from->p.x;
+        _tangent->y = _to->p.y - _from->p.y;
+    }
+}
+//////////////////////////////////////////////////////////////////////////
+static gp_bool_t __line_tangents_join( const gp_vec2f_t * _incoming, const gp_vec2f_t * _outgoing )
+{
+    float incoming_length2 = _incoming->x * _incoming->x + _incoming->y * _incoming->y;
+    float outgoing_length2 = _outgoing->x * _outgoing->x + _outgoing->y * _outgoing->y;
+    if( incoming_length2 <= 0.0000000001f || outgoing_length2 <= 0.0000000001f )
+    {
+        return GP_FALSE;
+    }
+
+    float cross = _incoming->x * _outgoing->y - _incoming->y * _outgoing->x;
+    float dot = _incoming->x * _outgoing->x + _incoming->y * _outgoing->y;
+    float angle = GP_MATH_ATAN2F( cross, dot );
+
+    return GP_EQUAL_F( angle, 0.00001f ) == GP_TRUE ? GP_FALSE : GP_TRUE;
+}
+//////////////////////////////////////////////////////////////////////////
+static gp_bool_t __line_point_join( const gp_line_t * _line, const gp_line_point_t * _point, const gp_line_edge_t * _outgoing_edge )
+{
+    gp_vec2f_t incoming;
+    if( _outgoing_edge->prev != GP_NULLPTR )
+    {
+        __line_edge_tangent( &incoming, _point->prev, _point, _outgoing_edge->prev, GP_TRUE );
+    }
+    else
+    {
+        if( _line->closed == GP_FALSE )
+        {
+            return GP_FALSE;
         }
 
-        if( round_count != 0 )
+        const gp_line_point_t * last_point = GP_LIST_BACK( _line->points );
+        if( __line_same_point( &_point->p, &last_point->p ) == GP_TRUE )
         {
-            gp_uint32_t layer_count = penumbra <= 0.f && outline_width > 0.f ? 2 : 1;
-            gp_uint32_t segment_count = (gp_uint32_t)state->rect_quality * 4;
-            vertex_count += round_count * layer_count * (segment_count + 1);
-            index_count += round_count * layer_count * segment_count * 3;
+            const gp_line_edge_t * last_edge = GP_LIST_BACK( _line->edges );
+            __line_edge_tangent( &incoming, last_point->prev, last_point, last_edge, GP_TRUE );
+        }
+        else
+        {
+            incoming.x = _point->p.x - last_point->p.x;
+            incoming.y = _point->p.y - last_point->p.y;
         }
     }
 
-    *_vertex_count = vertex_count;
-    *_index_count = index_count;
+    gp_vec2f_t outgoing;
+    __line_edge_tangent( &outgoing, _point, _point->next, _outgoing_edge, GP_FALSE );
+
+    return __line_tangents_join( &incoming, &outgoing );
+}
+//////////////////////////////////////////////////////////////////////////
+static gp_bool_t __line_last_point_join( const gp_line_t * _line, const gp_line_point_t * _point )
+{
+    if( _line->closed == GP_FALSE )
+    {
+        return GP_FALSE;
+    }
+
+    const gp_line_edge_t * incoming_edge = GP_LIST_BACK( _line->edges );
+    gp_vec2f_t incoming;
+    __line_edge_tangent( &incoming, _point->prev, _point, incoming_edge, GP_TRUE );
+
+    const gp_line_point_t * first_point = _line->points;
+    if( __line_same_point( &_point->p, &first_point->p ) == GP_TRUE )
+    {
+        const gp_line_edge_t * outgoing_edge = _line->edges;
+        gp_vec2f_t outgoing;
+        __line_edge_tangent( &outgoing, first_point, first_point->next, outgoing_edge, GP_FALSE );
+
+        return __line_tangents_join( &incoming, &outgoing );
+    }
+
+    gp_vec2f_t outgoing;
+    outgoing.x = first_point->p.x - _point->p.x;
+    outgoing.y = first_point->p.y - _point->p.y;
+
+    return __line_tangents_join( &incoming, &outgoing );
+}
+//////////////////////////////////////////////////////////////////////////
+static void __line_make_point( gp_cooked_point_t * const _point, const gp_line_point_t * _from, const gp_line_point_t * _to, const gp_line_edge_t * _edge, float _t )
+{
+    float inverse_t = 1.f - _t;
+    switch( _edge->controls )
+    {
+    case 0:
+        _point->position.x = __line_lerp( _from->p.x, _to->p.x, _t );
+        _point->position.y = __line_lerp( _from->p.y, _to->p.y, _t );
+        break;
+    case 1:
+        _point->position.x = inverse_t * inverse_t * _from->p.x + 2.f * inverse_t * _t * _edge->p[0].x + _t * _t * _to->p.x;
+        _point->position.y = inverse_t * inverse_t * _from->p.y + 2.f * inverse_t * _t * _edge->p[0].y + _t * _t * _to->p.y;
+        break;
+    case 2:
+        _point->position.x = inverse_t * inverse_t * inverse_t * _from->p.x + 3.f * inverse_t * inverse_t * _t * _edge->p[0].x +
+            3.f * inverse_t * _t * _t * _edge->p[1].x + _t * _t * _t * _to->p.x;
+        _point->position.y = inverse_t * inverse_t * inverse_t * _from->p.y + 3.f * inverse_t * inverse_t * _t * _edge->p[0].y +
+            3.f * inverse_t * _t * _t * _edge->p[1].y + _t * _t * _t * _to->p.y;
+        break;
+    case 3:
+        {
+            float angle = __line_lerp( _edge->p[2].x, _edge->p[2].y, _t );
+            _point->position.x = _edge->p[0].x + GP_MATH_COSF( angle ) * _edge->p[1].x;
+            _point->position.y = _edge->p[0].y + GP_MATH_SINF( angle ) * _edge->p[1].y;
+        }break;
+    default:
+        _point->position = _from->p;
+        break;
+    }
+
+    _point->half_width = __line_lerp( _from->state->thickness, _to->state->thickness, _t ) * 0.5f;
+    __line_lerp_color( &_point->color, &_from->state->color, &_to->state->color, _t );
+    __line_lerp_color( &_point->outline_color, &_from->state->outline_color, &_to->state->outline_color, _t );
+    _point->length = 0.f;
+    _point->join = GP_FALSE;
+}
+//////////////////////////////////////////////////////////////////////////
+static gp_result_t __line_cook_path( const gp_line_t * _line, gp_cooked_path_t * const _path )
+{
+    _path->points = GP_NULLPTR;
+    _path->count = 0;
+    _path->capacity = 0;
+    _path->closed = _line->closed;
+
+    if( _line->edges == GP_NULLPTR )
+    {
+        return GP_SUCCESSFUL;
+    }
+
+    const gp_line_point_t * from = _line->points;
+    for( const gp_line_edge_t * edge = _line->edges; edge != GP_NULLPTR; edge = edge->next )
+    {
+#if defined(GP_DEBUG)
+        if( edge->controls > 3 || from->next == GP_NULLPTR )
+        {
+            return GP_FAILURE;
+        }
+#endif
+
+        const gp_line_point_t * to = from->next;
+        gp_uint32_t sample_count;
+        if( edge->controls == 0 )
+        {
+            sample_count = 1;
+        }
+        else if( edge->controls == 3 )
+        {
+            float angle_delta = edge->p[2].y - edge->p[2].x;
+            sample_count = gp_ellipse_arc_segment_count( angle_delta, _line->state->ellipse_quality );
+        }
+        else
+        {
+            sample_count = _line->state->curve_quality;
+        }
+        for( gp_uint32_t index = 0; index != sample_count; ++index )
+        {
+            float t;
+            if( edge->controls == 3 )
+            {
+                float angle_delta = edge->p[2].y - edge->p[2].x;
+                t = gp_ellipse_arc_sample_t( angle_delta, _line->state->ellipse_quality, index );
+            }
+            else
+            {
+                t = (float)index / (float)sample_count;
+            }
+
+            gp_cooked_point_t point;
+            __line_make_point( &point, from, to, edge, t );
+            if( index == 0 )
+            {
+                point.join = __line_point_join( _line, from, edge );
+            }
+            if( edge->controls == 3 )
+            {
+                float angle = gp_ellipse_arc_sample_angle( edge->p[2].x, edge->p[2].y, _line->state->ellipse_quality, index );
+                point.position.x = edge->p[0].x + GP_MATH_COSF( angle ) * edge->p[1].x;
+                point.position.y = edge->p[0].y + GP_MATH_SINF( angle ) * edge->p[1].y;
+            }
+            __line_push_point( _line, _path, &point );
+        }
+
+        from = to;
+    }
+
+    gp_cooked_point_t last;
+    last.position = from->p;
+    last.half_width = from->state->thickness * 0.5f;
+    last.color = from->state->color;
+    last.outline_color = from->state->outline_color;
+    last.length = 0.f;
+    last.join = __line_last_point_join( _line, from );
+    __line_push_point( _line, _path, &last );
+
+    if( _line->closed == GP_TRUE && _line->state->fill == GP_FALSE && _path->count >= 2 )
+    {
+        if( __line_same_point( &_path->points[0].position, &_path->points[_path->count - 1].position ) == GP_TRUE )
+        {
+            --_path->count;
+        }
+
+        gp_cooked_point_t closing = _path->points[0];
+        __line_push_point( _line, _path, &closing );
+    }
+
+    return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
+static void __line_destroy_path( const gp_line_t * _line, gp_cooked_path_t * _path )
+{
+    if( _path->points != GP_NULLPTR )
+    {
+        (*_line->free)(_path->points, _line->ud);
+    }
+}
+//////////////////////////////////////////////////////////////////////////
+static void __line_span_push( const gp_line_t * _line, gp_cooked_span_t * _span, const gp_cooked_point_t * _point )
+{
+    if( _span->count != 0 && __line_same_point( &_span->points[_span->count - 1].position, &_point->position ) == GP_TRUE )
+    {
+        gp_bool_t join = _span->points[_span->count - 1].join == GP_TRUE || _point->join == GP_TRUE
+            ? GP_TRUE
+            : GP_FALSE;
+        _span->points[_span->count - 1] = *_point;
+        _span->points[_span->count - 1].join = join;
+        return;
+    }
+
+    __line_reserve_points( _line, &_span->points, _span->count, &_span->capacity, _span->count + 1 );
+    _span->points[_span->count] = *_point;
+    _span->points[_span->count].length = _span->count == 0
+        ? 0.f
+        : _span->points[_span->count - 1].length + __line_distance( &_span->points[_span->count - 1].position, &_point->position );
+    ++_span->count;
+}
+//////////////////////////////////////////////////////////////////////////
+static gp_cooked_span_t * __line_new_span( const gp_line_t * _line, gp_cooked_stroke_t * _stroke )
+{
+    if( _stroke->count == _stroke->capacity )
+    {
+        gp_uint32_t capacity = _stroke->capacity == 0 ? 8 : _stroke->capacity * 2;
+        gp_cooked_span_t * spans = (gp_cooked_span_t *)(*_line->realloc)(GP_NULLPTR, sizeof( gp_cooked_span_t ) * capacity, _line->ud);
+        for( gp_uint32_t index = 0; index != _stroke->count; ++index )
+        {
+            spans[index] = _stroke->spans[index];
+        }
+        if( _stroke->spans != GP_NULLPTR )
+        {
+            (*_line->free)(_stroke->spans, _line->ud);
+        }
+
+        _stroke->spans = spans;
+        _stroke->capacity = capacity;
+    }
+
+    gp_cooked_span_t * span = _stroke->spans + _stroke->count++;
+    span->points = GP_NULLPTR;
+    span->count = 0;
+    span->capacity = 0;
+    span->closed = GP_FALSE;
+
+    return span;
+}
+//////////////////////////////////////////////////////////////////////////
+static void __line_interpolate_cooked_point( gp_cooked_point_t * const _point, const gp_cooked_point_t * _from, const gp_cooked_point_t * _to, float _t )
+{
+    _point->position.x = __line_lerp( _from->position.x, _to->position.x, _t );
+    _point->position.y = __line_lerp( _from->position.y, _to->position.y, _t );
+    _point->half_width = __line_lerp( _from->half_width, _to->half_width, _t );
+    __line_lerp_color( &_point->color, &_from->color, &_to->color, _t );
+    __line_lerp_color( &_point->outline_color, &_from->outline_color, &_to->outline_color, _t );
+    _point->length = __line_lerp( _from->length, _to->length, _t );
+    if( GP_EQUAL_F( _t, 0.00001f ) == GP_TRUE )
+    {
+        _point->join = _from->join;
+    }
+    else if( GP_EQUAL_F( _t - 1.f, 0.00001f ) == GP_TRUE )
+    {
+        _point->join = _to->join;
+    }
+    else
+    {
+        _point->join = GP_FALSE;
+    }
+}
+//////////////////////////////////////////////////////////////////////////
+static void __line_recalculate_span_lengths( gp_cooked_span_t * _span )
+{
+    if( _span->count == 0 )
+    {
+        return;
+    }
+
+    _span->points[0].length = 0.f;
+    for( gp_uint32_t index = 1; index != _span->count; ++index )
+    {
+        _span->points[index].length = _span->points[index - 1].length +
+            __line_distance( &_span->points[index - 1].position, &_span->points[index].position );
+    }
+}
+//////////////////////////////////////////////////////////////////////////
+static void __line_merge_closed_dash_seam( const gp_line_t * _line, gp_cooked_stroke_t * _stroke )
+{
+    if( _stroke->count < 2 )
+    {
+        return;
+    }
+
+    gp_cooked_span_t * first = _stroke->spans;
+    gp_cooked_span_t * last = _stroke->spans + _stroke->count - 1;
+    gp_uint32_t merged_count = last->count + first->count - 1;
+    gp_cooked_point_t * merged = (gp_cooked_point_t *)(*_line->realloc)(GP_NULLPTR, sizeof( gp_cooked_point_t ) * merged_count, _line->ud);
+
+    for( gp_uint32_t index = 0; index != last->count; ++index )
+    {
+        merged[index] = last->points[index];
+    }
+    for( gp_uint32_t index = 1; index != first->count; ++index )
+    {
+        merged[last->count + index - 1] = first->points[index];
+    }
+
+    (*_line->free)(first->points, _line->ud);
+    (*_line->free)(last->points, _line->ud);
+    first->points = merged;
+    first->count = merged_count;
+    first->capacity = merged_count;
+    first->closed = GP_FALSE;
+    __line_recalculate_span_lengths( first );
+
+    --_stroke->count;
+}
+//////////////////////////////////////////////////////////////////////////
+static gp_result_t __line_cook_stroke( const gp_line_t * _line, const gp_cooked_path_t * _path, gp_cooked_stroke_t * const _stroke )
+{
+    _stroke->spans = GP_NULLPTR;
+    _stroke->count = 0;
+    _stroke->capacity = 0;
+
+    if( _path->count < 2 )
+    {
+        return GP_SUCCESSFUL;
+    }
+
+    const gp_state_t * state = _line->state;
+    if( state->dash_count == 0 )
+    {
+        gp_cooked_span_t * span = __line_new_span( _line, _stroke );
+        for( gp_uint32_t index = 0; index != _path->count; ++index )
+        {
+            __line_span_push( _line, span, _path->points + index );
+        }
+        span->closed = _path->closed;
+
+        return GP_SUCCESSFUL;
+    }
+
+    gp_uint32_t pattern_count = state->dash_count % 2 == 0 ? state->dash_count : state->dash_count * 2;
+    float pattern_length = 0.f;
+    for( gp_uint32_t index = 0; index != pattern_count; ++index )
+    {
+        pattern_length += state->dash_pattern[index % state->dash_count];
+    }
+
+    float phase = GP_MATH_FMODF( state->dash_offset, pattern_length );
+    if( phase < 0.f )
+    {
+        phase += pattern_length;
+    }
+
+    gp_uint32_t pattern_index = 0;
+    while( phase >= state->dash_pattern[pattern_index % state->dash_count] )
+    {
+        phase -= state->dash_pattern[pattern_index % state->dash_count];
+        pattern_index = (pattern_index + 1) % pattern_count;
+    }
+
+    float pattern_remaining = state->dash_pattern[pattern_index % state->dash_count] - phase;
+    gp_bool_t drawing = pattern_index % 2 == 0 ? GP_TRUE : GP_FALSE;
+    gp_cooked_span_t * active_span = GP_NULLPTR;
+
+    for( gp_uint32_t segment = 0; segment + 1 < _path->count; ++segment )
+    {
+        const gp_cooked_point_t * from = _path->points + segment;
+        const gp_cooked_point_t * to = _path->points + segment + 1;
+        float segment_length = __line_distance( &from->position, &to->position );
+        if( segment_length <= 0.00001f )
+        {
+            continue;
+        }
+
+        float consumed = 0.f;
+        while( consumed < segment_length - 0.00001f )
+        {
+            float available = segment_length - consumed;
+            float step = pattern_remaining < available ? pattern_remaining : available;
+
+            gp_cooked_point_t piece_from;
+            gp_cooked_point_t piece_to;
+            __line_interpolate_cooked_point( &piece_from, from, to, consumed / segment_length );
+            __line_interpolate_cooked_point( &piece_to, from, to, (consumed + step) / segment_length );
+
+            if( drawing == GP_TRUE )
+            {
+                if( active_span == GP_NULLPTR )
+                {
+                    active_span = __line_new_span( _line, _stroke );
+                    __line_span_push( _line, active_span, &piece_from );
+                }
+                __line_span_push( _line, active_span, &piece_to );
+            }
+
+            consumed += step;
+            pattern_remaining -= step;
+            if( pattern_remaining <= 0.00001f )
+            {
+                pattern_index = (pattern_index + 1) % pattern_count;
+                pattern_remaining = state->dash_pattern[pattern_index % state->dash_count];
+                drawing = pattern_index % 2 == 0 ? GP_TRUE : GP_FALSE;
+                if( drawing == GP_FALSE )
+                {
+                    active_span = GP_NULLPTR;
+                }
+            }
+        }
+    }
+
+    if( _path->closed == GP_TRUE && _stroke->count != 0 )
+    {
+        gp_cooked_span_t * first = _stroke->spans;
+        gp_cooked_span_t * last = _stroke->spans + _stroke->count - 1;
+        gp_bool_t first_at_seam = __line_same_point( &first->points[0].position, &_path->points[0].position );
+        gp_bool_t last_at_seam = __line_same_point( &last->points[last->count - 1].position, &_path->points[_path->count - 1].position );
+
+        if( _stroke->count == 1 && first_at_seam == GP_TRUE && last_at_seam == GP_TRUE )
+        {
+            first->closed = GP_TRUE;
+        }
+        else if( _stroke->count > 1 && first_at_seam == GP_TRUE && last_at_seam == GP_TRUE )
+        {
+            __line_merge_closed_dash_seam( _line, _stroke );
+        }
+    }
+
+    return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
+static void __line_destroy_stroke( const gp_line_t * _line, gp_cooked_stroke_t * _stroke )
+{
+    for( gp_uint32_t index = 0; index != _stroke->count; ++index )
+    {
+        if( _stroke->spans[index].points != GP_NULLPTR )
+        {
+            (*_line->free)(_stroke->spans[index].points, _line->ud);
+        }
+    }
+
+    if( _stroke->spans != GP_NULLPTR )
+    {
+        (*_line->free)(_stroke->spans, _line->ud);
+    }
+}
+//////////////////////////////////////////////////////////////////////////
+static gp_uint32_t __line_round_sector_segment_count( const gp_state_t * _state, float _angle_delta )
+{
+    float angle_delta_abs = _angle_delta < 0.f ? -_angle_delta : _angle_delta;
+    float segment_factor = angle_delta_abs / gp_constant_two_pi * (float)((gp_uint32_t)_state->rect_quality * 4);
+    gp_uint32_t segment_count = (gp_uint32_t)segment_factor;
+    if( (float)segment_count < segment_factor )
+    {
+        ++segment_count;
+    }
+
+    return segment_count == 0 ? 1 : segment_count;
+}
+//////////////////////////////////////////////////////////////////////////
+static void __line_make_cap_sector( const gp_cooked_span_t * _span, gp_bool_t _start, const gp_state_t * _state, gp_round_sector_t * const _sector )
+{
+    gp_vec2f_t direction;
+    if( _start == GP_TRUE )
+    {
+        __line_direction( &direction, &_span->points[0].position, &_span->points[1].position );
+        _sector->angle_from = GP_MATH_ATAN2F( direction.y, direction.x ) - gp_constant_pi * 0.5f;
+    }
+    else
+    {
+        gp_uint32_t last = _span->count - 1;
+        __line_direction( &direction, &_span->points[last - 1].position, &_span->points[last].position );
+        _sector->angle_from = GP_MATH_ATAN2F( direction.y, direction.x ) + gp_constant_pi * 0.5f;
+    }
+
+    _sector->angle_delta = -gp_constant_pi;
+    _sector->segment_count = __line_round_sector_segment_count( _state, _sector->angle_delta );
+}
+//////////////////////////////////////////////////////////////////////////
+static gp_bool_t __line_make_join_sector( const gp_cooked_span_t * _span, gp_uint32_t _index, const gp_state_t * _state, gp_round_sector_t * const _sector )
+{
+    if( _span->points[_index].join == GP_FALSE )
+    {
+        return GP_FALSE;
+    }
+
+    gp_uint32_t unique_count = _span->closed == GP_TRUE ? _span->count - 1 : _span->count;
+    gp_uint32_t previous_index = (_index + unique_count - 1) % unique_count;
+    gp_uint32_t next_index = (_index + 1) % unique_count;
+    const gp_vec2f_t * previous = &_span->points[previous_index].position;
+    const gp_vec2f_t * point = &_span->points[_index].position;
+    const gp_vec2f_t * next = &_span->points[next_index].position;
+    gp_vec2f_t incoming;
+    gp_vec2f_t outgoing;
+    __line_direction( &incoming, previous, point );
+    __line_direction( &outgoing, point, next );
+
+    float cross = incoming.x * outgoing.y - incoming.y * outgoing.x;
+    float dot = incoming.x * outgoing.x + incoming.y * outgoing.y;
+    float angle_delta = GP_MATH_ATAN2F( cross, dot );
+    if( GP_EQUAL_F( angle_delta, 0.00001f ) == GP_TRUE )
+    {
+        return GP_FALSE;
+    }
+
+    gp_vec2f_t incoming_perpendicular;
+    incoming_perpendicular.x = -incoming.y;
+    incoming_perpendicular.y = incoming.x;
+    float side = angle_delta > 0.f ? -1.f : 1.f;
+    _sector->angle_from = GP_MATH_ATAN2F( incoming_perpendicular.y * side, incoming_perpendicular.x * side );
+    _sector->angle_delta = angle_delta;
+    _sector->segment_count = __line_round_sector_segment_count( _state, angle_delta );
+
+    return GP_TRUE;
+}
+//////////////////////////////////////////////////////////////////////////
+static void __line_calculate_round_sector_size( const gp_state_t * _state, const gp_round_sector_t * _sector, gp_uint32_t * _vertex_count, gp_uint32_t * _index_count )
+{
+    if( _state->penumbra > 0.f )
+    {
+        *_vertex_count += _sector->segment_count * 2 + 3;
+        *_index_count += _sector->segment_count * 9;
+    }
+    else
+    {
+        gp_uint32_t layers = _state->outline_width > 0.f ? 2 : 1;
+        *_vertex_count += layers * (_sector->segment_count + 2);
+        *_index_count += layers * _sector->segment_count * 3;
+    }
+}
+//////////////////////////////////////////////////////////////////////////
+static gp_uint32_t __line_point_section_count( const gp_cooked_span_t * _span, gp_uint32_t _index, const gp_state_t * _state )
+{
+    if( _state->line_join != GP_LINE_JOIN_ROUND || _index == 0 || _index + 1 == _span->count )
+    {
+        return 1;
+    }
+
+    gp_round_sector_t sector;
+    return __line_make_join_sector( _span, _index, _state, &sector ) == GP_TRUE ? 2 : 1;
+}
+//////////////////////////////////////////////////////////////////////////
+static gp_uint32_t __line_body_section_count( const gp_cooked_span_t * _span, const gp_state_t * _state )
+{
+    gp_uint32_t section_count = 0;
+    for( gp_uint32_t index = 0; index != _span->count; ++index )
+    {
+        section_count += __line_point_section_count( _span, index, _state );
+    }
+
+    return section_count;
+}
+//////////////////////////////////////////////////////////////////////////
+static void __line_calculate_span_size( const gp_cooked_span_t * _span, const gp_state_t * _state, gp_uint32_t * _vertex_count, gp_uint32_t * _index_count )
+{
+    if( _span->count < 2 )
+    {
+        return;
+    }
+
+    gp_uint32_t section_count = __line_body_section_count( _span, _state );
+
+    if( _state->penumbra > 0.f )
+    {
+        *_vertex_count += section_count * 4;
+        *_index_count += (_span->count - 1) * 18;
+    }
+    else if( _state->outline_width > 0.f )
+    {
+        *_vertex_count += section_count * 6;
+        *_index_count += (_span->count - 1) * 18;
+    }
+    else
+    {
+        *_vertex_count += section_count * 2;
+        *_index_count += (_span->count - 1) * 6;
+    }
+
+    if( _span->closed == GP_FALSE && _state->line_cap == GP_LINE_CAP_ROUND )
+    {
+        gp_round_sector_t start_sector;
+        gp_round_sector_t end_sector;
+        __line_make_cap_sector( _span, GP_TRUE, _state, &start_sector );
+        __line_make_cap_sector( _span, GP_FALSE, _state, &end_sector );
+        __line_calculate_round_sector_size( _state, &start_sector, _vertex_count, _index_count );
+        __line_calculate_round_sector_size( _state, &end_sector, _vertex_count, _index_count );
+    }
+
+    if( _state->line_join == GP_LINE_JOIN_ROUND )
+    {
+        gp_uint32_t begin = _span->closed == GP_TRUE ? 0 : 1;
+        gp_uint32_t end = _span->count - 1;
+        for( gp_uint32_t index = begin; index < end; ++index )
+        {
+            gp_round_sector_t sector;
+            if( __line_make_join_sector( _span, index, _state, &sector ) == GP_TRUE )
+            {
+                __line_calculate_round_sector_size( _state, &sector, _vertex_count, _index_count );
+            }
+        }
+    }
+}
+//////////////////////////////////////////////////////////////////////////
+static gp_result_t __line_calculate_size( const gp_line_t * _line, gp_uint32_t * _vertex_count, gp_uint32_t * _index_count )
+{
+    if( _line->edges == GP_NULLPTR || _line->compound_fill != GP_NULLPTR )
+    {
+        return GP_SUCCESSFUL;
+    }
+
+    gp_cooked_path_t path;
+    GP_CALL( __line_cook_path, (_line, &path) );
+
+    if( _line->state->fill == GP_TRUE )
+    {
+        if( path.count >= 3 )
+        {
+            *_vertex_count += path.count;
+            *_index_count += (path.count - 2) * 3;
+        }
+
+        __line_destroy_path( _line, &path );
+        return GP_SUCCESSFUL;
+    }
+
+    gp_cooked_stroke_t stroke;
+    GP_CALL( __line_cook_stroke, (_line, &path, &stroke) );
+    for( gp_uint32_t index = 0; index != stroke.count; ++index )
+    {
+        __line_calculate_span_size( stroke.spans + index, _line->state, _vertex_count, _index_count );
+    }
+
+    __line_destroy_stroke( _line, &stroke );
+    __line_destroy_path( _line, &path );
 
     return GP_SUCCESSFUL;
 }
@@ -130,7 +857,10 @@ gp_result_t gp_calculate_mesh_line_size( const gp_canvas_t * _canvas, gp_mesh_t 
     gp_uint32_t vertex_count = 0;
     gp_uint32_t index_count = 0;
 
-    GP_CALL( __calculate_mesh_line_size, (_canvas, &vertex_count, &index_count) );
+    for( const gp_line_t * line = _canvas->lines; line != GP_NULLPTR; line = line->next )
+    {
+        GP_CALL( __line_calculate_size, (line, &vertex_count, &index_count) );
+    }
 
     _mesh->vertex_count += vertex_count;
     _mesh->index_count += index_count;
@@ -138,421 +868,81 @@ gp_result_t gp_calculate_mesh_line_size( const gp_canvas_t * _canvas, gp_mesh_t 
     return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
-static inline float __vec2f_sqrlength( const gp_vec2f_t * _p )
+static float __line_triangle_area( const gp_vec2f_t * _a, const gp_vec2f_t * _b, const gp_vec2f_t * _c )
 {
-    return _p->x * _p->x + _p->y * _p->y;
+    return (_b->x - _a->x) * (_c->y - _a->y) - (_b->y - _a->y) * (_c->x - _a->x);
 }
 //////////////////////////////////////////////////////////////////////////
-static inline float __vec2f_length( const gp_vec2f_t * _p )
+static gp_bool_t __line_point_in_triangle( const gp_vec2f_t * _point, const gp_vec2f_t * _a, const gp_vec2f_t * _b, const gp_vec2f_t * _c )
 {
-    float l = __vec2f_sqrlength( _p );
+    float c0 = __line_triangle_area( _a, _b, _point );
+    float c1 = __line_triangle_area( _b, _c, _point );
+    float c2 = __line_triangle_area( _c, _a, _point );
+    gp_bool_t negative = c0 < -0.00001f || c1 < -0.00001f || c2 < -0.00001f ? GP_TRUE : GP_FALSE;
+    gp_bool_t positive = c0 > 0.00001f || c1 > 0.00001f || c2 > 0.00001f ? GP_TRUE : GP_FALSE;
 
-    float sqrt_l = GP_MATH_SQRTF( l );
-
-    return sqrt_l;
+    return negative == GP_TRUE && positive == GP_TRUE ? GP_FALSE : GP_TRUE;
 }
 //////////////////////////////////////////////////////////////////////////
-static inline float __vec2f_distance( const gp_vec2f_t * _a, const gp_vec2f_t * _b )
+static gp_result_t __line_render_fill_indices( const gp_line_t * _line, const gp_cooked_path_t * _path, const gp_mesh_t * _mesh, gp_uint32_t _vertex_begin, gp_uint32_t * _index_iterator )
 {
-    gp_vec2f_t d;
-    d.x = _b->x - _a->x;
-    d.y = _b->y - _a->y;
-
-    float l = __vec2f_sqrlength( &d );
-
-    float sqrt_l = GP_MATH_SQRTF( l );
-
-    return sqrt_l;
-}
-//////////////////////////////////////////////////////////////////////////
-static inline void __vec2f_normalize( gp_vec2f_t * _o, const gp_vec2f_t * _p )
-{
-    float l = __vec2f_length( _p );
-
-    float l_inv = 1.f / l;
-
-    _o->x = _p->x * l_inv;
-    _o->y = _p->y * l_inv;
-}
-//////////////////////////////////////////////////////////////////////////
-static inline void __vec2f_perp( gp_vec2f_t * _out, const gp_vec2f_t * _in )
-{
-    _out->x = -_in->y;
-    _out->y = _in->x;
-}
-//////////////////////////////////////////////////////////////////////////
-static inline void __make_line_dir( gp_vec2f_t * _dir, const gp_vec2f_t * _from, const gp_vec2f_t * _to )
-{
-    gp_vec2f_t dir;
-    dir.x = _to->x - _from->x;
-    dir.y = _to->y - _from->y;
-
-    __vec2f_normalize( _dir, &dir );
-}
-//////////////////////////////////////////////////////////////////////////
-static inline void __make_line_perp( gp_vec2f_t * _perp, const gp_vec2f_t * _from, const gp_vec2f_t * _to )
-{
-    gp_vec2f_t dir_norm;
-    __make_line_dir( &dir_norm, _from, _to );
-
-    __vec2f_perp( _perp, &dir_norm );
-}
-//////////////////////////////////////////////////////////////////////////
-static inline float __integral_powf( float _value, gp_uint32_t _count )
-{
-    if( _count == 0 )
-    {
-        return 1.f;
-    }
-
-    float f = _value;
-
-    for( gp_uint32_t i = 1; i != _count; ++i )
-    {
-        f *= _value;
-    }
-
-    return f;
-}
-//////////////////////////////////////////////////////////////////////////
-static inline float __factorialf( gp_uint32_t _value )
-{
-    if( _value == 0 )
-    {
-        return 1.f;
-    }
-
-    float f = 1.f;
-    float d = 0.f;
-
-    for( gp_uint32_t i = 0; i != _value; ++i )
-    {
-        d += 1.f;
-
-        f *= d;
-    }
-
-    return f;
-}
-//////////////////////////////////////////////////////////////////////////
-static inline void __calculate_bezier_position( gp_vec2f_t * _out, const gp_vec2f_t * _p0, const gp_vec2f_t * _p1, const gp_vec2f_t * _v, gp_uint32_t _n, float _dt )
-{
-    gp_uint32_t n = _n + 1;
-
-    float t0 = __integral_powf( 1.f - _dt, n );
-    float tn = __integral_powf( _dt, n );
-
-    _out->x = t0 * _p0->x + tn * _p1->x;
-    _out->y = t0 * _p0->y + tn * _p1->y;
-
-    float f_count = __factorialf( n );
-
-    for( gp_uint32_t i = 1; i != n; ++i )
-    {
-        float c = f_count / (__factorialf( i ) * __factorialf( n - i ));
-        float t = __integral_powf( _dt, i ) * __integral_powf( 1.f - _dt, n - i );
-
-        const gp_vec2f_t * v = _v + i - 1;
-
-        _out->x += c * t * v->x;
-        _out->y += c * t * v->y;
-    }
-}
-//////////////////////////////////////////////////////////////////////////
-static inline void __make_line_from_two_point_v2( gp_linef_t * _line, const gp_vec2f_t * _a, const gp_vec2f_t * _b )
-{
-    float a = _b->y - _a->y;
-    float b = _a->x - _b->x;
-
-    _line->a = a;
-    _line->b = b;
-    _line->c = a * _a->x + b * _a->y;
-}
-//////////////////////////////////////////////////////////////////////////
-static inline float __cross2( float _a, float _b, float _c, float _d )
-{
-    return _a * _d - _c * _b;
-}
-//////////////////////////////////////////////////////////////////////////
-static inline gp_bool_t __intersect_line( const gp_linef_t * _l1, const gp_linef_t * _l2, gp_vec2f_t * _p )
-{
-    float zn = __cross2( _l1->a, _l1->b, _l2->a, _l2->b );
-
-    if( GP_EQUAL_F( zn, 0.00001f ) == GP_TRUE )
-    {
-        return GP_FALSE;
-    }
-
-    float inv_zn = 1.f / zn;
-
-    _p->x = __cross2( _l1->c, _l1->b, _l2->c, _l2->b ) * inv_zn;
-    _p->y = __cross2( _l1->a, _l1->c, _l2->a, _l2->c ) * inv_zn;
-
-    return GP_TRUE;
-}
-//////////////////////////////////////////////////////////////////////////
-static inline float __lerp( float _a, float _b, float _t )
-{
-    return _a * (1.f - _t) + _b * _t;
-}
-//////////////////////////////////////////////////////////////////////////
-static inline void __lerp_color( gp_color_t * _c, const gp_color_t * _a, const gp_color_t * _b, float _t )
-{
-    _c->r = __lerp( _a->r, _b->r, _t );
-    _c->g = __lerp( _a->g, _b->g, _t );
-    _c->b = __lerp( _a->b, _b->b, _t );
-    _c->a = __lerp( _a->a, _b->a, _t );
-}
-//////////////////////////////////////////////////////////////////////////
-static void __apply_join_limit( gp_vec2f_t * _join, const gp_vec2f_t * _point, const gp_vec2f_t * _perp, float _width, float _side, const gp_state_t * _state )
-{
-    float dx = _join->x - _point->x;
-    float dy = _join->y - _point->y;
-    float distance = GP_MATH_SQRTF( dx * dx + dy * dy );
-
-    if( _state->line_join != GP_LINE_JOIN_MITER || distance > _width * _state->miter_limit )
-    {
-        _join->x = _point->x + _perp->x * _width * _side;
-        _join->y = _point->y + _perp->y * _width * _side;
-    }
-}
-//////////////////////////////////////////////////////////////////////////
-static gp_result_t __render_round_disc( const gp_mesh_t * _mesh, const gp_state_t * _state, float _x, float _y, float _radius, gp_argb_t _color, gp_uint32_t * _vertex_iterator, gp_uint32_t * _index_iterator )
-{
-    gp_uint32_t segment_count = (gp_uint32_t)_state->rect_quality * 4;
-    gp_uint32_t center = *_vertex_iterator;
-
-    GP_CALL( gp_mesh_push_position, (_mesh, center, _x, _y) );
-    GP_CALL( gp_mesh_push_color, (_mesh, center, _color) );
-    GP_CALL( gp_mesh_push_uv, (_state, _mesh, center, 0.5f, 0.5f) );
-
-    for( gp_uint32_t index = 0; index != segment_count; ++index )
-    {
-        float angle = gp_constant_two_pi * (float)index / (float)segment_count;
-        float cosine = GP_MATH_COSF( angle );
-        float sine = GP_MATH_SINF( angle );
-        float x = _x + cosine * _radius;
-        float y = _y + sine * _radius;
-
-        GP_CALL( gp_mesh_push_position, (_mesh, center + 1 + index, x, y) );
-        GP_CALL( gp_mesh_push_color, (_mesh, center + 1 + index, _color) );
-        GP_CALL( gp_mesh_push_uv, (_state, _mesh, center + 1 + index, cosine * 0.5f + 0.5f, sine * 0.5f + 0.5f) );
-
-        GP_CALL( gp_mesh_push_index, (_mesh, *_index_iterator + 0, center) );
-        GP_CALL( gp_mesh_push_index, (_mesh, *_index_iterator + 1, center + 1 + index) );
-        GP_CALL( gp_mesh_push_index, (_mesh, *_index_iterator + 2, center + 1 + (index + 1) % segment_count) );
-        *_index_iterator += 3;
-    }
-
-    *_vertex_iterator += segment_count + 1;
-
-    return GP_SUCCESSFUL;
-}
-//////////////////////////////////////////////////////////////////////////
-typedef struct gp_line_point_render_cache_t
-{
-    gp_points_t points[GP_LINE_POINTS_MAX];
-    gp_uint32_t size;
-
-#if !defined(GP_DISABLE_EXTRA_LINE_POINTS)
-    gp_points_t * extra_points;
-    gp_uint32_t extra_capacity;
-#endif
-} gp_line_point_render_cache_t;
-//////////////////////////////////////////////////////////////////////////
-static gp_points_t * __get_render_point( gp_line_point_render_cache_t * _cache, gp_uint32_t _index )
-{
-#if defined(GP_DISABLE_EXTRA_LINE_POINTS)
-    return _cache->points + _index;
-#else
-    if( _index < GP_LINE_POINTS_MAX )
-    {
-        return _cache->points + _index;
-    }
-
-    return _cache->extra_points + _index - GP_LINE_POINTS_MAX;
-#endif
-}
-//////////////////////////////////////////////////////////////////////////
-static inline gp_result_t __incref_render_points( const gp_line_t * _line, gp_line_point_render_cache_t * _cache )
-{
-    if( (++_cache->size) < GP_LINE_POINTS_MAX )
-    {
-        return GP_SUCCESSFUL;
-    }
-
-#if defined(GP_DISABLE_EXTRA_LINE_POINTS)
-    GP_UNUSED( _line );
-
-    return GP_FAILURE;
-#else
-    if( (_cache->size - GP_LINE_POINTS_MAX) < _cache->extra_capacity )
-    {
-        return GP_SUCCESSFUL;
-    }
-
-    _cache->extra_capacity += GP_LINE_POINTS_MAX;
-
-    void * p = (*_line->realloc)(_cache->extra_points, sizeof( gp_points_t ) * _cache->extra_capacity, _line->ud);
-
-    _cache->extra_points = p;
-
-    return GP_SUCCESSFUL;
-#endif
-}
-//////////////////////////////////////////////////////////////////////////
-#if defined( GP_DEBUG )
-#define GP_POINTS_INCREF() if( __incref_render_points( l, &points_cache ) == GP_FAILURE ) return GP_FAILURE
-#else
-#define GP_POINTS_INCREF() __incref_render_points( l, &points_cache )
-#endif
-//////////////////////////////////////////////////////////////////////////
-#define GP_GET_POINT(i) __get_render_point( &points_cache, i )
-//////////////////////////////////////////////////////////////////////////
-static inline float __polygon_signed_area( gp_line_point_render_cache_t * const _cache )
-{
+    gp_uint32_t * order = (gp_uint32_t *)(*_line->realloc)(GP_NULLPTR, sizeof( gp_uint32_t ) * _path->count, _line->ud);
     float area = 0.f;
-
-    for( gp_uint32_t index = 0; index != _cache->size; ++index )
+    for( gp_uint32_t index = 0; index != _path->count; ++index )
     {
-        const gp_vec2f_t * p0 = &__get_render_point( _cache, index )->p;
-        const gp_vec2f_t * p1 = &__get_render_point( _cache, (index + 1) % _cache->size )->p;
-
+        order[index] = index;
+        const gp_vec2f_t * p0 = &_path->points[index].position;
+        const gp_vec2f_t * p1 = &_path->points[(index + 1) % _path->count].position;
         area += p0->x * p1->y - p1->x * p0->y;
     }
 
-    return area * 0.5f;
-}
-//////////////////////////////////////////////////////////////////////////
-static inline float __triangle_area2( const gp_vec2f_t * _p0, const gp_vec2f_t * _p1, const gp_vec2f_t * _p2 )
-{
-    return (_p1->x - _p0->x) * (_p2->y - _p0->y) - (_p1->y - _p0->y) * (_p2->x - _p0->x);
-}
-//////////////////////////////////////////////////////////////////////////
-static inline gp_bool_t __point_in_triangle( const gp_vec2f_t * _p, const gp_vec2f_t * _a, const gp_vec2f_t * _b, const gp_vec2f_t * _c )
-{
-    float c0 = __triangle_area2( _a, _b, _p );
-    float c1 = __triangle_area2( _b, _c, _p );
-    float c2 = __triangle_area2( _c, _a, _p );
-
-    gp_bool_t has_negative = (c0 < -0.00001f || c1 < -0.00001f || c2 < -0.00001f) ? GP_TRUE : GP_FALSE;
-    gp_bool_t has_positive = (c0 > 0.00001f || c1 > 0.00001f || c2 > 0.00001f) ? GP_TRUE : GP_FALSE;
-
-    return (has_negative == GP_TRUE && has_positive == GP_TRUE) ? GP_FALSE : GP_TRUE;
-}
-//////////////////////////////////////////////////////////////////////////
-static gp_result_t __render_fill_fan( const gp_mesh_t * _mesh, gp_uint32_t * const _index_iterator, gp_uint32_t _vertex_begin, gp_uint32_t _count, gp_bool_t _ccw )
-{
-    for( gp_uint32_t index = 1; index + 1 < _count; ++index )
-    {
-        if( _ccw == GP_TRUE )
-        {
-            GP_CALL( gp_mesh_push_index, (_mesh, *_index_iterator + 0, _vertex_begin + 0) );
-            GP_CALL( gp_mesh_push_index, (_mesh, *_index_iterator + 1, _vertex_begin + index) );
-            GP_CALL( gp_mesh_push_index, (_mesh, *_index_iterator + 2, _vertex_begin + index + 1) );
-        }
-        else
-        {
-            GP_CALL( gp_mesh_push_index, (_mesh, *_index_iterator + 0, _vertex_begin + 0) );
-            GP_CALL( gp_mesh_push_index, (_mesh, *_index_iterator + 1, _vertex_begin + index + 1) );
-            GP_CALL( gp_mesh_push_index, (_mesh, *_index_iterator + 2, _vertex_begin + index) );
-        }
-
-        *_index_iterator += 3;
-    }
-
-    return GP_SUCCESSFUL;
-}
-//////////////////////////////////////////////////////////////////////////
-static gp_result_t __render_fill_indices( const gp_mesh_t * _mesh, gp_line_point_render_cache_t * const _cache, gp_uint32_t * const _index_iterator, gp_uint32_t _vertex_begin )
-{
-    if( _cache->size < 3 )
-    {
-        return GP_SUCCESSFUL;
-    }
-
-    gp_uint16_t order[GP_LINE_POINTS_MAX];
-    if( _cache->size > GP_LINE_POINTS_MAX )
-    {
-        return __render_fill_fan( _mesh, _index_iterator, _vertex_begin, _cache->size, GP_TRUE );
-    }
-
-    for( gp_uint32_t index = 0; index != _cache->size; ++index )
-    {
-        order[index] = (gp_uint16_t)index;
-    }
-
-    gp_uint32_t remaining = _cache->size;
-    gp_bool_t ccw = __polygon_signed_area( _cache ) >= 0.f ? GP_TRUE : GP_FALSE;
-
+    gp_bool_t ccw = area >= 0.f ? GP_TRUE : GP_FALSE;
+    gp_uint32_t remaining = _path->count;
     while( remaining > 2 )
     {
         gp_bool_t clipped = GP_FALSE;
-
         for( gp_uint32_t index = 0; index != remaining; ++index )
         {
-            gp_uint16_t i0 = order[(index + remaining - 1) % remaining];
-            gp_uint16_t i1 = order[index];
-            gp_uint16_t i2 = order[(index + 1) % remaining];
-
-            const gp_vec2f_t * p0 = &__get_render_point( _cache, i0 )->p;
-            const gp_vec2f_t * p1 = &__get_render_point( _cache, i1 )->p;
-            const gp_vec2f_t * p2 = &__get_render_point( _cache, i2 )->p;
-
-            float area2 = __triangle_area2( p0, p1, p2 );
-            if( ccw == GP_TRUE )
-            {
-                if( area2 <= 0.00001f )
-                {
-                    continue;
-                }
-            }
-            else if( area2 >= -0.00001f )
+            gp_uint32_t i0 = order[(index + remaining - 1) % remaining];
+            gp_uint32_t i1 = order[index];
+            gp_uint32_t i2 = order[(index + 1) % remaining];
+            const gp_vec2f_t * p0 = &_path->points[i0].position;
+            const gp_vec2f_t * p1 = &_path->points[i1].position;
+            const gp_vec2f_t * p2 = &_path->points[i2].position;
+            float triangle_area = __line_triangle_area( p0, p1, p2 );
+            if( (ccw == GP_TRUE && triangle_area <= 0.00001f) || (ccw == GP_FALSE && triangle_area >= -0.00001f) )
             {
                 continue;
             }
 
             gp_bool_t contains = GP_FALSE;
-            for( gp_uint32_t test_index = 0; test_index != remaining; ++test_index )
+            for( gp_uint32_t test = 0; test != remaining; ++test )
             {
-                gp_uint16_t it = order[test_index];
-                if( it == i0 || it == i1 || it == i2 )
+                gp_uint32_t candidate = order[test];
+                if( candidate == i0 || candidate == i1 || candidate == i2 )
                 {
                     continue;
                 }
-
-                if( __point_in_triangle( &__get_render_point( _cache, it )->p, p0, p1, p2 ) == GP_TRUE )
+                if( __line_point_in_triangle( &_path->points[candidate].position, p0, p1, p2 ) == GP_TRUE )
                 {
                     contains = GP_TRUE;
                     break;
                 }
             }
-
             if( contains == GP_TRUE )
             {
                 continue;
             }
 
-            if( ccw == GP_TRUE )
-            {
-                GP_CALL( gp_mesh_push_index, (_mesh, *_index_iterator + 0, _vertex_begin + i0) );
-                GP_CALL( gp_mesh_push_index, (_mesh, *_index_iterator + 1, _vertex_begin + i1) );
-                GP_CALL( gp_mesh_push_index, (_mesh, *_index_iterator + 2, _vertex_begin + i2) );
-            }
-            else
-            {
-                GP_CALL( gp_mesh_push_index, (_mesh, *_index_iterator + 0, _vertex_begin + i0) );
-                GP_CALL( gp_mesh_push_index, (_mesh, *_index_iterator + 1, _vertex_begin + i2) );
-                GP_CALL( gp_mesh_push_index, (_mesh, *_index_iterator + 2, _vertex_begin + i1) );
-            }
-
+            GP_CALL( gp_mesh_push_index, (_mesh, *_index_iterator + 0, _vertex_begin + i0) );
+            GP_CALL( gp_mesh_push_index, (_mesh, *_index_iterator + 1, _vertex_begin + (ccw == GP_TRUE ? i1 : i2)) );
+            GP_CALL( gp_mesh_push_index, (_mesh, *_index_iterator + 2, _vertex_begin + (ccw == GP_TRUE ? i2 : i1)) );
             *_index_iterator += 3;
 
-            for( gp_uint32_t move_index = index; move_index + 1 < remaining; ++move_index )
+            for( gp_uint32_t move = index; move + 1 < remaining; ++move )
             {
-                order[move_index] = order[move_index + 1];
+                order[move] = order[move + 1];
             }
-
             --remaining;
             clipped = GP_TRUE;
             break;
@@ -562,24 +952,565 @@ static gp_result_t __render_fill_indices( const gp_mesh_t * _mesh, gp_line_point
         {
             for( gp_uint32_t index = 1; index + 1 < remaining; ++index )
             {
-                if( ccw == GP_TRUE )
+                GP_CALL( gp_mesh_push_index, (_mesh, *_index_iterator + 0, _vertex_begin + order[0]) );
+                GP_CALL( gp_mesh_push_index, (_mesh, *_index_iterator + 1, _vertex_begin + order[index]) );
+                GP_CALL( gp_mesh_push_index, (_mesh, *_index_iterator + 2, _vertex_begin + order[index + 1]) );
+                *_index_iterator += 3;
+            }
+            break;
+        }
+    }
+
+    (*_line->free)(order, _line->ud);
+
+    return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
+static gp_result_t __line_render_fill( const gp_line_t * _line, const gp_cooked_path_t * _path, const gp_state_t * _state, const gp_mesh_t * _mesh, gp_uint32_t * _vertex_iterator, gp_uint32_t * _index_iterator )
+{
+    if( _path->count < 3 )
+    {
+        return GP_SUCCESSFUL;
+    }
+
+    gp_uint32_t vertex_begin = *_vertex_iterator;
+    for( gp_uint32_t index = 0; index != _path->count; ++index )
+    {
+        const gp_cooked_point_t * point = _path->points + index;
+        gp_color_t total_color;
+        gp_color_mul( &total_color, &_mesh->color, &point->color );
+        GP_CALL( gp_mesh_push_position, (_mesh, vertex_begin + index, point->position.x, point->position.y) );
+        GP_CALL( gp_mesh_push_color, (_mesh, vertex_begin + index, gp_color_argb( &total_color )) );
+        GP_CALL( gp_mesh_push_uv, (_state, _mesh, vertex_begin + index, 0.f, 0.f) );
+    }
+
+    GP_CALL( __line_render_fill_indices, (_line, _path, _mesh, vertex_begin, _index_iterator) );
+    *_vertex_iterator += _path->count;
+
+    return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
+static float __line_point_width( const gp_cooked_point_t * _point, float _addition, float _subtraction )
+{
+    float width = _point->half_width + _addition - _subtraction;
+
+    return width > 0.f ? width : 0.f;
+}
+//////////////////////////////////////////////////////////////////////////
+static void __line_make_offset_line( gp_linef_t * const _line, const gp_vec2f_t * _from, const gp_vec2f_t * _to, const gp_vec2f_t * _perpendicular, float _from_width, float _to_width, float _side )
+{
+    gp_vec2f_t a;
+    a.x = _from->x + _perpendicular->x * _from_width * _side;
+    a.y = _from->y + _perpendicular->y * _from_width * _side;
+    gp_vec2f_t b;
+    b.x = _to->x + _perpendicular->x * _to_width * _side;
+    b.y = _to->y + _perpendicular->y * _to_width * _side;
+
+    _line->a = b.y - a.y;
+    _line->b = a.x - b.x;
+    _line->c = _line->a * a.x + _line->b * a.y;
+}
+//////////////////////////////////////////////////////////////////////////
+static gp_bool_t __line_intersect( const gp_linef_t * _a, const gp_linef_t * _b, gp_vec2f_t * const _point )
+{
+    float determinant = _a->a * _b->b - _b->a * _a->b;
+    if( GP_EQUAL_F( determinant, 0.00001f ) == GP_TRUE )
+    {
+        return GP_FALSE;
+    }
+
+    float determinant_inv = 1.f / determinant;
+    _point->x = (_a->c * _b->b - _b->c * _a->b) * determinant_inv;
+    _point->y = (_a->a * _b->c - _b->a * _a->c) * determinant_inv;
+
+    return GP_TRUE;
+}
+//////////////////////////////////////////////////////////////////////////
+static void __line_limit_join( gp_vec2f_t * _join, const gp_vec2f_t * _center, const gp_vec2f_t * _perpendicular, float _width, float _side, const gp_state_t * _state )
+{
+    float dx = _join->x - _center->x;
+    float dy = _join->y - _center->y;
+    float distance = GP_MATH_SQRTF( dx * dx + dy * dy );
+    if( _state->line_join != GP_LINE_JOIN_MITER || distance > _width * _state->miter_limit )
+    {
+        _join->x = _center->x + _perpendicular->x * _width * _side;
+        _join->y = _center->y + _perpendicular->y * _width * _side;
+    }
+}
+//////////////////////////////////////////////////////////////////////////
+static void __line_cross_section( const gp_cooked_span_t * _span, gp_uint32_t _index, float _addition, float _subtraction, const gp_state_t * _state, gp_vec2f_t * const _left, gp_vec2f_t * const _right )
+{
+    gp_uint32_t last = _span->count - 1;
+    gp_uint32_t index = _span->closed == GP_TRUE && _index == last ? 0 : _index;
+    const gp_cooked_point_t * point = _span->points + index;
+    float width = __line_point_width( point, _addition, _subtraction );
+
+    if( _span->closed == GP_FALSE && (index == 0 || index == last) )
+    {
+        gp_uint32_t other = index == 0 ? 1 : last - 1;
+        gp_vec2f_t perpendicular;
+        if( index == 0 )
+        {
+            __line_perpendicular( &perpendicular, &point->position, &_span->points[other].position );
+        }
+        else
+        {
+            __line_perpendicular( &perpendicular, &_span->points[other].position, &point->position );
+        }
+
+        _left->x = point->position.x - perpendicular.x * width;
+        _left->y = point->position.y - perpendicular.y * width;
+        _right->x = point->position.x + perpendicular.x * width;
+        _right->y = point->position.y + perpendicular.y * width;
+        return;
+    }
+
+    gp_uint32_t unique_count = _span->closed == GP_TRUE ? last : _span->count;
+    gp_uint32_t previous_index = (index + unique_count - 1) % unique_count;
+    gp_uint32_t next_index = (index + 1) % unique_count;
+    const gp_cooked_point_t * previous = _span->points + previous_index;
+    const gp_cooked_point_t * next = _span->points + next_index;
+    float previous_width = __line_point_width( previous, _addition, _subtraction );
+    float next_width = __line_point_width( next, _addition, _subtraction );
+
+    gp_vec2f_t incoming_perpendicular;
+    gp_vec2f_t outgoing_perpendicular;
+    __line_perpendicular( &incoming_perpendicular, &previous->position, &point->position );
+    __line_perpendicular( &outgoing_perpendicular, &point->position, &next->position );
+
+    gp_linef_t incoming_left;
+    gp_linef_t outgoing_left;
+    gp_linef_t incoming_right;
+    gp_linef_t outgoing_right;
+    __line_make_offset_line( &incoming_left, &previous->position, &point->position, &incoming_perpendicular, previous_width, width, -1.f );
+    __line_make_offset_line( &outgoing_left, &point->position, &next->position, &outgoing_perpendicular, width, next_width, -1.f );
+    __line_make_offset_line( &incoming_right, &previous->position, &point->position, &incoming_perpendicular, previous_width, width, 1.f );
+    __line_make_offset_line( &outgoing_right, &point->position, &next->position, &outgoing_perpendicular, width, next_width, 1.f );
+
+    if( __line_intersect( &incoming_left, &outgoing_left, _left ) == GP_FALSE )
+    {
+        _left->x = point->position.x - incoming_perpendicular.x * width;
+        _left->y = point->position.y - incoming_perpendicular.y * width;
+    }
+    if( __line_intersect( &incoming_right, &outgoing_right, _right ) == GP_FALSE )
+    {
+        _right->x = point->position.x + incoming_perpendicular.x * width;
+        _right->y = point->position.y + incoming_perpendicular.y * width;
+    }
+
+    __line_limit_join( _left, &point->position, &incoming_perpendicular, width, -1.f, _state );
+    __line_limit_join( _right, &point->position, &incoming_perpendicular, width, 1.f, _state );
+}
+//////////////////////////////////////////////////////////////////////////
+static void __line_join_inner( const gp_cooked_span_t * _span, gp_uint32_t _index, float _addition, float _subtraction, float _side, const gp_state_t * _state, gp_vec2f_t * const _inner )
+{
+    gp_uint32_t unique_count = _span->closed == GP_TRUE ? _span->count - 1 : _span->count;
+    gp_uint32_t previous_index = (_index + unique_count - 1) % unique_count;
+    gp_uint32_t next_index = (_index + 1) % unique_count;
+    const gp_cooked_point_t * previous = _span->points + previous_index;
+    const gp_cooked_point_t * point = _span->points + _index;
+    const gp_cooked_point_t * next = _span->points + next_index;
+    float previous_width = __line_point_width( previous, _addition, _subtraction );
+    float width = __line_point_width( point, _addition, _subtraction );
+    float next_width = __line_point_width( next, _addition, _subtraction );
+    gp_vec2f_t incoming_perpendicular;
+    gp_vec2f_t outgoing_perpendicular;
+    __line_perpendicular( &incoming_perpendicular, &previous->position, &point->position );
+    __line_perpendicular( &outgoing_perpendicular, &point->position, &next->position );
+    gp_linef_t incoming_line;
+    gp_linef_t outgoing_line;
+    __line_make_offset_line( &incoming_line, &previous->position, &point->position, &incoming_perpendicular, previous_width, width, _side );
+    __line_make_offset_line( &outgoing_line, &point->position, &next->position, &outgoing_perpendicular, width, next_width, _side );
+
+    if( __line_intersect( &incoming_line, &outgoing_line, _inner ) == GP_FALSE )
+    {
+        _inner->x = point->position.x + incoming_perpendicular.x * width * _side;
+        _inner->y = point->position.y + incoming_perpendicular.y * width * _side;
+        return;
+    }
+
+    float dx = _inner->x - point->position.x;
+    float dy = _inner->y - point->position.y;
+    float distance = GP_MATH_SQRTF( dx * dx + dy * dy );
+    if( distance > width * _state->miter_limit )
+    {
+        _inner->x = point->position.x + incoming_perpendicular.x * width * _side;
+        _inner->y = point->position.y + incoming_perpendicular.y * width * _side;
+    }
+}
+//////////////////////////////////////////////////////////////////////////
+static void __line_smooth_cross_section( const gp_cooked_span_t * _span, gp_uint32_t _point_index, float _addition, float _subtraction, const gp_state_t * _state, gp_vec2f_t * const _left, gp_vec2f_t * const _right )
+{
+    gp_uint32_t last = _span->count - 1;
+    if( _span->closed == GP_FALSE && (_point_index == 0 || _point_index == last) )
+    {
+        __line_cross_section( _span, _point_index, _addition, _subtraction, _state, _left, _right );
+        return;
+    }
+
+    gp_uint32_t point_index = _span->closed == GP_TRUE && _point_index == last ? 0 : _point_index;
+    __line_join_inner( _span, point_index, _addition, _subtraction, -1.f, _state, _left );
+    __line_join_inner( _span, point_index, _addition, _subtraction, 1.f, _state, _right );
+}
+//////////////////////////////////////////////////////////////////////////
+static void __line_segment_cross_section( const gp_cooked_span_t * _span, gp_uint32_t _segment_index, gp_uint32_t _point_index, float _addition, float _subtraction, const gp_state_t * _state, gp_vec2f_t * const _left, gp_vec2f_t * const _right )
+{
+    const gp_cooked_point_t * segment_from = _span->points + _segment_index;
+    const gp_cooked_point_t * segment_to = segment_from + 1;
+    const gp_cooked_point_t * point = _span->points + _point_index;
+    float width = __line_point_width( point, _addition, _subtraction );
+    gp_vec2f_t perpendicular;
+    __line_perpendicular( &perpendicular, &segment_from->position, &segment_to->position );
+    _left->x = point->position.x - perpendicular.x * width;
+    _left->y = point->position.y - perpendicular.y * width;
+    _right->x = point->position.x + perpendicular.x * width;
+    _right->y = point->position.y + perpendicular.y * width;
+
+    gp_uint32_t last = _span->count - 1;
+    if( _span->closed == GP_FALSE && (_point_index == 0 || _point_index == last) )
+    {
+        return;
+    }
+
+    gp_uint32_t join_index = _span->closed == GP_TRUE && _point_index == last ? 0 : _point_index;
+    gp_round_sector_t sector;
+    if( __line_make_join_sector( _span, join_index, _state, &sector ) == GP_FALSE )
+    {
+        return;
+    }
+
+    if( sector.angle_delta > 0.f )
+    {
+        __line_join_inner( _span, join_index, _addition, _subtraction, 1.f, _state, _right );
+    }
+    else
+    {
+        __line_join_inner( _span, join_index, _addition, _subtraction, -1.f, _state, _left );
+    }
+}
+//////////////////////////////////////////////////////////////////////////
+static gp_result_t __line_push_quad( const gp_mesh_t * _mesh, gp_uint32_t * _index_iterator, gp_uint32_t _a, gp_uint32_t _b, gp_uint32_t _c, gp_uint32_t _d )
+{
+    GP_CALL( gp_mesh_push_index, (_mesh, *_index_iterator + 0, _a) );
+    GP_CALL( gp_mesh_push_index, (_mesh, *_index_iterator + 1, _b) );
+    GP_CALL( gp_mesh_push_index, (_mesh, *_index_iterator + 2, _c) );
+    GP_CALL( gp_mesh_push_index, (_mesh, *_index_iterator + 3, _c) );
+    GP_CALL( gp_mesh_push_index, (_mesh, *_index_iterator + 4, _b) );
+    GP_CALL( gp_mesh_push_index, (_mesh, *_index_iterator + 5, _d) );
+    *_index_iterator += 6;
+
+    return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
+static gp_result_t __line_render_solid_sector( const gp_mesh_t * _mesh, const gp_state_t * _state, const gp_vec2f_t * _center, float _radius, const gp_round_sector_t * _sector, gp_argb_t _color, gp_uint32_t * _vertex_iterator, gp_uint32_t * _index_iterator )
+{
+    gp_uint32_t vertex_begin = *_vertex_iterator;
+    GP_CALL( gp_mesh_push_position, (_mesh, vertex_begin, _center->x, _center->y) );
+    GP_CALL( gp_mesh_push_color, (_mesh, vertex_begin, _color) );
+    GP_CALL( gp_mesh_push_uv, (_state, _mesh, vertex_begin, 0.5f, 0.5f) );
+
+    for( gp_uint32_t index = 0; index != _sector->segment_count + 1; ++index )
+    {
+        float angle = _sector->angle_from + _sector->angle_delta * (float)index / (float)_sector->segment_count;
+        float cosine = GP_MATH_COSF( angle );
+        float sine = GP_MATH_SINF( angle );
+        GP_CALL( gp_mesh_push_position, (_mesh, vertex_begin + index + 1, _center->x + cosine * _radius, _center->y + sine * _radius) );
+        GP_CALL( gp_mesh_push_color, (_mesh, vertex_begin + index + 1, _color) );
+        GP_CALL( gp_mesh_push_uv, (_state, _mesh, vertex_begin + index + 1, cosine * 0.5f + 0.5f, sine * 0.5f + 0.5f) );
+    }
+
+    for( gp_uint32_t index = 0; index != _sector->segment_count; ++index )
+    {
+        GP_CALL( gp_mesh_push_index, (_mesh, *_index_iterator + 0, vertex_begin) );
+        GP_CALL( gp_mesh_push_index, (_mesh, *_index_iterator + 1, vertex_begin + index + 1) );
+        GP_CALL( gp_mesh_push_index, (_mesh, *_index_iterator + 2, vertex_begin + index + 2) );
+        *_index_iterator += 3;
+    }
+
+    *_vertex_iterator += _sector->segment_count + 2;
+
+    return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
+static gp_result_t __line_render_soft_sector( const gp_mesh_t * _mesh, const gp_state_t * _state, const gp_vec2f_t * _center, float _radius, float _inner_radius, const gp_round_sector_t * _sector, gp_argb_t _color, gp_uint32_t * _vertex_iterator, gp_uint32_t * _index_iterator )
+{
+    gp_uint32_t vertex_begin = *_vertex_iterator;
+    gp_argb_t transparent = _color & 0x00ffffffU;
+    GP_CALL( gp_mesh_push_position, (_mesh, vertex_begin, _center->x, _center->y) );
+    GP_CALL( gp_mesh_push_color, (_mesh, vertex_begin, _color) );
+    GP_CALL( gp_mesh_push_uv, (_state, _mesh, vertex_begin, 0.5f, 0.5f) );
+
+    for( gp_uint32_t index = 0; index != _sector->segment_count + 1; ++index )
+    {
+        float angle = _sector->angle_from + _sector->angle_delta * (float)index / (float)_sector->segment_count;
+        float cosine = GP_MATH_COSF( angle );
+        float sine = GP_MATH_SINF( angle );
+        gp_uint32_t inner = vertex_begin + 1 + index;
+        gp_uint32_t outer = vertex_begin + 2 + _sector->segment_count + index;
+        GP_CALL( gp_mesh_push_position, (_mesh, inner, _center->x + cosine * _inner_radius, _center->y + sine * _inner_radius) );
+        GP_CALL( gp_mesh_push_color, (_mesh, inner, _color) );
+        GP_CALL( gp_mesh_push_uv, (_state, _mesh, inner, cosine * 0.5f + 0.5f, sine * 0.5f + 0.5f) );
+        GP_CALL( gp_mesh_push_position, (_mesh, outer, _center->x + cosine * _radius, _center->y + sine * _radius) );
+        GP_CALL( gp_mesh_push_color, (_mesh, outer, transparent) );
+        GP_CALL( gp_mesh_push_uv, (_state, _mesh, outer, cosine * 0.5f + 0.5f, sine * 0.5f + 0.5f) );
+    }
+
+    for( gp_uint32_t index = 0; index != _sector->segment_count; ++index )
+    {
+        gp_uint32_t inner = vertex_begin + 1 + index;
+        gp_uint32_t outer = vertex_begin + 2 + _sector->segment_count + index;
+        gp_uint32_t next_inner = inner + 1;
+        gp_uint32_t next_outer = outer + 1;
+        GP_CALL( gp_mesh_push_index, (_mesh, *_index_iterator + 0, vertex_begin) );
+        GP_CALL( gp_mesh_push_index, (_mesh, *_index_iterator + 1, inner) );
+        GP_CALL( gp_mesh_push_index, (_mesh, *_index_iterator + 2, next_inner) );
+        *_index_iterator += 3;
+        GP_CALL( __line_push_quad, (_mesh, _index_iterator, inner, outer, next_inner, next_outer) );
+    }
+
+    *_vertex_iterator += _sector->segment_count * 2 + 3;
+
+    return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
+static gp_result_t __line_render_round_sector( const gp_cooked_point_t * _point, const gp_round_sector_t * _sector, const gp_state_t * _state, const gp_mesh_t * _mesh, gp_uint32_t * _vertex_iterator, gp_uint32_t * _index_iterator )
+{
+    gp_color_t total_color;
+    gp_color_mul( &total_color, &_mesh->color, &_point->color );
+    gp_argb_t color = gp_color_argb( &total_color );
+
+    if( _state->penumbra > 0.f )
+    {
+        float inner_radius = _point->half_width - _state->penumbra;
+        if( inner_radius < 0.f )
+        {
+            inner_radius = 0.f;
+        }
+
+        return __line_render_soft_sector( _mesh, _state, &_point->position, _point->half_width, inner_radius, _sector, color, _vertex_iterator, _index_iterator );
+    }
+
+    if( _state->outline_width > 0.f )
+    {
+        gp_color_t total_outline_color;
+        gp_color_mul( &total_outline_color, &_mesh->color, &_point->outline_color );
+        GP_CALL( __line_render_solid_sector, (_mesh, _state, &_point->position, _point->half_width + _state->outline_width, _sector, gp_color_argb( &total_outline_color ), _vertex_iterator, _index_iterator) );
+    }
+
+    GP_CALL( __line_render_solid_sector, (_mesh, _state, &_point->position, _point->half_width, _sector, color, _vertex_iterator, _index_iterator) );
+
+    return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
+static gp_result_t __line_render_span( gp_cooked_span_t * _span, const gp_state_t * _state, const gp_mesh_t * _mesh, gp_uint32_t * _vertex_iterator, gp_uint32_t * _index_iterator )
+{
+    if( _span->count < 2 )
+    {
+        return GP_SUCCESSFUL;
+    }
+
+    if( _span->closed == GP_FALSE && _state->line_cap == GP_LINE_CAP_SQUARE )
+    {
+        gp_vec2f_t first_direction;
+        gp_vec2f_t last_direction;
+        __line_direction( &first_direction, &_span->points[0].position, &_span->points[1].position );
+        __line_direction( &last_direction, &_span->points[_span->count - 2].position, &_span->points[_span->count - 1].position );
+        _span->points[0].position.x -= first_direction.x * _span->points[0].half_width;
+        _span->points[0].position.y -= first_direction.y * _span->points[0].half_width;
+        _span->points[_span->count - 1].position.x += last_direction.x * _span->points[_span->count - 1].half_width;
+        _span->points[_span->count - 1].position.y += last_direction.y * _span->points[_span->count - 1].half_width;
+    }
+
+    gp_uint32_t vertex_stride = _state->penumbra > 0.f ? 4 : (_state->outline_width > 0.f ? 6 : 2);
+    gp_uint32_t vertex_begin = *_vertex_iterator;
+    float total_length = _span->points[_span->count - 1].length;
+    gp_bool_t round_sections = _state->line_join == GP_LINE_JOIN_ROUND ? GP_TRUE : GP_FALSE;
+    gp_uint32_t section_count = __line_body_section_count( _span, _state );
+
+    gp_uint32_t section_index = 0;
+    for( gp_uint32_t point_index = 0; point_index != _span->count; ++point_index )
+    {
+        gp_uint32_t point_section_count = __line_point_section_count( _span, point_index, _state );
+        const gp_cooked_point_t * point = _span->points + point_index;
+        for( gp_uint32_t point_section = 0; point_section != point_section_count; ++point_section, ++section_index )
+        {
+            gp_bool_t separated = GP_FALSE;
+            gp_uint32_t segment_index = 0;
+            if( round_sections == GP_TRUE )
+            {
+                gp_uint32_t last = _span->count - 1;
+                gp_uint32_t join_index = _span->closed == GP_TRUE && point_index == last ? 0 : point_index;
+                gp_round_sector_t sector;
+                if( (_span->closed == GP_TRUE || (point_index != 0 && point_index != last)) &&
+                    __line_make_join_sector( _span, join_index, _state, &sector ) == GP_TRUE )
                 {
-                    GP_CALL( gp_mesh_push_index, (_mesh, *_index_iterator + 0, _vertex_begin + order[0]) );
-                    GP_CALL( gp_mesh_push_index, (_mesh, *_index_iterator + 1, _vertex_begin + order[index]) );
-                    GP_CALL( gp_mesh_push_index, (_mesh, *_index_iterator + 2, _vertex_begin + order[index + 1]) );
+                    separated = GP_TRUE;
+                    if( point_index == 0 )
+                    {
+                        segment_index = 0;
+                    }
+                    else if( point_index == last )
+                    {
+                        segment_index = last - 1;
+                    }
+                    else
+                    {
+                        segment_index = point_index - 1 + point_section;
+                    }
+                }
+            }
+
+            gp_vec2f_t left;
+            gp_vec2f_t right;
+            if( separated == GP_TRUE )
+            {
+                __line_segment_cross_section( _span, segment_index, point_index, 0.f, 0.f, _state, &left, &right );
+            }
+            else if( round_sections == GP_TRUE )
+            {
+                __line_smooth_cross_section( _span, point_index, 0.f, 0.f, _state, &left, &right );
+            }
+            else
+            {
+                __line_cross_section( _span, point_index, 0.f, 0.f, _state, &left, &right );
+            }
+
+            float u = total_length > 0.f ? point->length / total_length : 0.f;
+            gp_color_t total_color;
+            gp_color_mul( &total_color, &_mesh->color, &point->color );
+            gp_argb_t color = gp_color_argb( &total_color );
+            gp_uint32_t vertex = vertex_begin + section_index * vertex_stride;
+
+            if( _state->penumbra > 0.f )
+            {
+                gp_vec2f_t inner_left;
+                gp_vec2f_t inner_right;
+                if( separated == GP_TRUE )
+                {
+                    __line_segment_cross_section( _span, segment_index, point_index, 0.f, _state->penumbra, _state, &inner_left, &inner_right );
+                }
+                else if( round_sections == GP_TRUE )
+                {
+                    __line_smooth_cross_section( _span, point_index, 0.f, _state->penumbra, _state, &inner_left, &inner_right );
                 }
                 else
                 {
-                    GP_CALL( gp_mesh_push_index, (_mesh, *_index_iterator + 0, _vertex_begin + order[0]) );
-                    GP_CALL( gp_mesh_push_index, (_mesh, *_index_iterator + 1, _vertex_begin + order[index + 1]) );
-                    GP_CALL( gp_mesh_push_index, (_mesh, *_index_iterator + 2, _vertex_begin + order[index]) );
+                    __line_cross_section( _span, point_index, 0.f, _state->penumbra, _state, &inner_left, &inner_right );
                 }
-
-                *_index_iterator += 3;
+                float inner_width = __line_point_width( point, 0.f, _state->penumbra );
+                float inner_uv = point->half_width > 0.f ? inner_width / point->half_width * 0.5f : 0.f;
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex + 0, left.x, left.y) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex + 0, color & 0x00ffffffU) );
+                GP_CALL( gp_mesh_push_uv, (_state, _mesh, vertex + 0, u, 0.f) );
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex + 1, inner_left.x, inner_left.y) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex + 1, color) );
+                GP_CALL( gp_mesh_push_uv, (_state, _mesh, vertex + 1, u, 0.5f - inner_uv) );
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex + 2, inner_right.x, inner_right.y) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex + 2, color) );
+                GP_CALL( gp_mesh_push_uv, (_state, _mesh, vertex + 2, u, 0.5f + inner_uv) );
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex + 3, right.x, right.y) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex + 3, color & 0x00ffffffU) );
+                GP_CALL( gp_mesh_push_uv, (_state, _mesh, vertex + 3, u, 1.f) );
             }
-
-            break;
+            else if( _state->outline_width > 0.f )
+            {
+                gp_vec2f_t outline_left;
+                gp_vec2f_t outline_right;
+                if( separated == GP_TRUE )
+                {
+                    __line_segment_cross_section( _span, segment_index, point_index, _state->outline_width, 0.f, _state, &outline_left, &outline_right );
+                }
+                else if( round_sections == GP_TRUE )
+                {
+                    __line_smooth_cross_section( _span, point_index, _state->outline_width, 0.f, _state, &outline_left, &outline_right );
+                }
+                else
+                {
+                    __line_cross_section( _span, point_index, _state->outline_width, 0.f, _state, &outline_left, &outline_right );
+                }
+            gp_color_t total_outline_color;
+            gp_color_mul( &total_outline_color, &_mesh->color, &point->outline_color );
+            gp_argb_t outline_color = gp_color_argb( &total_outline_color );
+            GP_CALL( gp_mesh_push_position, (_mesh, vertex + 0, outline_left.x, outline_left.y) );
+            GP_CALL( gp_mesh_push_color, (_mesh, vertex + 0, outline_color) );
+            GP_CALL( gp_mesh_push_uv, (_state, _mesh, vertex + 0, u, 0.f) );
+            GP_CALL( gp_mesh_push_position, (_mesh, vertex + 1, left.x, left.y) );
+            GP_CALL( gp_mesh_push_color, (_mesh, vertex + 1, outline_color) );
+            GP_CALL( gp_mesh_push_uv, (_state, _mesh, vertex + 1, u, 0.f) );
+            GP_CALL( gp_mesh_push_position, (_mesh, vertex + 2, left.x, left.y) );
+            GP_CALL( gp_mesh_push_color, (_mesh, vertex + 2, color) );
+            GP_CALL( gp_mesh_push_uv, (_state, _mesh, vertex + 2, u, 0.f) );
+            GP_CALL( gp_mesh_push_position, (_mesh, vertex + 3, right.x, right.y) );
+            GP_CALL( gp_mesh_push_color, (_mesh, vertex + 3, color) );
+            GP_CALL( gp_mesh_push_uv, (_state, _mesh, vertex + 3, u, 1.f) );
+            GP_CALL( gp_mesh_push_position, (_mesh, vertex + 4, right.x, right.y) );
+            GP_CALL( gp_mesh_push_color, (_mesh, vertex + 4, outline_color) );
+            GP_CALL( gp_mesh_push_uv, (_state, _mesh, vertex + 4, u, 1.f) );
+            GP_CALL( gp_mesh_push_position, (_mesh, vertex + 5, outline_right.x, outline_right.y) );
+            GP_CALL( gp_mesh_push_color, (_mesh, vertex + 5, outline_color) );
+            GP_CALL( gp_mesh_push_uv, (_state, _mesh, vertex + 5, u, 1.f) );
+            }
+            else
+            {
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex + 0, left.x, left.y) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex + 0, color) );
+                GP_CALL( gp_mesh_push_uv, (_state, _mesh, vertex + 0, u, 0.f) );
+                GP_CALL( gp_mesh_push_position, (_mesh, vertex + 1, right.x, right.y) );
+                GP_CALL( gp_mesh_push_color, (_mesh, vertex + 1, color) );
+                GP_CALL( gp_mesh_push_uv, (_state, _mesh, vertex + 1, u, 1.f) );
+            }
         }
+    }
+
+    gp_uint32_t current_section = 0;
+    for( gp_uint32_t index = 0; index + 1 < _span->count; ++index )
+    {
+        gp_uint32_t current_point_section_count = __line_point_section_count( _span, index, _state );
+        gp_uint32_t current = vertex_begin + (current_section + current_point_section_count - 1) * vertex_stride;
+        current_section += current_point_section_count;
+        gp_uint32_t next = vertex_begin + current_section * vertex_stride;
+        if( _state->penumbra > 0.f )
+        {
+            GP_CALL( __line_push_quad, (_mesh, _index_iterator, current + 0, current + 1, next + 0, next + 1) );
+            GP_CALL( __line_push_quad, (_mesh, _index_iterator, current + 1, current + 2, next + 1, next + 2) );
+            GP_CALL( __line_push_quad, (_mesh, _index_iterator, current + 2, current + 3, next + 2, next + 3) );
+        }
+        else if( _state->outline_width > 0.f )
+        {
+            GP_CALL( __line_push_quad, (_mesh, _index_iterator, current + 0, current + 1, next + 0, next + 1) );
+            GP_CALL( __line_push_quad, (_mesh, _index_iterator, current + 2, current + 3, next + 2, next + 3) );
+            GP_CALL( __line_push_quad, (_mesh, _index_iterator, current + 4, current + 5, next + 4, next + 5) );
+        }
+        else
+        {
+            GP_CALL( __line_push_quad, (_mesh, _index_iterator, current + 0, current + 1, next + 0, next + 1) );
+        }
+    }
+
+    *_vertex_iterator += section_count * vertex_stride;
+
+    if( _state->line_join == GP_LINE_JOIN_ROUND )
+    {
+        gp_uint32_t begin = _span->closed == GP_TRUE ? 0 : 1;
+        gp_uint32_t end = _span->count - 1;
+        for( gp_uint32_t index = begin; index < end; ++index )
+        {
+            gp_round_sector_t sector;
+            if( __line_make_join_sector( _span, index, _state, &sector ) == GP_TRUE )
+            {
+                GP_CALL( __line_render_round_sector, (_span->points + index, &sector, _state, _mesh, _vertex_iterator, _index_iterator) );
+            }
+        }
+    }
+
+    if( _span->closed == GP_FALSE && _state->line_cap == GP_LINE_CAP_ROUND )
+    {
+        gp_round_sector_t start_sector;
+        gp_round_sector_t end_sector;
+        __line_make_cap_sector( _span, GP_TRUE, _state, &start_sector );
+        __line_make_cap_sector( _span, GP_FALSE, _state, &end_sector );
+        GP_CALL( __line_render_round_sector, (_span->points + 0, &start_sector, _state, _mesh, _vertex_iterator, _index_iterator) );
+        GP_CALL( __line_render_round_sector, (_span->points + _span->count - 1, &end_sector, _state, _mesh, _vertex_iterator, _index_iterator) );
     }
 
     return GP_SUCCESSFUL;
@@ -587,914 +1518,29 @@ static gp_result_t __render_fill_indices( const gp_mesh_t * _mesh, gp_line_point
 //////////////////////////////////////////////////////////////////////////
 gp_result_t gp_render_line( const gp_line_t * _line, const gp_state_t * _state, const gp_mesh_t * _mesh, gp_uint32_t * _vertex_iterator, gp_uint32_t * _index_iterator )
 {
-    gp_uint32_t vertex_iterator = *_vertex_iterator;
-    gp_uint32_t index_iterator = *_index_iterator;
-
-    const gp_line_t * l = _line;
-
-    if( l->edges == GP_NULLPTR )
+    if( _line->edges == GP_NULLPTR )
     {
         return GP_SUCCESSFUL;
     }
 
+    gp_cooked_path_t path;
+    GP_CALL( __line_cook_path, (_line, &path) );
+    if( _state->fill == GP_TRUE )
     {
-        float thickness = _state->thickness;
-        float outline_width = _state->outline_width;
-        float half_thickness = thickness * 0.5f;
-
-        uint8_t curve_quality = _state->curve_quality;
-        float curve_quality_inv = _state->curve_quality_inv;
-
-        gp_line_point_render_cache_t points_cache;
-        points_cache.size = 0;
-
-#if !defined(GP_DISABLE_EXTRA_LINE_POINTS)
-        points_cache.extra_capacity = 0;
-        points_cache.extra_points = GP_NULLPTR;
-#endif
-
-        {
-            const gp_line_point_t * point_iterator = l->points;
-
-            for( const gp_line_edge_t * e = l->edges; e != GP_NULLPTR; e = e->next )
-            {
-                const gp_line_point_t * p0 = point_iterator;
-                point_iterator = point_iterator->next;
-
-                gp_color_t point_color0;
-                gp_color_mul( &point_color0, &_mesh->color, &p0->state->color );
-                gp_argb_t argb0 = gp_color_argb( &point_color0 );
-
-                gp_argb_t outline_argb0 = 0xffffffff;
-
-                if( outline_width > 0.f )
-                {
-                    gp_color_t point_outline_color0;
-                    gp_color_mul( &point_outline_color0, &_mesh->color, &p0->state->outline_color );
-                    outline_argb0 = gp_color_argb( &point_outline_color0 );
-                }
-
-                switch( e->controls )
-                {
-                case 0:
-                    {
-                        gp_points_t * p = GP_GET_POINT( points_cache.size );
-                        p->p = p0->p;
-                        p->argb = argb0;
-                        p->outline_argb = outline_argb0;
-
-                        GP_POINTS_INCREF();
-                    }break;
-                case 1:
-                    {
-                        const gp_line_point_t * p1 = point_iterator;
-
-                        float t = 0.f;
-
-                        for( gp_uint8_t index = 0; index != curve_quality; ++index )
-                        {
-                            gp_color_t color01;
-                            __lerp_color( &color01, &p0->state->color, &p1->state->color, t );
-
-                            gp_color_t point_color1;
-                            gp_color_mul( &point_color1, &_mesh->color, &color01 );
-                            gp_argb_t argb01 = gp_color_argb( &point_color1 );
-
-                            gp_argb_t outline_argb01 = 0xffffffff;
-
-                            if( outline_width > 0.f )
-                            {
-                                gp_color_t outline_color01;
-                                __lerp_color( &outline_color01, &p0->state->outline_color, &p1->state->outline_color, t );
-
-                                gp_color_t point_outline_color1;
-                                gp_color_mul( &point_outline_color1, &_mesh->color, &outline_color01 );
-                                outline_argb01 = gp_color_argb( &point_outline_color1 );
-                            }
-
-                            gp_vec2f_t bp;
-                            __calculate_bezier_position( &bp, &p0->p, &p1->p, e->p, 1, t );
-
-                            t += curve_quality_inv;
-
-                            gp_points_t * p = GP_GET_POINT( points_cache.size );
-                            p->p = bp;
-                            p->argb = argb01;
-                            p->outline_argb = outline_argb01;
-
-                            GP_POINTS_INCREF();
-                        }
-                    }break;
-                case 2:
-                    {
-                        const gp_line_point_t * p1 = point_iterator;
-
-                        float t = 0.f;
-
-                        for( gp_uint8_t index = 0; index != curve_quality; ++index )
-                        {
-                            gp_color_t color01;
-                            __lerp_color( &color01, &p0->state->color, &p1->state->color, t );
-
-                            gp_color_t point_color1;
-                            gp_color_mul( &point_color1, &_mesh->color, &color01 );
-                            gp_argb_t argb01 = gp_color_argb( &point_color1 );
-
-                            gp_argb_t outline_argb01 = 0xffffffff;
-
-                            if( outline_width > 0.f )
-                            {
-                                gp_color_t outline_color01;
-                                __lerp_color( &outline_color01, &p0->state->outline_color, &p1->state->outline_color, t );
-
-                                gp_color_t point_outline_color1;
-                                gp_color_mul( &point_outline_color1, &_mesh->color, &outline_color01 );
-                                outline_argb01 = gp_color_argb( &point_outline_color1 );
-                            }
-
-                            gp_vec2f_t bp;
-                            __calculate_bezier_position( &bp, &p0->p, &p1->p, e->p, 2, t );
-
-                            t += curve_quality_inv;
-
-                            gp_points_t * p = GP_GET_POINT( points_cache.size );
-                            p->p = bp;
-                            p->argb = argb01;
-                            p->outline_argb = outline_argb01;
-
-                            GP_POINTS_INCREF();
-                        }
-                    }break;
-                default:
-                    return GP_FAILURE;
-                }
-            }
-
-            {
-                const gp_line_point_t * p1 = point_iterator;
-
-                gp_color_t point_color1;
-                gp_color_mul( &point_color1, &_mesh->color, &p1->state->color );
-                gp_argb_t argb1 = gp_color_argb( &point_color1 );
-
-                gp_argb_t outline_argb1 = 0xffffffff;
-                if( outline_width > 0.f )
-                {
-                    gp_color_t point_outline_color1;
-                    gp_color_mul( &point_outline_color1, &_mesh->color, &p1->state->outline_color );
-                    outline_argb1 = gp_color_argb( &point_outline_color1 );
-                }
-
-                gp_points_t * p = GP_GET_POINT( points_cache.size );
-                p->p = p1->p;
-                p->argb = argb1;
-                p->outline_argb = outline_argb1;
-
-                GP_POINTS_INCREF();
-            }
-
-            if( l->closed == GP_TRUE && _state->fill == GP_FALSE )
-            {
-                const gp_points_t * first = GP_GET_POINT( 0 );
-                const gp_points_t * last = GP_GET_POINT( points_cache.size - 1 );
-                gp_bool_t endpoints_equal = GP_EQUAL_F( first->p.x - last->p.x, 0.00001f ) &&
-                    GP_EQUAL_F( first->p.y - last->p.y, 0.00001f );
-
-                if( endpoints_equal == GP_FALSE )
-                {
-                    gp_points_t * closing = GP_GET_POINT( points_cache.size );
-                    *closing = *first;
-
-                    GP_POINTS_INCREF();
-                }
-            }
-        }
-
-        if( _state->fill == GP_FALSE && l->closed == GP_FALSE && _state->line_cap == GP_LINE_CAP_SQUARE )
-        {
-            gp_points_t * first = GP_GET_POINT( 0 );
-            const gp_points_t * second = GP_GET_POINT( 1 );
-            gp_points_t * last = GP_GET_POINT( points_cache.size - 1 );
-            const gp_points_t * before_last = GP_GET_POINT( points_cache.size - 2 );
-            gp_vec2f_t first_direction;
-            gp_vec2f_t last_direction;
-            __make_line_dir( &first_direction, &first->p, &second->p );
-            __make_line_dir( &last_direction, &before_last->p, &last->p );
-
-            first->p.x -= first_direction.x * half_thickness;
-            first->p.y -= first_direction.y * half_thickness;
-            last->p.x += last_direction.x * half_thickness;
-            last->p.y += last_direction.y * half_thickness;
-        }
-
-        gp_uint32_t begin_vertex_iterator = vertex_iterator;
-
-        if( _state->fill == GP_TRUE )
-        {
-            if( points_cache.size >= 3 )
-            {
-                for( gp_uint32_t index = 0; index != points_cache.size; ++index )
-                {
-                    gp_points_t * p = GP_GET_POINT( index );
-
-                    GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + index, p->p.x, p->p.y) );
-                    GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + index, p->argb) );
-                    GP_CALL( gp_mesh_push_uv, (_state, _mesh, vertex_iterator + index, 0.f, 0.f) );
-                }
-
-                GP_CALL( __render_fill_indices, (_mesh, &points_cache, &index_iterator, vertex_iterator) );
-                vertex_iterator += points_cache.size;
-            }
-
-#if !defined(GP_DISABLE_EXTRA_LINE_POINTS)
-            if( points_cache.extra_points != GP_NULLPTR )
-            {
-                (*l->free)(points_cache.extra_points, l->ud);
-            }
-#endif
-            * _vertex_iterator = vertex_iterator;
-            *_index_iterator = index_iterator;
-
-            return GP_SUCCESSFUL;
-        }
-
-        float penumbra = _state->penumbra;
-
-        if( penumbra > 0.f )
-        {
-            for( gp_uint32_t index = 0; index != points_cache.size - 1; ++index )
-            {
-                GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 0, vertex_iterator + index * 4 + 0) );
-                GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 1, vertex_iterator + index * 4 + 1) );
-                GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 2, vertex_iterator + index * 4 + 4) );
-                GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 3, vertex_iterator + index * 4 + 4) );
-                GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 4, vertex_iterator + index * 4 + 1) );
-                GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 5, vertex_iterator + index * 4 + 5) );
-
-                index_iterator += 6;
-
-                GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 0, vertex_iterator + index * 4 + 1) );
-                GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 1, vertex_iterator + index * 4 + 2) );
-                GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 2, vertex_iterator + index * 4 + 5) );
-                GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 3, vertex_iterator + index * 4 + 5) );
-                GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 4, vertex_iterator + index * 4 + 2) );
-                GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 5, vertex_iterator + index * 4 + 6) );
-
-                index_iterator += 6;
-
-                GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 0, vertex_iterator + index * 4 + 2) );
-                GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 1, vertex_iterator + index * 4 + 3) );
-                GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 2, vertex_iterator + index * 4 + 6) );
-                GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 3, vertex_iterator + index * 4 + 6) );
-                GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 4, vertex_iterator + index * 4 + 3) );
-                GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 5, vertex_iterator + index * 4 + 7) );
-
-                index_iterator += 6;
-            }
-        }
-        else
-        {
-            if( outline_width > 0.f )
-            {
-                for( gp_uint32_t index = 0; index != points_cache.size - 1; ++index )
-                {
-                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 0, vertex_iterator + index * 6 + 0) );
-                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 1, vertex_iterator + index * 6 + 1) );
-                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 2, vertex_iterator + index * 6 + 6) );
-                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 3, vertex_iterator + index * 6 + 6) );
-                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 4, vertex_iterator + index * 6 + 1) );
-                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 5, vertex_iterator + index * 6 + 7) );
-
-                    index_iterator += 6;
-
-                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 0, vertex_iterator + index * 6 + 2) );
-                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 1, vertex_iterator + index * 6 + 3) );
-                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 2, vertex_iterator + index * 6 + 8) );
-                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 3, vertex_iterator + index * 6 + 8) );
-                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 4, vertex_iterator + index * 6 + 3) );
-                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 5, vertex_iterator + index * 6 + 9) );
-
-                    index_iterator += 6;
-
-                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 0, vertex_iterator + index * 6 + 4) );
-                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 1, vertex_iterator + index * 6 + 5) );
-                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 2, vertex_iterator + index * 6 + 10) );
-                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 3, vertex_iterator + index * 6 + 10) );
-                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 4, vertex_iterator + index * 6 + 5) );
-                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 5, vertex_iterator + index * 6 + 11) );
-
-                    index_iterator += 6;
-                }
-            }
-            else
-            {
-                for( gp_uint32_t index = 0; index != points_cache.size - 1; ++index )
-                {
-                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 0, vertex_iterator + index * 2 + 0) );
-                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 1, vertex_iterator + index * 2 + 1) );
-                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 2, vertex_iterator + index * 2 + 2) );
-                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 3, vertex_iterator + index * 2 + 2) );
-                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 4, vertex_iterator + index * 2 + 1) );
-                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 5, vertex_iterator + index * 2 + 3) );
-
-                    index_iterator += 6;
-                }
-            }
-        }
-
-        float half_thickness_soft = 0.f;
-        float uv_soft_offset = 0.f;
-
-        if( penumbra > 0.f )
-        {
-            half_thickness_soft = half_thickness - penumbra;
-            uv_soft_offset = half_thickness_soft / half_thickness * 0.5f;
-        }
-
-        float total_distance = 0.f;
-
-        if( _mesh->uv_buffer != GP_NULLPTR )
-        {
-            for( gp_uint32_t index = 1; index != points_cache.size; ++index )
-            {
-                const gp_vec2f_t * p0 = &GP_GET_POINT( index - 1 )->p;
-                const gp_vec2f_t * p1 = &GP_GET_POINT( index + 0 )->p;
-
-                float d = __vec2f_distance( p0, p1 );
-
-                total_distance += d;
-            }
-        }
-
-        {
-            const gp_vec2f_t * p0 = &GP_GET_POINT( 0 )->p;
-            const gp_vec2f_t * p1 = &GP_GET_POINT( 1 )->p;
-
-            gp_argb_t argb0 = GP_GET_POINT( 0 )->argb;
-            gp_argb_t outline_argb0 = GP_GET_POINT( 0 )->outline_argb;
-
-            gp_vec2f_t perp;
-            __make_line_perp( &perp, p0, p1 );
-
-            if( penumbra > 0.f )
-            {
-                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 0, p0->x - perp.x * half_thickness, p0->y - perp.y * half_thickness) );
-                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 0, argb0 & 0x00ffffff) );
-                GP_CALL( gp_mesh_push_uv, (_state, _mesh, vertex_iterator + 0, 0.f, 0.f) );
-
-                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 1, p0->x - perp.x * half_thickness_soft, p0->y - perp.y * half_thickness_soft) );
-                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 1, argb0) );
-                GP_CALL( gp_mesh_push_uv, (_state, _mesh, vertex_iterator + 1, 0.f, 0.5f - uv_soft_offset) );
-
-                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 2, p0->x + perp.x * half_thickness_soft, p0->y + perp.y * half_thickness_soft) );
-                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 2, argb0) );
-                GP_CALL( gp_mesh_push_uv, (_state, _mesh, vertex_iterator + 2, 0.f, 0.5f + uv_soft_offset) );
-
-                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 3, p0->x + perp.x * half_thickness, p0->y + perp.y * half_thickness) );
-                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 3, argb0 & 0x00ffffff) );
-                GP_CALL( gp_mesh_push_uv, (_state, _mesh, vertex_iterator + 3, 0.f, 1.f) );
-
-                vertex_iterator += 4;
-            }
-            else
-            {
-                if( outline_width > 0.f )
-                {
-                    GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 0, p0->x - perp.x * (half_thickness + outline_width), p0->y - perp.y * (half_thickness + outline_width)) );
-                    GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 0, outline_argb0) );
-                    GP_CALL( gp_mesh_push_uv, (_state, _mesh, vertex_iterator + 0, 0.f, 0.f) );
-
-                    GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 1, p0->x - perp.x * half_thickness, p0->y - perp.y * half_thickness) );
-                    GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 1, outline_argb0) );
-                    GP_CALL( gp_mesh_push_uv, (_state, _mesh, vertex_iterator + 1, 0.f, 0.f) );
-
-                    GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 2, p0->x - perp.x * half_thickness, p0->y - perp.y * half_thickness) );
-                    GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 2, argb0) );
-                    GP_CALL( gp_mesh_push_uv, (_state, _mesh, vertex_iterator + 2, 0.f, 0.f) );
-
-                    GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 3, p0->x + perp.x * half_thickness, p0->y + perp.y * half_thickness) );
-                    GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 3, argb0) );
-                    GP_CALL( gp_mesh_push_uv, (_state, _mesh, vertex_iterator + 3, 0.f, 1.f) );
-
-                    GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 4, p0->x + perp.x * half_thickness, p0->y + perp.y * half_thickness) );
-                    GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 4, outline_argb0) );
-                    GP_CALL( gp_mesh_push_uv, (_state, _mesh, vertex_iterator + 4, 0.f, 1.f) );
-
-                    GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 5, p0->x + perp.x * (half_thickness + outline_width), p0->y + perp.y * (half_thickness + outline_width)) );
-                    GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 5, outline_argb0) );
-                    GP_CALL( gp_mesh_push_uv, (_state, _mesh, vertex_iterator + 5, 0.f, 1.f) );
-
-                    vertex_iterator += 6;
-                }
-                else
-                {
-                    GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 0, p0->x - perp.x * half_thickness, p0->y - perp.y * half_thickness) );
-                    GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 0, argb0) );
-                    GP_CALL( gp_mesh_push_uv, (_state, _mesh, vertex_iterator + 0, 0.f, 0.f) );
-
-                    GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 1, p0->x + perp.x * half_thickness, p0->y + perp.y * half_thickness) );
-                    GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 1, argb0) );
-                    GP_CALL( gp_mesh_push_uv, (_state, _mesh, vertex_iterator + 1, 0.f, 1.f) );
-
-                    vertex_iterator += 2;
-                }
-            }
-        }
-
-        float dd = 0.f;
-
-        for( gp_uint32_t index = 1; index != points_cache.size - 1; ++index )
-        {
-            const gp_vec2f_t * p0 = &GP_GET_POINT( index - 1 )->p;
-            const gp_vec2f_t * p1 = &GP_GET_POINT( index + 0 )->p;
-            const gp_vec2f_t * p2 = &GP_GET_POINT( index + 1 )->p;
-
-            float u = 0.f;
-
-            if( _mesh->uv_buffer != GP_NULLPTR )
-            {
-                float d = __vec2f_distance( p0, p1 );
-
-                dd += d;
-
-                u = dd / total_distance;
-            }
-
-            gp_argb_t argb0 = GP_GET_POINT( index + 0 )->argb;
-            gp_argb_t outline_argb0 = GP_GET_POINT( index + 0 )->outline_argb;
-
-            gp_vec2f_t perp01;
-            __make_line_perp( &perp01, p0, p1 );
-
-            gp_vec2f_t perp12;
-            __make_line_perp( &perp12, p1, p2 );
-
-            gp_vec2f_t linep00;
-            linep00.x = p0->x - perp01.x * half_thickness;
-            linep00.y = p0->y - perp01.y * half_thickness;
-
-            gp_vec2f_t linep01;
-            linep01.x = p1->x - perp01.x * half_thickness;
-            linep01.y = p1->y - perp01.y * half_thickness;
-
-            gp_linef_t line01l;
-            __make_line_from_two_point_v2( &line01l, &linep00, &linep01 );
-
-            gp_vec2f_t linep10;
-            linep10.x = p1->x - perp12.x * half_thickness;
-            linep10.y = p1->y - perp12.y * half_thickness;
-
-            gp_vec2f_t linep11;
-            linep11.x = p2->x - perp12.x * half_thickness;
-            linep11.y = p2->y - perp12.y * half_thickness;
-
-            gp_linef_t line12l;
-            __make_line_from_two_point_v2( &line12l, &linep10, &linep11 );
-
-            gp_vec2f_t pl;
-            if( __intersect_line( &line01l, &line12l, &pl ) == GP_FALSE )
-            {
-                pl.x = p1->x - perp01.x * half_thickness;
-                pl.y = p1->y - perp01.y * half_thickness;
-            }
-
-            gp_vec2f_t linep20;
-            linep20.x = p0->x + perp01.x * half_thickness;
-            linep20.y = p0->y + perp01.y * half_thickness;
-
-            gp_vec2f_t linep21;
-            linep21.x = p1->x + perp01.x * half_thickness;
-            linep21.y = p1->y + perp01.y * half_thickness;
-
-            gp_linef_t line01r;
-            __make_line_from_two_point_v2( &line01r, &linep20, &linep21 );
-
-            gp_vec2f_t linep30;
-            linep30.x = p1->x + perp12.x * half_thickness;
-            linep30.y = p1->y + perp12.y * half_thickness;
-
-            gp_vec2f_t linep31;
-            linep31.x = p2->x + perp12.x * half_thickness;
-            linep31.y = p2->y + perp12.y * half_thickness;
-
-            gp_linef_t line12r;
-            __make_line_from_two_point_v2( &line12r, &linep30, &linep31 );
-
-            gp_vec2f_t pr;
-            if( __intersect_line( &line01r, &line12r, &pr ) == GP_FALSE )
-            {
-                pr.x = p1->x + perp01.x * half_thickness;
-                pr.y = p1->y + perp01.y * half_thickness;
-            }
-
-            __apply_join_limit( &pl, p1, &perp01, half_thickness, -1.f, _state );
-            __apply_join_limit( &pr, p1, &perp01, half_thickness, 1.f, _state );
-
-            if( penumbra > 0.f )
-            {
-                gp_vec2f_t linep40;
-                linep40.x = p0->x - perp01.x * half_thickness_soft;
-                linep40.y = p0->y - perp01.y * half_thickness_soft;
-
-                gp_vec2f_t linep41;
-                linep41.x = p1->x - perp01.x * half_thickness_soft;
-                linep41.y = p1->y - perp01.y * half_thickness_soft;
-
-                gp_linef_t line01l_soft;
-                __make_line_from_two_point_v2( &line01l_soft, &linep40, &linep41 );
-
-                gp_vec2f_t linep50;
-                linep50.x = p1->x - perp12.x * half_thickness_soft;
-                linep50.y = p1->y - perp12.y * half_thickness_soft;
-
-                gp_vec2f_t linep51;
-                linep51.x = p2->x - perp12.x * half_thickness_soft;
-                linep51.y = p2->y - perp12.y * half_thickness_soft;
-
-                gp_linef_t line12l_soft;
-                __make_line_from_two_point_v2( &line12l_soft, &linep50, &linep51 );
-
-                gp_vec2f_t pl_soft;
-                if( __intersect_line( &line01l_soft, &line12l_soft, &pl_soft ) == GP_FALSE )
-                {
-                    pl_soft.x = p1->x - perp01.x * half_thickness_soft;
-                    pl_soft.y = p1->y - perp01.y * half_thickness_soft;
-                }
-
-                gp_vec2f_t linep60;
-                linep60.x = p0->x + perp01.x * half_thickness_soft;
-                linep60.y = p0->y + perp01.y * half_thickness_soft;
-
-                gp_vec2f_t linep61;
-                linep61.x = p1->x + perp01.x * half_thickness_soft;
-                linep61.y = p1->y + perp01.y * half_thickness_soft;
-
-                gp_linef_t line01r_soft;
-                __make_line_from_two_point_v2( &line01r_soft, &linep60, &linep61 );
-
-                gp_vec2f_t linep70;
-                linep70.x = p1->x + perp12.x * half_thickness_soft;
-                linep70.y = p1->y + perp12.y * half_thickness_soft;
-
-                gp_vec2f_t linep71;
-                linep71.x = p2->x + perp12.x * half_thickness_soft;
-                linep71.y = p2->y + perp12.y * half_thickness_soft;
-
-                gp_linef_t line12r_soft;
-                __make_line_from_two_point_v2( &line12r_soft, &linep70, &linep71 );
-
-                gp_vec2f_t pr_soft;
-                if( __intersect_line( &line01r_soft, &line12r_soft, &pr_soft ) == GP_FALSE )
-                {
-                    pr_soft.x = p1->x + perp01.x * half_thickness_soft;
-                    pr_soft.y = p1->y + perp01.y * half_thickness_soft;
-                }
-
-                __apply_join_limit( &pl_soft, p1, &perp01, half_thickness_soft, -1.f, _state );
-                __apply_join_limit( &pr_soft, p1, &perp01, half_thickness_soft, 1.f, _state );
-
-                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 0, pl.x, pl.y) );
-                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 0, argb0 & 0x00ffffff) );
-                GP_CALL( gp_mesh_push_uv, (_state, _mesh, vertex_iterator + 0, u, 0.f) );
-
-                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 1, pl_soft.x, pl_soft.y) );
-                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 1, argb0) );
-                GP_CALL( gp_mesh_push_uv, (_state, _mesh, vertex_iterator + 1, u, 0.5f - uv_soft_offset) );
-
-                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 2, pr_soft.x, pr_soft.y) );
-                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 2, argb0) );
-                GP_CALL( gp_mesh_push_uv, (_state, _mesh, vertex_iterator + 2, u, 0.5f + uv_soft_offset) );
-
-                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 3, pr.x, pr.y) );
-                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 3, argb0 & 0x00ffffff) );
-                GP_CALL( gp_mesh_push_uv, (_state, _mesh, vertex_iterator + 3, u, 1.f) );
-
-                vertex_iterator += 4;
-            }
-            else
-            {
-                if( outline_width > 0.f )
-                {
-                    gp_vec2f_t linep40;
-                    linep40.x = p0->x - perp01.x * (half_thickness + outline_width);
-                    linep40.y = p0->y - perp01.y * (half_thickness + outline_width);
-
-                    gp_vec2f_t linep41;
-                    linep41.x = p1->x - perp01.x * (half_thickness + outline_width);
-                    linep41.y = p1->y - perp01.y * (half_thickness + outline_width);
-
-                    gp_linef_t line01l_outline;
-                    __make_line_from_two_point_v2( &line01l_outline, &linep40, &linep41 );
-
-                    gp_vec2f_t linep50;
-                    linep50.x = p1->x - perp12.x * (half_thickness + outline_width);
-                    linep50.y = p1->y - perp12.y * (half_thickness + outline_width);
-
-                    gp_vec2f_t linep51;
-                    linep51.x = p2->x - perp12.x * (half_thickness + outline_width);
-                    linep51.y = p2->y - perp12.y * (half_thickness + outline_width);
-
-                    gp_linef_t line12l_outline;
-                    __make_line_from_two_point_v2( &line12l_outline, &linep50, &linep51 );
-
-                    gp_vec2f_t pl_outline;
-                    if( __intersect_line( &line01l_outline, &line12l_outline, &pl_outline ) == GP_FALSE )
-                    {
-                        pl_outline.x = p1->x - perp01.x * (half_thickness + outline_width);
-                        pl_outline.y = p1->y - perp01.y * (half_thickness + outline_width);
-                    }
-
-                    gp_vec2f_t linep60;
-                    linep60.x = p0->x + perp01.x * (half_thickness + outline_width);
-                    linep60.y = p0->y + perp01.y * (half_thickness + outline_width);
-
-                    gp_vec2f_t linep61;
-                    linep61.x = p1->x + perp01.x * (half_thickness + outline_width);
-                    linep61.y = p1->y + perp01.y * (half_thickness + outline_width);
-
-                    gp_linef_t line01r_outline;
-                    __make_line_from_two_point_v2( &line01r_outline, &linep60, &linep61 );
-
-                    gp_vec2f_t linep70;
-                    linep70.x = p1->x + perp12.x * (half_thickness + outline_width);
-                    linep70.y = p1->y + perp12.y * (half_thickness + outline_width);
-
-                    gp_vec2f_t linep71;
-                    linep71.x = p2->x + perp12.x * (half_thickness + outline_width);
-                    linep71.y = p2->y + perp12.y * (half_thickness + outline_width);
-
-                    gp_linef_t line12r_outline;
-                    __make_line_from_two_point_v2( &line12r_outline, &linep70, &linep71 );
-
-                    gp_vec2f_t pr_outline;
-                    if( __intersect_line( &line01r_outline, &line12r_outline, &pr_outline ) == GP_FALSE )
-                    {
-                        pr_outline.x = p1->x + perp01.x * (half_thickness + outline_width);
-                        pr_outline.y = p1->y + perp01.y * (half_thickness + outline_width);
-                    }
-
-                    __apply_join_limit( &pl_outline, p1, &perp01, half_thickness + outline_width, -1.f, _state );
-                    __apply_join_limit( &pr_outline, p1, &perp01, half_thickness + outline_width, 1.f, _state );
-
-                    GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 0, pl_outline.x, pl_outline.y) );
-                    GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 0, outline_argb0) );
-                    GP_CALL( gp_mesh_push_uv, (_state, _mesh, vertex_iterator + 0, u, 0.f) );
-
-                    GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 1, pl.x, pl.y) );
-                    GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 1, outline_argb0) );
-                    GP_CALL( gp_mesh_push_uv, (_state, _mesh, vertex_iterator + 1, u, 0.f) );
-
-                    GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 2, pl.x, pl.y) );
-                    GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 2, argb0) );
-                    GP_CALL( gp_mesh_push_uv, (_state, _mesh, vertex_iterator + 2, u, 0.f) );
-
-                    GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 3, pr.x, pr.y) );
-                    GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 3, argb0) );
-                    GP_CALL( gp_mesh_push_uv, (_state, _mesh, vertex_iterator + 3, u, 1.f) );
-
-                    GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 4, pr.x, pr.y) );
-                    GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 4, outline_argb0) );
-                    GP_CALL( gp_mesh_push_uv, (_state, _mesh, vertex_iterator + 4, u, 1.f) );
-
-                    GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 5, pr_outline.x, pr_outline.y) );
-                    GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 5, outline_argb0) );
-                    GP_CALL( gp_mesh_push_uv, (_state, _mesh, vertex_iterator + 5, u, 1.f) );
-
-                    vertex_iterator += 6;
-                }
-                else
-                {
-                    GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 0, pl.x, pl.y) );
-                    GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 0, argb0) );
-                    GP_CALL( gp_mesh_push_uv, (_state, _mesh, vertex_iterator + 0, u, 0.f) );
-
-                    GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 1, pr.x, pr.y) );
-                    GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 1, argb0) );
-                    GP_CALL( gp_mesh_push_uv, (_state, _mesh, vertex_iterator + 1, u, 1.f) );
-
-                    vertex_iterator += 2;
-                }
-            }
-        }
-
-        {
-            const gp_vec2f_t * p0 = &GP_GET_POINT( points_cache.size - 2 )->p;
-            const gp_vec2f_t * p1 = &GP_GET_POINT( points_cache.size - 1 )->p;
-
-            gp_argb_t argb0 = GP_GET_POINT( points_cache.size - 2 )->argb;
-            gp_argb_t outline_argb0 = GP_GET_POINT( points_cache.size - 2 )->outline_argb;
-
-            gp_vec2f_t perp;
-            __make_line_perp( &perp, p0, p1 );
-
-            if( penumbra > 0.f )
-            {
-                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 0, p1->x - perp.x * half_thickness, p1->y - perp.y * half_thickness) );
-                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 0, argb0 & 0x00ffffff) );
-                GP_CALL( gp_mesh_push_uv, (_state, _mesh, vertex_iterator + 0, 1.f, 0.f) );
-
-                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 1, p1->x - perp.x * half_thickness_soft, p1->y - perp.y * half_thickness_soft) );
-                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 1, argb0) );
-                GP_CALL( gp_mesh_push_uv, (_state, _mesh, vertex_iterator + 1, 1.f, 0.5f - uv_soft_offset) );
-
-                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 2, p1->x + perp.x * half_thickness_soft, p1->y + perp.y * half_thickness_soft) );
-                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 2, argb0) );
-                GP_CALL( gp_mesh_push_uv, (_state, _mesh, vertex_iterator + 2, 1.f, 0.5f + uv_soft_offset) );
-
-                GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 3, p1->x + perp.x * half_thickness, p1->y + perp.y * half_thickness) );
-                GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 3, argb0 & 0x00ffffff) );
-                GP_CALL( gp_mesh_push_uv, (_state, _mesh, vertex_iterator + 3, 1.f, 1.f) );
-
-                vertex_iterator += 4;
-            }
-            else
-            {
-                if( outline_width > 0.f )
-                {
-                    GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 0, p1->x - perp.x * (half_thickness + outline_width), p1->y - perp.y * (half_thickness + outline_width)) );
-                    GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 0, outline_argb0) );
-                    GP_CALL( gp_mesh_push_uv, (_state, _mesh, vertex_iterator + 0, 1.f, 0.f) );
-
-                    GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 1, p1->x - perp.x * half_thickness, p1->y - perp.y * half_thickness) );
-                    GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 1, outline_argb0) );
-                    GP_CALL( gp_mesh_push_uv, (_state, _mesh, vertex_iterator + 1, 1.f, 0.f) );
-
-                    GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 2, p1->x - perp.x * half_thickness, p1->y - perp.y * half_thickness) );
-                    GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 2, argb0) );
-                    GP_CALL( gp_mesh_push_uv, (_state, _mesh, vertex_iterator + 2, 1.f, 0.f) );
-
-                    GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 3, p1->x + perp.x * half_thickness, p1->y + perp.y * half_thickness) );
-                    GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 3, argb0) );
-                    GP_CALL( gp_mesh_push_uv, (_state, _mesh, vertex_iterator + 3, 1.f, 1.f) );
-
-                    GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 4, p1->x + perp.x * half_thickness, p1->y + perp.y * half_thickness) );
-                    GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 4, outline_argb0) );
-                    GP_CALL( gp_mesh_push_uv, (_state, _mesh, vertex_iterator + 4, 1.f, 1.f) );
-
-                    GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 5, p1->x + perp.x * (half_thickness + outline_width), p1->y + perp.y * (half_thickness + outline_width)) );
-                    GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 5, outline_argb0) );
-                    GP_CALL( gp_mesh_push_uv, (_state, _mesh, vertex_iterator + 5, 1.f, 1.f) );
-
-                    vertex_iterator += 6;
-                }
-                else
-                {
-                    GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 0, p1->x - perp.x * half_thickness, p1->y - perp.y * half_thickness) );
-                    GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 0, argb0) );
-                    GP_CALL( gp_mesh_push_uv, (_state, _mesh, vertex_iterator + 0, 1.f, 0.f) );
-
-                    GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 1, p1->x + perp.x * half_thickness, p1->y + perp.y * half_thickness) );
-                    GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 1, argb0) );
-                    GP_CALL( gp_mesh_push_uv, (_state, _mesh, vertex_iterator + 1, 1.f, 1.f) );
-
-                    vertex_iterator += 2;
-                }                
-            }
-
-            gp_uint32_t end_vertex_iterator = vertex_iterator;
-
-            if( penumbra > 0.f )
-            {
-            }
-            else
-            {
-                if( outline_width > 0.f )
-                {
-                    for( gp_uint32_t index_arc = 0; index_arc != 4; ++index_arc )
-                    {
-                        gp_uint8_t rect_quality = _state->rect_quality;
-
-                        gp_uint32_t i0[4] = {begin_vertex_iterator + 1, begin_vertex_iterator + 4, end_vertex_iterator - 5, end_vertex_iterator - 2};
-                        gp_uint32_t i1[4] = {begin_vertex_iterator + 0, begin_vertex_iterator + 5, end_vertex_iterator - 6, end_vertex_iterator - 1};
-                        gp_uint32_t i2[4] = {begin_vertex_iterator + 7, begin_vertex_iterator + 10, end_vertex_iterator - 11, end_vertex_iterator - 8};
-
-                        GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 0, i0[index_arc]) );
-                        GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 1, vertex_iterator + 0) );
-                        GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 2, vertex_iterator + 1) );
-
-                        index_iterator += 3;
-
-                        for( gp_uint16_t index = 0; index != rect_quality - 2; ++index )
-                        {
-                            GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 0, i0[index_arc]) );
-                            GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 1, vertex_iterator + 1 + index + 0) );
-                            GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 2, vertex_iterator + 1 + index + 1) );
-
-                            index_iterator += 3;
-                        }
-
-                        GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 0, i1[index_arc]) );
-                        GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 1, i0[index_arc]) );
-                        GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 2, vertex_iterator + 1 + rect_quality - 3) );
-
-                        index_iterator += 3;
-
-                        float dt = gp_constant_half_pi * _state->rect_quality_inv;
-                    
-                        gp_vec2f_t v1;
-                        GP_CALL( gp_mesh_get_position, (_mesh, i0[index_arc], &v1) );
-
-                        gp_vec2f_t v7;
-                        GP_CALL( gp_mesh_get_position, (_mesh, i2[index_arc], &v7) );
-
-                        gp_vec2f_t d17;
-                        __make_line_dir( &d17, &v1, &v7 );
-
-                        GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 0, v1.x - d17.x * outline_width, v1.y - d17.y * outline_width) );
-                        GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 0, outline_argb0) );
-                        GP_CALL( gp_mesh_push_uv, (_state, _mesh, vertex_iterator + 0, 0.f, 0.f) );
-
-                        vertex_iterator += 1;
-
-                        float s0[4] = {1.f, -1.f, -1.f, 1.f};
-
-                        for( gp_uint8_t index = 1; index != rect_quality; ++index )
-                        {
-                            float t = s0[index_arc] * dt * index;
-
-                            float ct = GP_MATH_COSF( t );
-                            float st = GP_MATH_SINF( t );
-
-                            float x = v1.x - d17.x * outline_width * ct + d17.y * outline_width * st;
-                            float y = v1.y - d17.y * outline_width * ct - d17.x * outline_width * st;
-
-                            GP_CALL( gp_mesh_push_position, (_mesh, vertex_iterator + 0, x, y) );
-                            GP_CALL( gp_mesh_push_color, (_mesh, vertex_iterator + 0, outline_argb0) );
-                            GP_CALL( gp_mesh_push_uv, (_state, _mesh, vertex_iterator + 0, 0.f, 0.f) );
-
-                            vertex_iterator += 1;
-                        }
-                    }
-
-                    gp_uint16_t total_arc_verices = (_state->rect_quality - 1) + 1;
-
-                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 0, end_vertex_iterator + total_arc_verices * 0) );
-                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 1, end_vertex_iterator + total_arc_verices * 1) );
-                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 2, begin_vertex_iterator + 1) );
-                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 3, begin_vertex_iterator + 1) );
-                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 4, end_vertex_iterator + total_arc_verices * 1) );
-                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 5, begin_vertex_iterator + 5) );
-
-                    index_iterator += 6;
-
-                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 0, end_vertex_iterator + total_arc_verices * 2) );
-                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 1, end_vertex_iterator + total_arc_verices * 3) );
-                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 2, end_vertex_iterator - 5) );
-                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 3, end_vertex_iterator - 5) );
-                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 4, end_vertex_iterator + total_arc_verices * 3) );
-                    GP_CALL( gp_mesh_push_index, (_mesh, index_iterator + 5, end_vertex_iterator - 1) );
-
-                    index_iterator += 6;
-                }
-            }
-
-            if( _state->line_join == GP_LINE_JOIN_ROUND )
-            {
-                for( gp_uint32_t index = 1; index + 1 < points_cache.size; ++index )
-                {
-                    const gp_points_t * point = GP_GET_POINT( index );
-                    if( penumbra <= 0.f && outline_width > 0.f )
-                    {
-                        GP_CALL( __render_round_disc, (_mesh, _state, point->p.x, point->p.y, half_thickness + outline_width, point->outline_argb, &vertex_iterator, &index_iterator) );
-                    }
-                    GP_CALL( __render_round_disc, (_mesh, _state, point->p.x, point->p.y, half_thickness, point->argb, &vertex_iterator, &index_iterator) );
-                }
-
-                if( l->closed == GP_TRUE )
-                {
-                    const gp_points_t * point = GP_GET_POINT( 0 );
-                    if( penumbra <= 0.f && outline_width > 0.f )
-                    {
-                        GP_CALL( __render_round_disc, (_mesh, _state, point->p.x, point->p.y, half_thickness + outline_width, point->outline_argb, &vertex_iterator, &index_iterator) );
-                    }
-                    GP_CALL( __render_round_disc, (_mesh, _state, point->p.x, point->p.y, half_thickness, point->argb, &vertex_iterator, &index_iterator) );
-                }
-            }
-
-            if( l->closed == GP_FALSE && _state->line_cap == GP_LINE_CAP_ROUND )
-            {
-                const gp_points_t * first = GP_GET_POINT( 0 );
-                const gp_points_t * last = GP_GET_POINT( points_cache.size - 1 );
-                if( penumbra <= 0.f && outline_width > 0.f )
-                {
-                    GP_CALL( __render_round_disc, (_mesh, _state, first->p.x, first->p.y, half_thickness + outline_width, first->outline_argb, &vertex_iterator, &index_iterator) );
-                    GP_CALL( __render_round_disc, (_mesh, _state, last->p.x, last->p.y, half_thickness + outline_width, last->outline_argb, &vertex_iterator, &index_iterator) );
-                }
-                GP_CALL( __render_round_disc, (_mesh, _state, first->p.x, first->p.y, half_thickness, first->argb, &vertex_iterator, &index_iterator) );
-                GP_CALL( __render_round_disc, (_mesh, _state, last->p.x, last->p.y, half_thickness, last->argb, &vertex_iterator, &index_iterator) );
-            }
-
-#if !defined(GP_DISABLE_EXTRA_LINE_POINTS)
-            if( points_cache.extra_points != GP_NULLPTR )
-            {
-                (*l->free)(points_cache.extra_points, l->ud);
-            }
-#endif
-        }
+        GP_CALL( __line_render_fill, (_line, &path, _state, _mesh, _vertex_iterator, _index_iterator) );
+        __line_destroy_path( _line, &path );
+        return GP_SUCCESSFUL;
     }
 
-    * _vertex_iterator = vertex_iterator;
-    *_index_iterator = index_iterator;
+    gp_cooked_stroke_t stroke;
+    GP_CALL( __line_cook_stroke, (_line, &path, &stroke) );
+    for( gp_uint32_t index = 0; index != stroke.count; ++index )
+    {
+        GP_CALL( __line_render_span, (stroke.spans + index, _state, _mesh, _vertex_iterator, _index_iterator) );
+    }
+
+    __line_destroy_stroke( _line, &stroke );
+    __line_destroy_path( _line, &path );
 
     return GP_SUCCESSFUL;
 }

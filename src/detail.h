@@ -33,6 +33,10 @@ static const float gp_constant_two_pi = 6.283185307179586476925286766559f;
 void gp_color_mul( gp_color_t * _c, const gp_color_t * _c0, const gp_color_t * _c1 );
 gp_uint32_t gp_color_argb( const gp_color_t * _c );
 
+gp_uint32_t gp_ellipse_arc_segment_count( float _angle_delta, gp_uint8_t _quality );
+float gp_ellipse_arc_sample_t( float _angle_delta, gp_uint8_t _quality, gp_uint32_t _index );
+float gp_ellipse_arc_sample_angle( float _angle_from, float _angle_to, gp_uint8_t _quality, gp_uint32_t _index );
+
 gp_result_t gp_mesh_push_index( const gp_mesh_t * _mesh, gp_uint32_t _iterator, gp_uint32_t _index );
 gp_result_t gp_mesh_push_position( const gp_mesh_t * _mesh, gp_uint32_t _iterator, float _x, float _y );
 gp_result_t gp_mesh_push_color( const gp_mesh_t * _mesh, gp_uint32_t _iterator, gp_argb_t _c );

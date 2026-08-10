@@ -55,13 +55,6 @@ typedef struct gp_state_t
     struct gp_state_t * prev;
 } gp_state_t;
 //////////////////////////////////////////////////////////////////////////
-typedef struct gp_points_t
-{
-    gp_vec2f_t p;
-    gp_argb_t argb;
-    gp_argb_t outline_argb;
-} gp_points_t;
-//////////////////////////////////////////////////////////////////////////
 typedef struct gp_line_point_t
 {
     gp_vec2f_t p;
@@ -151,6 +144,7 @@ typedef struct gp_ellipse_arc_t
     float radius_height;
     float angle_from;
     float angle_to;
+    gp_bool_t rounded_caps;
 
     const gp_state_t * state;
 

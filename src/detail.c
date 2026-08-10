@@ -25,6 +25,46 @@ gp_uint32_t gp_color_argb( const gp_color_t * _c )
     return argb;
 }
 //////////////////////////////////////////////////////////////////////////
+gp_uint32_t gp_ellipse_arc_segment_count( float _angle_delta, gp_uint8_t _quality )
+{
+    float angle_delta_abs = _angle_delta < 0.f ? -_angle_delta : _angle_delta;
+    float segment_factor = angle_delta_abs / gp_constant_two_pi * (float)_quality;
+    gp_uint32_t segment_count = (gp_uint32_t)segment_factor;
+    if( (float)segment_count < segment_factor )
+    {
+        ++segment_count;
+    }
+
+    return segment_count == 0 ? 1 : segment_count;
+}
+//////////////////////////////////////////////////////////////////////////
+float gp_ellipse_arc_sample_t( float _angle_delta, gp_uint8_t _quality, gp_uint32_t _index )
+{
+    float angle_delta_abs = _angle_delta < 0.f ? -_angle_delta : _angle_delta;
+    float angle_offset = gp_constant_two_pi / (float)_quality * (float)_index;
+    if( angle_offset > angle_delta_abs )
+    {
+        angle_offset = angle_delta_abs;
+    }
+
+    return angle_offset / angle_delta_abs;
+}
+//////////////////////////////////////////////////////////////////////////
+float gp_ellipse_arc_sample_angle( float _angle_from, float _angle_to, gp_uint8_t _quality, gp_uint32_t _index )
+{
+    float angle_delta = _angle_to - _angle_from;
+    if( _index >= gp_ellipse_arc_segment_count( angle_delta, _quality ) )
+    {
+        return _angle_to;
+    }
+
+    float angle_offset = gp_constant_two_pi / (float)_quality * (float)_index;
+
+    return angle_delta < 0.f
+        ? _angle_from - angle_offset
+        : _angle_from + angle_offset;
+}
+//////////////////////////////////////////////////////////////////////////
 gp_result_t gp_mesh_push_index( const gp_mesh_t * _mesh, gp_uint32_t _iterator, gp_uint32_t _index )
 {
     if( _mesh->indices_buffer == GP_NULLPTR )

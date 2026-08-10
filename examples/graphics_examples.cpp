@@ -15,6 +15,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <setjmp.h>
+#include <math.h>
 
 //////////////////////////////////////////////////////////////////////////
 static const char * identifiers[] =
@@ -84,6 +85,13 @@ static void glfw_framebufferSizeCallback( GLFWwindow * _window, int _width, int 
 //////////////////////////////////////////////////////////////////////////
 static void glfw_scrollCallback( GLFWwindow * _window, double _x, double _y )
 {
+    GP_UNUSED( _x );
+
+    if( glfwGetKey( _window, GLFW_KEY_SPACE ) != GLFW_PRESS )
+    {
+        return;
+    }
+
     camera_offset_x -= mouse_pos_x / camera_scale;
     camera_offset_y -= mouse_pos_y / camera_scale;
 
@@ -147,44 +155,146 @@ static void gp_free( void * _ptr, void * _ud )
     free( _ptr );
 }
 //////////////////////////////////////////////////////////////////////////
-static void __draw_figure( gp_canvas_t * _canvas, float _dx, float _dy )
+typedef struct example_path_point_t
 {
-    gp_set_color( _canvas, 1.f, 0.5f, 0.25f, 1.f );
-    gp_set_outline_color( _canvas, 0.5f, 1.f, 0.5f, 1.f );
-    gp_point_move_to( _canvas, _dx + 0.f, _dy + 0.f );
-    gp_set_color( _canvas, 0.5f, 1.0f, 0.25f, 1.f );
-    gp_set_outline_color( _canvas, 0.5f, 1.f, 0.5f, 1.f );
-    gp_point_quadratic_curve_to( _canvas, _dx + 50.f, _dy + 100.f, _dx + 100.f, _dy + 100.f );
-    gp_set_color( _canvas, 0.5f, 0.5f, 1.f, 1.f );
-    gp_set_outline_color( _canvas, 0.5f, 1.f, 0.5f, 1.f );
-    gp_point_bezier_curve_to( _canvas, _dx + 125.f, _dy + 175.f, _dx + 175.f, _dy + 150.f, _dx + 200.f, _dy );
-    gp_set_color( _canvas, 0.25f, 1.f, 1.f, 1.f );
-    gp_set_outline_color( _canvas, 0.5f, 0.25f, 0.75f, 1.f );
-    gp_point_line_to( _canvas, _dx + 250.f, _dy + 100.f );
+    float x;
+    float y;
+    float width;
+    gp_color_t color;
+} example_path_point_t;
+//////////////////////////////////////////////////////////////////////////
+static void __draw_card( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height )
+{
+    gp_push_state( _canvas );
+    gp_set_penumbra( _canvas, 1.f );
+    gp_set_color( _canvas, 0.055f, 0.075f, 0.145f, 0.98f );
+    gp_begin_fill( _canvas );
+    gp_rounded_rect( _canvas, _x, _y, _width, _height, 22.f );
+    gp_end_fill( _canvas );
 
-    gp_set_color( _canvas, 0.2f, 0.6f, 0.9f, 1.f );
-    gp_set_outline_color( _canvas, 0.5f, 1.f, 0.5f, 1.f );
-    gp_rect( _canvas, _dx + 275.f, _dy + 0.f, 100.f, 50.f );
+    gp_set_thickness( _canvas, 1.5f );
+    gp_set_color( _canvas, 0.18f, 0.25f, 0.45f, 0.72f );
+    gp_rounded_rect( _canvas, _x, _y, _width, _height, 22.f );
+    gp_pop_state( _canvas );
+}
+//////////////////////////////////////////////////////////////////////////
+static void __draw_radial_progress( gp_canvas_t * _canvas, float _progress )
+{
+    const float pi = 3.14159265358979323846f;
+    const float angle_from = -pi * 0.5f;
+    const float angle_to = angle_from + _progress * pi * 2.f;
+    const float x = 475.f;
+    const float y = 226.f;
 
-    gp_set_color( _canvas, 0.7f, 0.3f, 0.4f, 1.f );
-    gp_set_outline_color( _canvas, 0.5f, 1.f, 0.5f, 1.f );
-    gp_rounded_rect( _canvas, _dx + 275.f, _dy + 75.f, 100.f, 50.f, 10.f );
+    gp_push_state( _canvas );
+    gp_set_outline_width( _canvas, 0.f );
+    gp_set_penumbra( _canvas, 0.f );
+    gp_set_color( _canvas, 0.25f, 0.86f, 1.f, 1.f );
+    gp_rounded_ring( _canvas, x, y, 68.f, 84.f, angle_from, angle_to );
 
-    gp_set_color( _canvas, 0.1f, 0.8f, 0.2f, 1.f );
-    gp_set_outline_color( _canvas, 0.5f, 1.f, 0.5f, 1.f );
-    gp_circle( _canvas, _dx + 100.f, _dy + 225.f, 50.f );
+    gp_set_penumbra( _canvas, 0.f );
+    gp_set_color( _canvas, 0.52f, 0.38f, 1.f, 0.95f );
+    gp_begin_fill( _canvas );
+    gp_star( _canvas, x, y, 10.f, 22.f, 5, angle_from );
+    gp_end_fill( _canvas );
+    gp_pop_state( _canvas );
+}
+//////////////////////////////////////////////////////////////////////////
+static void __draw_segmented_cooldown( gp_canvas_t * _canvas, float _progress, float _time )
+{
+    const float pi = 3.14159265358979323846f;
+    const float angle_from = -pi * 0.5f;
+    const float angle_to = angle_from + _progress * pi * 2.f;
+    const float x = 808.f;
+    const float y = 226.f;
+    const float dash[] = {8.f, 24.f};
 
-    gp_set_color( _canvas, 0.9f, 0.1f, 0.7f, 1.f );
-    gp_set_outline_color( _canvas, 0.5f, 1.f, 0.5f, 1.f );
-    gp_ellipse( _canvas, _dx + 250.f, _dy + 225.f, 50.f, 25.f );
+    gp_push_state( _canvas );
+    gp_set_outline_width( _canvas, 0.f );
+    gp_set_penumbra( _canvas, 2.f );
+    gp_set_line_cap( _canvas, GP_LINE_CAP_ROUND );
+    gp_set_thickness( _canvas, 16.f );
+    gp_set_color( _canvas, 0.13f, 0.17f, 0.3f, 1.f );
+    gp_arc( _canvas, x, y, 76.f, angle_from, angle_from + pi * 2.f );
 
-    gp_set_color( _canvas, 1.0f, 0.9f, 0.2f, 1.f );
-    gp_set_outline_color( _canvas, 0.5f, 1.f, 0.5f, 1.f );
-    gp_arc( _canvas, _dx + 400.f, _dy + 225.f, 45.f, 0.f, 3.1415926535f );
+    gp_set_line_dash( _canvas, dash, 2, _time * 18.f );
+    gp_set_color( _canvas, 1.f, 0.39f, 0.67f, 1.f );
+    gp_arc( _canvas, x, y, 76.f, angle_from, angle_to );
+    gp_clear_line_dash( _canvas );
 
-    gp_set_color( _canvas, 0.8f, 0.4f, 1.0f, 1.f );
-    gp_set_outline_color( _canvas, 0.5f, 1.f, 0.5f, 1.f );
-    gp_ellipse_arc( _canvas, _dx + 525.f, _dy + 225.f, 55.f, 30.f, 3.1415926535f, 6.2831853071f );
+    gp_set_penumbra( _canvas, 0.f );
+    gp_set_thickness( _canvas, 4.f );
+    gp_set_color( _canvas, 1.f, 0.68f, 0.25f, 0.9f );
+    gp_arc( _canvas, x, y, 49.f, angle_from, angle_to );
+
+    gp_set_color( _canvas, 1.f, 0.68f, 0.25f, 0.12f );
+    gp_ring( _canvas, x, y, 35.f, 44.f, angle_from, angle_to );
+    gp_pop_state( _canvas );
+}
+//////////////////////////////////////////////////////////////////////////
+static void __draw_rich_paths( gp_canvas_t * _canvas, float _time )
+{
+    const gp_path_layout_t layout = {
+        offsetof( example_path_point_t, width ),
+        offsetof( example_path_point_t, color )
+    };
+    const float wave = sinf( _time * 1.7f ) * 9.f;
+    const example_path_point_t trail[] = {
+        {336.f, 470.f, 4.f, {0.20f, 0.92f, 1.f, 0.22f}},
+        {421.f, 426.f + wave, 9.f, {0.18f, 0.82f, 1.f, 0.90f}},
+        {518.f, 482.f - wave, 24.f, {0.48f, 0.42f, 1.f, 1.f}},
+        {628.f, 421.f + wave, 17.f, {0.92f, 0.28f, 0.82f, 1.f}},
+        {743.f, 481.f - wave, 10.f, {1.f, 0.39f, 0.58f, 0.96f}},
+        {862.f, 432.f, 3.f, {1.f, 0.72f, 0.26f, 0.20f}}
+    };
+
+    gp_push_state( _canvas );
+    gp_set_outline_width( _canvas, 0.f );
+    gp_set_penumbra( _canvas, 6.f );
+    gp_set_line_cap( _canvas, GP_LINE_CAP_ROUND );
+    gp_set_line_join( _canvas, GP_LINE_JOIN_ROUND );
+    gp_rounded_polyline( _canvas, trail, sizeof( trail ) / sizeof( trail[0] ), sizeof( trail[0] ), &layout, 26.f, GP_FALSE );
+
+    const example_path_point_t route[] = {
+        {355.f, 606.f, 5.f, {0.23f, 0.96f, 0.65f, 0.40f}},
+        {475.f, 564.f, 8.f, {0.31f, 0.94f, 0.57f, 0.92f}},
+        {592.f, 625.f, 13.f, {0.79f, 0.94f, 0.27f, 1.f}},
+        {719.f, 567.f, 9.f, {1.f, 0.68f, 0.22f, 1.f}},
+        {862.f, 616.f, 4.f, {1.f, 0.36f, 0.34f, 1.f}}
+    };
+
+    gp_set_penumbra( _canvas, 3.f );
+    gp_set_line_join( _canvas, GP_LINE_JOIN_BEVEL );
+    gp_arrowed_polyline( _canvas, route, sizeof( route ) / sizeof( route[0] ), sizeof( route[0] ), &layout, 24.f, 26.f );
+
+    gp_set_penumbra( _canvas, 1.f );
+    gp_set_color( _canvas, 0.28f, 0.88f, 1.f, 0.9f );
+    gp_begin_fill( _canvas );
+    gp_capsule( _canvas, 350.f, 670.f, 126.f, 28.f );
+    gp_set_color( _canvas, 0.68f, 0.41f, 1.f, 0.9f );
+    gp_rounded_rect_varying( _canvas, 500.f, 656.f, 126.f, 42.f, 20.f, 6.f, 20.f, 6.f );
+    gp_set_color( _canvas, 1.f, 0.42f, 0.65f, 0.9f );
+    gp_star( _canvas, 689.f, 677.f, 10.f, 23.f, 6, _time * 0.35f );
+    gp_end_fill( _canvas );
+
+    gp_set_color( _canvas, 1.f, 0.7f, 0.24f, 0.95f );
+    gp_set_thickness( _canvas, 5.f );
+    gp_set_line_cap( _canvas, GP_LINE_CAP_ROUND );
+    gp_point_move_to( _canvas, 757.f, 687.f );
+    gp_point_tangent_arc_to( _canvas, 812.f, 644.f, 882.f, 682.f, 28.f );
+    gp_point_line_to( _canvas, 901.f, 668.f );
+    gp_pop_state( _canvas );
+}
+//////////////////////////////////////////////////////////////////////////
+static void __draw_showcase( gp_canvas_t * _canvas, float _progress, float _time )
+{
+    __draw_card( _canvas, 304.f, 70.f, 318.f, 308.f );
+    __draw_card( _canvas, 640.f, 70.f, 318.f, 308.f );
+    __draw_card( _canvas, 304.f, 396.f, 654.f, 330.f );
+
+    __draw_radial_progress( _canvas, _progress );
+    __draw_segmented_cooldown( _canvas, _progress, _time );
+    __draw_rich_paths( _canvas, _time );
 }
 //////////////////////////////////////////////////////////////////////////
 int main( int argc, char ** argv )
@@ -242,6 +352,29 @@ int main( int argc, char ** argv )
         return EXIT_FAILURE;
     }
 
+    ImGui::GetIO().IniFilename = nullptr;
+
+    ImGuiStyle & style = ImGui::GetStyle();
+    style.WindowRounding = 12.f;
+    style.ChildRounding = 8.f;
+    style.FrameRounding = 7.f;
+    style.GrabRounding = 7.f;
+    style.WindowPadding = ImVec2( 16.f, 16.f );
+    style.ItemSpacing = ImVec2( 8.f, 9.f );
+    style.Colors[ImGuiCol_WindowBg] = ImVec4( 0.035f, 0.045f, 0.085f, 0.96f );
+    style.Colors[ImGuiCol_Border] = ImVec4( 0.18f, 0.25f, 0.45f, 0.7f );
+    style.Colors[ImGuiCol_FrameBg] = ImVec4( 0.08f, 0.11f, 0.20f, 1.f );
+    style.Colors[ImGuiCol_FrameBgHovered] = ImVec4( 0.12f, 0.17f, 0.30f, 1.f );
+    style.Colors[ImGuiCol_FrameBgActive] = ImVec4( 0.16f, 0.23f, 0.40f, 1.f );
+    style.Colors[ImGuiCol_CheckMark] = ImVec4( 0.25f, 0.86f, 1.f, 1.f );
+    style.Colors[ImGuiCol_SliderGrab] = ImVec4( 0.52f, 0.38f, 1.f, 1.f );
+    style.Colors[ImGuiCol_SliderGrabActive] = ImVec4( 0.95f, 0.30f, 0.75f, 1.f );
+    style.Colors[ImGuiCol_Header] = ImVec4( 0.10f, 0.14f, 0.26f, 1.f );
+    style.Colors[ImGuiCol_HeaderHovered] = ImVec4( 0.16f, 0.22f, 0.39f, 1.f );
+    style.Colors[ImGuiCol_Button] = ImVec4( 0.16f, 0.22f, 0.39f, 1.f );
+    style.Colors[ImGuiCol_ButtonHovered] = ImVec4( 0.24f, 0.34f, 0.58f, 1.f );
+    style.Colors[ImGuiCol_PlotHistogram] = ImVec4( 0.25f, 0.86f, 1.f, 1.f );
+
     if( ImGui_ImplGlfw_InitForOpenGL( fwWindow, true ) == false )
     {
         return EXIT_FAILURE;
@@ -265,8 +398,8 @@ int main( int argc, char ** argv )
     example_script_handle_t * script_handle;
     initialize_script( &script_handle, canvas );
 
-    uint32_t max_vertex_count = 8196 * 2;
-    uint32_t max_index_count = 32768;
+    uint32_t max_vertex_count = 65535;
+    uint32_t max_index_count = 262144;
 
     example_opengl_handle_t * opengl_handle;
     initialize_opengl( &opengl_handle, (float)window_width, (float)window_height, max_vertex_count, max_index_count );
@@ -295,50 +428,84 @@ int main( int argc, char ** argv )
 
         static bool wireframe = false;
         static bool texture = false;
+        static bool animate = true;
+        static bool Custom = false;
+        static float progress = 0.68f;
+        static float animation_speed = 1.f;
+        static float showcase_time = 5.66f;
+        static double previous_time = glfwGetTime();
 
-        ImGui::Text( "Content scale:" );
-        ImGui::SliderFloat( "##ContentScale", &camera_scale, camera_scale_min, camera_scale_max );
-        
-        if( ImGui::Button( "Reset scale" ) )
+        double current_time = glfwGetTime();
+        float frame_time = (float)(current_time - previous_time);
+        previous_time = current_time;
+
+        if( animate == true )
         {
-            camera_scale = 1.f;
-            camera_offset_x = 0.f;
-            camera_offset_y = 0.f;
+            showcase_time += frame_time * animation_speed;
+            progress = fmodf( showcase_time * 0.12f, 1.f );
         }
 
-        ImGui::Checkbox( "wireframe", &wireframe );
-        ImGui::Checkbox( "texture", &texture );
+        ImGui::SetNextWindowPos( ImVec2( 16.f, 16.f ), ImGuiCond_Once );
+        ImGui::SetNextWindowSize( ImVec2( 268.f, 736.f ), ImGuiCond_Once );
+        ImGui::Begin( "Graphics playground" );
 
-        static bool fill = false;
+        ImGui::TextColored( ImVec4( 0.25f, 0.86f, 1.f, 1.f ), "PHASE 2 SHOWCASE" );
+        ImGui::TextWrapped( "Game-ready radial indicators and rich vector paths." );
+        ImGui::Spacing();
+        ImGui::Checkbox( "Animate", &animate );
+        float progress_percent = progress * 100.f;
+        if( ImGui::SliderFloat( "Progress", &progress_percent, 0.f, 100.f, "%.0f%%" ) == true )
+        {
+            progress = progress_percent * 0.01f;
+            animate = false;
+        }
+        ImGui::SliderFloat( "Speed", &animation_speed, 0.1f, 2.5f, "%.1fx" );
+        ImGui::ProgressBar( progress, ImVec2( -1.f, 0.f ) );
 
-        ImGui::Checkbox( "fill", &fill );
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+        ImGui::Text( "On canvas" );
+        ImGui::BulletText( "rounded ring progress" );
+        ImGui::BulletText( "segmented animated dash" );
+        ImGui::BulletText( "per-point width and color" );
+        ImGui::BulletText( "rounded trail and arrow" );
+        ImGui::BulletText( "capsule, star and arcTo" );
 
-        static float thickness = gp_get_default_thickness();
-        ImGui::DragFloat( "thickness", &thickness, 0.125f, 0.125f, 64.f );
+        if( ImGui::CollapsingHeader( "Diagnostics" ) == true )
+        {
+            ImGui::SliderFloat( "Scale", &camera_scale, camera_scale_min, camera_scale_max );
 
-        static float penumbra = gp_get_default_penumbra() / gp_get_default_thickness() * 2.f;
-        ImGui::DragFloat( "penumbra", &penumbra, 0.0125f, 0.f, 1.f );
+            if( ImGui::Button( "Reset camera" ) )
+            {
+                camera_scale = 1.f;
+                camera_offset_x = 0.f;
+                camera_offset_y = 0.f;
+            }
 
-        static float outline_width = gp_get_default_outline_width();
-        ImGui::DragFloat( "outline width", &outline_width, 0.0125f, 0.f, 64.f );
+            ImGui::Checkbox( "Wireframe", &wireframe );
+            ImGui::Checkbox( "Texture", &texture );
+            ImGui::TextDisabled( "Hold Space: drag to pan, wheel to zoom" );
+        }
 
         static int curve_quality = gp_get_default_curve_quality();
-        ImGui::SliderInt( "curve quality", &curve_quality, 1, 64 );
-
         static int ellipse_quality = gp_get_default_ellipse_quality();
-        ImGui::SliderInt( "ellipse quality", &ellipse_quality, 8, 128 );
-
         static int rect_quality = gp_get_default_rect_quality();
-        ImGui::SliderInt( "rect quality", &rect_quality, 2, 64 );
+        if( ImGui::CollapsingHeader( "Tessellation" ) == true )
+        {
+            ImGui::SliderInt( "Curve", &curve_quality, 1, 64 );
+            ImGui::SliderInt( "Ellipse", &ellipse_quality, 8, 128 );
+            ImGui::SliderInt( "Rect", &rect_quality, 2, 64 );
+        }
 
-        static bool Custom = false;
-        ImGui::Checkbox( "Custom", &Custom );
+        ImGui::Spacing();
+        ImGui::Checkbox( "Custom Lua", &Custom );
 
-        bool TextEditorCollapsingHeader = ImGui::CollapsingHeader( "text editor" );
+        bool TextEditorCollapsingHeader = Custom == true && ImGui::CollapsingHeader( "Text editor" );
 
         if( TextEditorCollapsingHeader == true )
         {
-            editor.Render( "text editor", {400.f, 200.f}, false );
+            editor.Render( "text editor", {235.f, 220.f}, false );
 
             ImGui::Spacing();
         }
@@ -447,30 +614,16 @@ int main( int argc, char ** argv )
 
         opengl_set_camera( opengl_handle, camera_offset_x, camera_offset_y, camera_scale );
 
-        glClearColor( 0.2f, 0.3f, 0.3f, 1.f );
+        glClearColor( 0.018f, 0.024f, 0.055f, 1.f );
         glClear( GL_COLOR_BUFFER_BIT );
 
         if( Custom == false )
         {
-            gp_set_thickness( canvas, thickness );
-            gp_set_penumbra( canvas, thickness * penumbra * 0.5f );
-            gp_set_outline_width( canvas, outline_width );
-
             gp_set_curve_quality( canvas, curve_quality );
             gp_set_ellipse_quality( canvas, ellipse_quality );
             gp_set_rect_quality( canvas, rect_quality );
 
-            if( fill == true )
-            {
-                gp_begin_fill( canvas );
-            }
-
-            __draw_figure( canvas, 300.f, 300.f );
-
-            if( fill == true )
-            {
-                gp_end_fill( canvas );
-            }
+            __draw_showcase( canvas, progress, showcase_time );
         }
 
         gp_mesh_t mesh;
@@ -487,8 +640,6 @@ int main( int argc, char ** argv )
 
         void * vertices = glMapBuffer( GL_ARRAY_BUFFER, GL_WRITE_ONLY );
         void * indices = glMapBuffer( GL_ELEMENT_ARRAY_BUFFER, GL_WRITE_ONLY );
-
-        gl_vertex_t * v = (gl_vertex_t *)vertices;
 
         mesh.color.r = 1.f;
         mesh.color.g = 1.f;
@@ -528,6 +679,27 @@ int main( int argc, char ** argv )
                 ImGui::TextColored( {1.f, 0.f, 0.f, 1.f}, "invalid render" );
             }
         }
+
+        if( Custom == false && camera_scale == 1.f && camera_offset_x == 0.f && camera_offset_y == 0.f )
+        {
+            ImDrawList * foreground = ImGui::GetForegroundDrawList();
+            ImU32 title_color = IM_COL32( 180, 201, 255, 255 );
+            ImU32 caption_color = IM_COL32( 112, 136, 184, 255 );
+            char progress_text[32];
+            snprintf( progress_text, sizeof( progress_text ), "%d%%", (int)(progress * 100.f + 0.5f) );
+
+            foreground->AddText( ImVec2( 328.f, 91.f ), title_color, "RADIAL PROGRESS" );
+            foreground->AddText( ImVec2( 740.f, 91.f ), title_color, "SEGMENTED COOLDOWN" );
+            foreground->AddText( ImVec2( 462.f, 216.f ), IM_COL32( 228, 238, 255, 255 ), progress_text );
+            foreground->AddText( ImVec2( 795.f, 216.f ), IM_COL32( 228, 238, 255, 255 ), progress_text );
+            foreground->AddText( ImVec2( 328.f, 416.f ), title_color, "RICH GAME PATHS" );
+            foreground->AddText( ImVec2( 328.f, 702.f ), caption_color, "CAPSULE" );
+            foreground->AddText( ImVec2( 500.f, 702.f ), caption_color, "4 RADII" );
+            foreground->AddText( ImVec2( 663.f, 702.f ), caption_color, "STAR" );
+            foreground->AddText( ImVec2( 790.f, 702.f ), caption_color, "arcTo" );
+        }
+
+        ImGui::End();
 
         ImGui::EndFrame();
 

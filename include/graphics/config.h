@@ -96,4 +96,9 @@ typedef struct gp_color_t
 #define GP_MATH_ACOSF (acosf)
 #endif
 
+#ifndef GP_MATH_FMODF
+#include <math.h>
+#define GP_MATH_FMODF (fmodf)
+#endif
+
 #endif

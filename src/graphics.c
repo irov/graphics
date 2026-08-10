@@ -1059,6 +1059,19 @@ gp_result_t gp_point_tangent_arc_to( gp_canvas_t * _canvas, float _x1, float _y1
 //////////////////////////////////////////////////////////////////////////
 gp_result_t gp_rect( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height )
 {
+    const gp_state_t * state = GP_GET_STATE( _canvas );
+    if( state->fill == GP_FALSE && state->dash_count != 0 )
+    {
+        float points[4][2] = {
+            {_x, _y},
+            {_x + _width, _y},
+            {_x + _width, _y + _height},
+            {_x, _y + _height}
+        };
+
+        return gp_polyline( _canvas, points, 4, sizeof( points[0] ), GP_NULLPTR, GP_TRUE );
+    }
+
     gp_rect_t * r = GP_NEW( _canvas, gp_rect_t );
     r->next = GP_NULLPTR;
     r->prev = GP_NULLPTR;
@@ -1078,6 +1091,12 @@ gp_result_t gp_rect( gp_canvas_t * _canvas, float _x, float _y, float _width, fl
 //////////////////////////////////////////////////////////////////////////
 gp_result_t gp_rounded_rect( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height, float _radius )
 {
+    const gp_state_t * state = GP_GET_STATE( _canvas );
+    if( state->fill == GP_FALSE && state->dash_count != 0 )
+    {
+        return gp_rounded_rect_varying( _canvas, _x, _y, _width, _height, _radius, _radius, _radius, _radius );
+    }
+
     gp_rounded_rect_t * rr = GP_NEW( _canvas, gp_rounded_rect_t );
     rr->next = GP_NULLPTR;
     rr->prev = GP_NULLPTR;
@@ -1105,6 +1124,12 @@ gp_result_t gp_circle( gp_canvas_t * _canvas, float _x, float _y, float _radius 
 //////////////////////////////////////////////////////////////////////////
 gp_result_t gp_ellipse( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height )
 {
+    const gp_state_t * state = GP_GET_STATE( _canvas );
+    if( state->fill == GP_FALSE && state->dash_count != 0 )
+    {
+        return gp_ellipse_arc( _canvas, _x, _y, _width, _height, 0.f, gp_constant_two_pi );
+    }
+
     gp_ellipse_t * e = GP_NEW( _canvas, gp_ellipse_t );
     e->next = GP_NULLPTR;
     e->prev = GP_NULLPTR;
@@ -1136,7 +1161,34 @@ gp_result_t gp_arc_to( gp_canvas_t * _canvas, float _x, float _y, float _radius,
     return result;
 }
 //////////////////////////////////////////////////////////////////////////
-static gp_result_t gp_ellipse_arc_internal( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height, float _angle_from, float _angle_to, gp_bool_t _move_to )
+static gp_result_t __point_ellipse_arc_to( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height, float _angle_from, float _angle_to )
+{
+    gp_line_t * line = GP_LIST_BACK( _canvas->lines );
+
+    gp_line_point_t * point = GP_NEW( _canvas, gp_line_point_t );
+    point->next = GP_NULLPTR;
+    point->prev = GP_NULLPTR;
+    point->p.x = _x + GP_MATH_COSF( _angle_to ) * _width;
+    point->p.y = _y + GP_MATH_SINF( _angle_to ) * _height;
+    point->state = GP_COPY_STATE( _canvas );
+    GP_LIST_PUSHBACK( gp_line_point_t, line->points, point );
+
+    gp_line_edge_t * edge = GP_NEW( _canvas, gp_line_edge_t );
+    edge->next = GP_NULLPTR;
+    edge->prev = GP_NULLPTR;
+    edge->controls = 3;
+    edge->p[0].x = _x;
+    edge->p[0].y = _y;
+    edge->p[1].x = _width;
+    edge->p[1].y = _height;
+    edge->p[2].x = _angle_from;
+    edge->p[2].y = _angle_to;
+    GP_LIST_PUSHBACK( gp_line_edge_t, line->edges, edge );
+
+    return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
+static gp_result_t gp_ellipse_arc_internal( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height, float _angle_from, float _angle_to, gp_bool_t _move_to, gp_bool_t _rounded_caps )
 {
 #if defined(GP_DEBUG)
     if( _width <= 0.f || _height <= 0.f )
@@ -1164,6 +1216,7 @@ static gp_result_t gp_ellipse_arc_internal( gp_canvas_t * _canvas, float _x, flo
         a->radius_height = _height;
         a->angle_from = _angle_from;
         a->angle_to = _angle_to;
+        a->rounded_caps = _rounded_caps;
 
         a->state = GP_COPY_STATE( _canvas );
 
@@ -1172,26 +1225,6 @@ static gp_result_t gp_ellipse_arc_internal( gp_canvas_t * _canvas, float _x, flo
 
         return GP_SUCCESSFUL;
     }
-
-    float angle_delta_abs = angle_delta < 0.f ? -angle_delta : angle_delta;
-    float segment_factor = angle_delta_abs / gp_constant_two_pi * (float)state->ellipse_quality;
-    gp_uint32_t segment_count = (gp_uint32_t)segment_factor;
-    if( (float)segment_count < segment_factor )
-    {
-        ++segment_count;
-    }
-
-    if( segment_count == 0 )
-    {
-        segment_count = 1;
-    }
-
-#if defined(GP_DISABLE_EXTRA_LINE_POINTS)
-    if( segment_count >= GP_LINE_POINTS_MAX )
-    {
-        segment_count = GP_LINE_POINTS_MAX - 1;
-    }
-#endif
 
     float x = _x + GP_MATH_COSF( _angle_from ) * _width;
     float y = _y + GP_MATH_SINF( _angle_from ) * _height;
@@ -1204,12 +1237,13 @@ static gp_result_t gp_ellipse_arc_internal( gp_canvas_t * _canvas, float _x, flo
         GP_CALL( gp_point_line_to, (_canvas, x, y) );
     }
 
-    for( gp_uint32_t index = 1; index != segment_count + 1; ++index )
+    GP_CALL( __point_ellipse_arc_to, (_canvas, _x, _y, _width, _height, _angle_from, _angle_to) );
+
+    float angle_delta_abs = angle_delta < 0.f ? -angle_delta : angle_delta;
+    if( _move_to == GP_TRUE && state->fill == GP_FALSE &&
+        GP_EQUAL_F( angle_delta_abs - gp_constant_two_pi, 0.000001f ) == GP_TRUE )
     {
-        float t = _angle_from + angle_delta * (float)index / (float)segment_count;
-        x = _x + GP_MATH_COSF( t ) * _width;
-        y = _y + GP_MATH_SINF( t ) * _height;
-        GP_CALL( gp_point_line_to, (_canvas, x, y) );
+        GP_CALL( gp_point_close, (_canvas) );
     }
 
     return GP_SUCCESSFUL;
@@ -1217,16 +1251,40 @@ static gp_result_t gp_ellipse_arc_internal( gp_canvas_t * _canvas, float _x, flo
 //////////////////////////////////////////////////////////////////////////
 gp_result_t gp_ellipse_arc( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height, float _angle_from, float _angle_to )
 {
-    gp_result_t result = gp_ellipse_arc_internal( _canvas, _x, _y, _width, _height, _angle_from, _angle_to, GP_TRUE );
+    gp_result_t result = gp_ellipse_arc_internal( _canvas, _x, _y, _width, _height, _angle_from, _angle_to, GP_TRUE, GP_FALSE );
 
     return result;
 }
 //////////////////////////////////////////////////////////////////////////
 gp_result_t gp_ellipse_arc_to( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height, float _angle_from, float _angle_to )
 {
-    gp_result_t result = gp_ellipse_arc_internal( _canvas, _x, _y, _width, _height, _angle_from, _angle_to, GP_FALSE );
+    gp_result_t result = gp_ellipse_arc_internal( _canvas, _x, _y, _width, _height, _angle_from, _angle_to, GP_FALSE, GP_FALSE );
 
     return result;
+}
+//////////////////////////////////////////////////////////////////////////
+gp_result_t gp_rounded_ring( gp_canvas_t * _canvas, float _x, float _y, float _inner_radius, float _outer_radius, float _angle_from, float _angle_to )
+{
+#if defined(GP_DEBUG)
+    if( _inner_radius < 0.f || _outer_radius <= 0.f || _inner_radius >= _outer_radius )
+    {
+        return GP_FAILURE;
+    }
+#endif
+
+    GP_CALL( gp_push_state, (_canvas) );
+
+    gp_state_t * state = GP_GET_STATE( _canvas );
+    if( state->fill == GP_FALSE )
+    {
+        GP_CALL( gp_begin_fill, (_canvas) );
+    }
+
+    GP_CALL( gp_set_inner_radius, (_canvas, _inner_radius / _outer_radius) );
+    GP_CALL( gp_ellipse_arc_internal, (_canvas, _x, _y, _outer_radius, _outer_radius, _angle_from, _angle_to, GP_TRUE, GP_TRUE) );
+    GP_CALL( gp_pop_state, (_canvas) );
+
+    return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
 gp_result_t gp_calculate_mesh_size( const gp_canvas_t * _canvas, gp_mesh_t * _mesh )

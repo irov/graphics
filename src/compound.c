@@ -65,7 +65,19 @@ static gp_uint32_t __compound_line_point_count( const gp_line_t * _line )
     gp_uint8_t quality = _line->state->curve_quality;
     for( const gp_line_edge_t * edge = _line->edges; edge != GP_NULLPTR; edge = edge->next )
     {
-        count += edge->controls == 0 ? 1 : quality;
+        if( edge->controls == 0 )
+        {
+            count += 1;
+        }
+        else if( edge->controls == 3 )
+        {
+            float angle_delta = edge->p[2].y - edge->p[2].x;
+            count += gp_ellipse_arc_segment_count( angle_delta, _line->state->ellipse_quality );
+        }
+        else
+        {
+            count += quality;
+        }
     }
 
     return count;
@@ -105,6 +117,27 @@ static void __compound_flatten_line( const gp_line_t * _line, const gp_mesh_t * 
             _contour->points[write].position = from->p;
             __compound_write_color( _contour->points + write, _mesh, &from->state->color );
             ++write;
+            continue;
+        }
+
+        if( edge->controls == 3 )
+        {
+            float angle_delta = edge->p[2].y - edge->p[2].x;
+            gp_uint32_t segment_count = gp_ellipse_arc_segment_count( angle_delta, _line->state->ellipse_quality );
+
+            for( gp_uint32_t index = 0; index != segment_count; ++index )
+            {
+                float t = gp_ellipse_arc_sample_t( angle_delta, _line->state->ellipse_quality, index );
+                float angle = gp_ellipse_arc_sample_angle( edge->p[2].x, edge->p[2].y, _line->state->ellipse_quality, index );
+                _contour->points[write].position.x = edge->p[0].x + GP_MATH_COSF( angle ) * edge->p[1].x;
+                _contour->points[write].position.y = edge->p[0].y + GP_MATH_SINF( angle ) * edge->p[1].y;
+
+                gp_color_t color;
+                __compound_lerp_color( &color, &from->state->color, &to->state->color, t );
+                __compound_write_color( _contour->points + write, _mesh, &color );
+                ++write;
+            }
+
             continue;
         }
 

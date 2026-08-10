@@ -97,7 +97,7 @@ static GLuint __make_texture( const char * _path )
     int comp;
 
     char texture_path[250];
-    sprintf( texture_path, "%s/%s"
+    snprintf( texture_path, sizeof( texture_path ), "%s/%s"
         , GRAPHICS_CONTENT_PATH
         , _path
     );
@@ -165,7 +165,7 @@ static const char * vertexShaderColorSource = "#version 330 core\n"
 "{\n"
 "   vec3 p = vec3(inPos.xy + uOffset, 0.0) * uScale;\n"
 "   gl_Position = uWVP * vec4(p, 1.0);\n"
-"   v2fColor = inColor;\n"
+"   v2fColor = inColor.bgra;\n"
 "}\0";
 //////////////////////////////////////////////////////////////////////////
 static const char * fragmentShaderColorSource = "#version 330 core\n"
@@ -189,7 +189,7 @@ static const char * vertexShaderTextureSource = "#version 330 core\n"
 "{\n"
 "   vec3 p = vec3(inPos.xy + uOffset, 0.0) * uScale;\n"
 "   gl_Position = uWVP * vec4(p, 1.0);\n"
-"   v2fColor = inColor;\n"
+"   v2fColor = inColor.bgra;\n"
 "   v2fUV = inUV;\n"
 "}\0";
 //////////////////////////////////////////////////////////////////////////

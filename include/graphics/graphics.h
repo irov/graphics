@@ -41,6 +41,14 @@ typedef struct gp_bounds_t
     float maximum_y;
 } gp_bounds_t;
 
+#define GP_PATH_ATTRIBUTE_NONE ((gp_size_t)-1)
+
+typedef struct gp_path_layout_t
+{
+    gp_size_t width_offset;
+    gp_size_t color_offset;
+} gp_path_layout_t;
+
 typedef void * (*gp_malloc_t)(gp_size_t _size, void * _ud);
 typedef void * (*gp_realloc_t)(void * _ptr, gp_size_t _size, void * _ud);
 typedef void (*gp_free_t)(void * _ptr, void * _ud);
@@ -134,9 +142,9 @@ gp_result_t gp_point_tangent_arc_to( gp_canvas_t * _canvas, float _x1, float _y1
 gp_result_t gp_rect( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height );
 gp_result_t gp_rounded_rect( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height, float _radius );
 gp_result_t gp_rounded_rect_varying( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height, float _radius_top_left, float _radius_top_right, float _radius_bottom_right, float _radius_bottom_left );
-gp_result_t gp_polyline( gp_canvas_t * _canvas, const void * _points, gp_size_t _point_count, gp_size_t _point_stride, gp_bool_t _closed );
+gp_result_t gp_polyline( gp_canvas_t * _canvas, const void * _points, gp_size_t _point_count, gp_size_t _point_stride, const gp_path_layout_t * _layout, gp_bool_t _closed );
 gp_result_t gp_rounded_polygon( gp_canvas_t * _canvas, const void * _points, gp_size_t _point_count, gp_size_t _point_stride, float _radius );
-gp_result_t gp_rounded_polyline( gp_canvas_t * _canvas, const void * _points, gp_size_t _point_count, gp_size_t _point_stride, float _radius, gp_bool_t _closed );
+gp_result_t gp_rounded_polyline( gp_canvas_t * _canvas, const void * _points, gp_size_t _point_count, gp_size_t _point_stride, const gp_path_layout_t * _layout, float _radius, gp_bool_t _closed );
 gp_result_t gp_polygon_offset( gp_canvas_t * _canvas, const void * _points, gp_size_t _point_count, gp_size_t _point_stride, float _offset, gp_line_join_t _join );
 gp_result_t gp_circle( gp_canvas_t * _canvas, float _x, float _y, float _radius );
 gp_result_t gp_ellipse( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height );
@@ -144,13 +152,13 @@ gp_result_t gp_arc( gp_canvas_t * _canvas, float _x, float _y, float _radius, fl
 gp_result_t gp_arc_to( gp_canvas_t * _canvas, float _x, float _y, float _radius, float _angle_from, float _angle_to );
 gp_result_t gp_ellipse_arc( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height, float _angle_from, float _angle_to );
 gp_result_t gp_ellipse_arc_to( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height, float _angle_from, float _angle_to );
-gp_result_t gp_sector( gp_canvas_t * _canvas, float _x, float _y, float _radius, float _angle_from, float _angle_to );
 gp_result_t gp_ring( gp_canvas_t * _canvas, float _x, float _y, float _inner_radius, float _outer_radius, float _angle_from, float _angle_to );
+gp_result_t gp_rounded_ring( gp_canvas_t * _canvas, float _x, float _y, float _inner_radius, float _outer_radius, float _angle_from, float _angle_to );
 gp_result_t gp_capsule( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height );
 gp_result_t gp_regular_polygon( gp_canvas_t * _canvas, float _x, float _y, float _radius, gp_uint32_t _vertex_count, float _rotation );
 gp_result_t gp_star( gp_canvas_t * _canvas, float _x, float _y, float _inner_radius, float _outer_radius, gp_uint32_t _ray_count, float _rotation );
 gp_result_t gp_arrow( gp_canvas_t * _canvas, float _from_x, float _from_y, float _to_x, float _to_y, float _head_length, float _head_width );
-gp_result_t gp_arrowed_polyline( gp_canvas_t * _canvas, const void * _points, gp_size_t _point_count, gp_size_t _point_stride, float _head_length, float _head_width );
+gp_result_t gp_arrowed_polyline( gp_canvas_t * _canvas, const void * _points, gp_size_t _point_count, gp_size_t _point_stride, const gp_path_layout_t * _layout, float _head_length, float _head_width );
 
 gp_result_t gp_begin_compound_fill( gp_canvas_t * _canvas, gp_fill_rule_t _rule );
 gp_result_t gp_end_compound_fill( gp_canvas_t * _canvas );
