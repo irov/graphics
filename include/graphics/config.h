@@ -101,4 +101,14 @@ typedef struct gp_color_t
 #define GP_MATH_FMODF (fmodf)
 #endif
 
+#ifndef GP_MATH_POWF
+#include <math.h>
+#define GP_MATH_POWF (powf)
+#endif
+
+#ifndef GP_MATH_ISFINITE
+#include <math.h>
+#define GP_MATH_ISFINITE(X) isfinite(X)
+#endif
+
 #endif

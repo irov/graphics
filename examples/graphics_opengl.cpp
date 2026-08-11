@@ -204,6 +204,7 @@ static const char * fragmentShaderTextureSource = "#version 330 core\n"
 "   oColor = texColor * v2fColor;\n"
 "}\n\0";
 //////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
 bool initialize_opengl( example_opengl_handle_t ** _handle, float _width, float _height, int _max_vertex_count, int _max_index_count )
 {
     GLuint textureId = __make_texture( "texture.jpg" );
@@ -285,6 +286,7 @@ bool initialize_opengl( example_opengl_handle_t ** _handle, float _width, float 
 
     glEnableVertexAttribArray( 0 );
     glEnableVertexAttribArray( 1 );
+    glEnableVertexAttribArray( 2 );
 
     glVertexAttribPointer( 0, 2, GL_FLOAT, GL_FALSE, sizeof( gl_vertex_t ), (gp_uint8_t *)0 + offsetof( gl_vertex_t, x ) );
     glVertexAttribPointer( 1, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof( gl_vertex_t ), (gp_uint8_t *)0 + offsetof( gl_vertex_t, c ) );
@@ -343,21 +345,29 @@ void opengl_use_texture_program( example_opengl_handle_t * _handle )
     glUseProgram( _handle->shaderCurrentProgram );
 }
 //////////////////////////////////////////////////////////////////////////
+void opengl_use_batch_program( example_opengl_handle_t * _handle, bool _use_texture )
+{
+    if( _use_texture == true )
+    {
+        opengl_use_texture_program( _handle );
+        glActiveTexture( GL_TEXTURE0 );
+        glBindTexture( GL_TEXTURE_2D, _handle->textureId );
+        return;
+    }
+
+    opengl_use_color_program( _handle );
+}
+//////////////////////////////////////////////////////////////////////////
 void opengl_set_camera( example_opengl_handle_t * _handle, float _offsetX, float _offsetY, float _scale )
 {
+    const GLuint programs[] = {_handle->shaderColorProgram, _handle->shaderTextureProgram};
+    for( GLuint program : programs )
+    {
+        glUseProgram( program );
+        GLint offsetLocation = glGetUniformLocation( program, "uOffset" );
+        GLint scaleLocation = glGetUniformLocation( program, "uScale" );
+        if( offsetLocation >= 0 ) glUniform2f( offsetLocation, _offsetX, _offsetY );
+        if( scaleLocation >= 0 ) glUniform1f( scaleLocation, _scale );
+    }
     glUseProgram( _handle->shaderCurrentProgram );
-
-    GLint uOffsetColorLocation = glGetUniformLocation( _handle->shaderCurrentProgram, "uOffset" );
-
-    if( uOffsetColorLocation >= 0 )
-    {
-        glUniform2f( uOffsetColorLocation, _offsetX, _offsetY );
-    }
-
-    GLint uScaleColorLocation = glGetUniformLocation( _handle->shaderCurrentProgram, "uScale" );
-
-    if( uScaleColorLocation >= 0 )
-    {
-        glUniform1f( uScaleColorLocation, _scale );
-    }
 }

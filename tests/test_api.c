@@ -3,6 +3,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 //////////////////////////////////////////////////////////////////////////
 typedef struct test_vertex_t
@@ -10,6 +11,8 @@ typedef struct test_vertex_t
     float x;
     float y;
     gp_uint32_t color;
+    float u0;
+    float v0;
 } test_vertex_t;
 //////////////////////////////////////////////////////////////////////////
 typedef struct test_path_point_t
@@ -46,6 +49,25 @@ static void test_free( void * _ptr, void * _ud )
     free( _ptr );
 }
 //////////////////////////////////////////////////////////////////////////
+static gp_result_t test_path_create( gp_path_t ** _path )
+{
+    return gp_path_create( _path, &test_malloc, &test_realloc, &test_free, GP_NULLPTR,
+        gp_get_default_curve_quality(), gp_get_default_ellipse_quality() );
+}
+//////////////////////////////////////////////////////////////////////////
+static gp_result_t test_path_create_quality( gp_path_t ** _path, gp_uint8_t _curve_quality, gp_uint8_t _ellipse_quality )
+{
+    return gp_path_create( _path, &test_malloc, &test_realloc, &test_free, GP_NULLPTR, _curve_quality, _ellipse_quality );
+}
+//////////////////////////////////////////////////////////////////////////
+static gp_result_t test_draw_destroy_path( gp_canvas_t * _canvas, gp_path_t * _path )
+{
+    gp_result_t result = gp_draw_path( _canvas, _path );
+    gp_path_destroy( _path );
+
+    return result;
+}
+//////////////////////////////////////////////////////////////////////////
 static gp_result_t test_render( gp_canvas_t * _canvas, gp_mesh_t * _mesh, test_vertex_t ** _vertices, gp_uint16_t ** _indices )
 {
     if( gp_calculate_mesh_size( _canvas, _mesh ) == GP_FAILURE )
@@ -55,6 +77,7 @@ static gp_result_t test_render( gp_canvas_t * _canvas, gp_mesh_t * _mesh, test_v
 
     *_vertices = (test_vertex_t *)malloc( sizeof( test_vertex_t ) * _mesh->vertex_count );
     *_indices = (gp_uint16_t *)malloc( sizeof( gp_uint16_t ) * _mesh->index_count );
+    gp_render_batch_t * batches = (gp_render_batch_t *)malloc( sizeof( gp_render_batch_t ) * _mesh->batch_count );
 
     _mesh->positions_buffer = *_vertices;
     _mesh->positions_offset = offsetof( test_vertex_t, x );
@@ -62,13 +85,19 @@ static gp_result_t test_render( gp_canvas_t * _canvas, gp_mesh_t * _mesh, test_v
     _mesh->colors_buffer = *_vertices;
     _mesh->colors_offset = offsetof( test_vertex_t, color );
     _mesh->colors_stride = sizeof( test_vertex_t );
-    _mesh->uv_buffer = GP_NULLPTR;
+    _mesh->uv_buffer = *_vertices;
+    _mesh->uv_offset = offsetof( test_vertex_t, u0 );
+    _mesh->uv_stride = sizeof( test_vertex_t );
     _mesh->indices_buffer = *_indices;
     _mesh->indices_offset = 0;
     _mesh->indices_stride = sizeof( gp_uint16_t );
+    _mesh->batches_buffer = batches;
+    _mesh->batches_offset = 0;
+    _mesh->batches_stride = sizeof( gp_render_batch_t );
 
     if( gp_render( _canvas, _mesh ) == GP_FAILURE )
     {
+        free( batches );
         return GP_FAILURE;
     }
 
@@ -76,17 +105,37 @@ static gp_result_t test_render( gp_canvas_t * _canvas, gp_mesh_t * _mesh, test_v
     {
         if( isfinite( (*_vertices)[index].x ) == 0 || isfinite( (*_vertices)[index].y ) == 0 )
         {
+            free( batches );
             return GP_FAILURE;
         }
     }
 
-    for( gp_uint32_t index = 0; index != _mesh->index_count; ++index )
+    gp_uint32_t expected_vertex_offset = 0;
+    gp_uint32_t expected_index_offset = 0;
+    for( gp_uint32_t batch_index = 0; batch_index != _mesh->batch_count; ++batch_index )
     {
-        if( (*_indices)[index] >= _mesh->vertex_count )
+        const gp_render_batch_t * batch = batches + batch_index;
+        if( batch->vertex_offset != expected_vertex_offset || batch->index_offset != expected_index_offset ||
+            batch->vertex_count > UINT16_MAX )
         {
+            free( batches );
             return GP_FAILURE;
         }
+
+        for( gp_uint32_t index = 0; index != batch->index_count; ++index )
+        {
+            if( (*_indices)[batch->index_offset + index] >= batch->vertex_count )
+            {
+                free( batches );
+                return GP_FAILURE;
+            }
+        }
+
+        expected_vertex_offset += batch->vertex_count;
+        expected_index_offset += batch->index_count;
     }
+
+    free( batches );
 
     return GP_SUCCESSFUL;
 }
@@ -143,7 +192,7 @@ static gp_result_t test_large_index_count( void )
 //////////////////////////////////////////////////////////////////////////
 static gp_result_t test_large_line_index_count( void )
 {
-    const gp_uint32_t point_count = 11001;
+    const gp_uint32_t point_count = 40000;
     float * points = (float *)malloc( sizeof( float ) * point_count * 2 );
     for( gp_uint32_t index = 0; index != point_count; ++index )
     {
@@ -165,7 +214,7 @@ static gp_result_t test_large_line_index_count( void )
     test_vertex_t * vertices;
     gp_uint16_t * indices;
     if( test_render( canvas, &mesh, &vertices, &indices ) == GP_FAILURE ||
-        mesh.vertex_count != 22002 || mesh.index_count != 66000 )
+        mesh.vertex_count < point_count * 2 || mesh.index_count != (point_count - 1) * 6 || mesh.batch_count < 2 )
     {
         return GP_FAILURE;
     }
@@ -195,9 +244,12 @@ static gp_result_t test_unique_vertex_limit( void )
 
     gp_mesh_t mesh;
     gp_result_t result = gp_calculate_mesh_size( canvas, &mesh );
+    gp_bool_t valid = result == GP_SUCCESSFUL && mesh.vertex_count == 65536 && mesh.index_count == 98304 && mesh.batch_count == 2
+        ? GP_TRUE
+        : GP_FALSE;
     gp_canvas_destroy( canvas );
 
-    return result == GP_FAILURE ? GP_SUCCESSFUL : GP_FAILURE;
+    return valid == GP_TRUE ? GP_SUCCESSFUL : GP_FAILURE;
 }
 #endif
 //////////////////////////////////////////////////////////////////////////
@@ -247,10 +299,13 @@ static gp_result_t test_close_path( void )
     }
 
     gp_set_penumbra( canvas, 0.f );
-    gp_point_move_to( canvas, 0.f, 0.f );
-    gp_point_line_to( canvas, 10.f, 0.f );
-    gp_point_line_to( canvas, 0.f, 10.f );
-    gp_point_close( canvas );
+    gp_path_t * path;
+    test_path_create( &path );
+    gp_path_move_to( path, 0.f, 0.f );
+    gp_path_line_to( path, 10.f, 0.f );
+    gp_path_line_to( path, 0.f, 10.f );
+    gp_path_close( path );
+    test_draw_destroy_path( canvas, path );
 
     gp_mesh_t mesh;
     test_vertex_t * vertices;
@@ -283,21 +338,26 @@ static gp_result_t test_compound_fill( void )
     }
 
     gp_set_penumbra( canvas, 0.f );
-    gp_begin_compound_fill( canvas, GP_FILL_RULE_EVEN_ODD );
-    gp_polyline( canvas, outer, 4, sizeof( outer[0] ), GP_NULLPTR, GP_TRUE );
-    gp_polyline( canvas, hole, 4, sizeof( hole[0] ), GP_NULLPTR, GP_TRUE );
-    gp_end_compound_fill( canvas );
+    gp_begin_fill( canvas );
+    gp_set_fill_rule( canvas, GP_FILL_RULE_EVEN_ODD );
+    gp_path_t * path;
+    test_path_create( &path );
+    gp_path_polyline( path, outer, 4, sizeof( outer[0] ), GP_NULLPTR, GP_TRUE );
+    gp_path_polyline( path, hole, 4, sizeof( hole[0] ), GP_NULLPTR, GP_TRUE );
+    test_draw_destroy_path( canvas, path );
 
     gp_mesh_t mesh;
     test_vertex_t * vertices;
     gp_uint16_t * indices;
     if( test_render( canvas, &mesh, &vertices, &indices ) == GP_FAILURE )
     {
+        fprintf( stderr, "compound render even-odd failed\n" );
         return GP_FAILURE;
     }
 
     if( mesh.vertex_count != 8 || mesh.index_count != 24 )
     {
+        fprintf( stderr, "compound even-odd size: %u %u\n", mesh.vertex_count, mesh.index_count );
         return GP_FAILURE;
     }
 
@@ -312,6 +372,7 @@ static gp_result_t test_compound_fill( void )
 
     if( fabsf( area - 8400.f ) > 0.1f )
     {
+        fprintf( stderr, "compound even-odd area: %f\n", area );
         return GP_FAILURE;
     }
 
@@ -320,13 +381,16 @@ static gp_result_t test_compound_fill( void )
 
     gp_canvas_clear( canvas );
     gp_set_penumbra( canvas, 0.f );
-    gp_begin_compound_fill( canvas, GP_FILL_RULE_NON_ZERO );
-    gp_polyline( canvas, outer, 4, sizeof( outer[0] ), GP_NULLPTR, GP_TRUE );
-    gp_polyline( canvas, hole, 4, sizeof( hole[0] ), GP_NULLPTR, GP_TRUE );
-    gp_end_compound_fill( canvas );
+    gp_begin_fill( canvas );
+    gp_set_fill_rule( canvas, GP_FILL_RULE_NON_ZERO );
+    test_path_create( &path );
+    gp_path_polyline( path, outer, 4, sizeof( outer[0] ), GP_NULLPTR, GP_TRUE );
+    gp_path_polyline( path, hole, 4, sizeof( hole[0] ), GP_NULLPTR, GP_TRUE );
+    test_draw_destroy_path( canvas, path );
 
     if( test_render( canvas, &mesh, &vertices, &indices ) == GP_FAILURE )
     {
+        fprintf( stderr, "compound render non-zero failed\n" );
         return GP_FAILURE;
     }
 
@@ -341,6 +405,7 @@ static gp_result_t test_compound_fill( void )
 
     if( fabsf( area - 10000.f ) > 0.1f )
     {
+        fprintf( stderr, "compound non-zero area: %f size %u %u\n", area, mesh.vertex_count, mesh.index_count );
         return GP_FAILURE;
     }
 
@@ -383,10 +448,17 @@ static gp_result_t test_paths_and_primitives( void )
     gp_polygon_offset( canvas, points, 4, sizeof( points[0] ), 3.f, GP_LINE_JOIN_BEVEL );
     gp_polygon_offset( canvas, points, 4, sizeof( points[0] ), 3.f, GP_LINE_JOIN_ROUND );
     gp_polygon_offset( canvas, points, 4, sizeof( points[0] ), -2.f, GP_LINE_JOIN_ROUND );
-    gp_arrow( canvas, 280.f, 0.f, 310.f, 20.f, 8.f, 6.f );
-    gp_arrowed_polyline( canvas, points, 4, sizeof( points[0] ), GP_NULLPTR, 8.f, 6.f );
-    gp_point_move_to( canvas, 330.f, 0.f );
-    gp_point_tangent_arc_to( canvas, 350.f, 0.f, 350.f, 20.f, 5.f );
+    gp_path_marker_t marker = {GP_PATH_MARKER_FILLED_ARROW, 8.f, 6.f, 0.f};
+    const float arrow_line[][2] = {{280.f, 0.f}, {310.f, 20.f}};
+    gp_set_path_markers( canvas, GP_NULLPTR, &marker );
+    gp_polyline( canvas, arrow_line, 2, sizeof( arrow_line[0] ), GP_NULLPTR, GP_FALSE );
+    gp_polyline( canvas, points, 4, sizeof( points[0] ), GP_NULLPTR, GP_FALSE );
+    gp_set_path_markers( canvas, GP_NULLPTR, GP_NULLPTR );
+    gp_path_t * tangent_path;
+    test_path_create( &tangent_path );
+    gp_path_move_to( tangent_path, 330.f, 0.f );
+    gp_path_tangent_arc_to( tangent_path, 350.f, 0.f, 350.f, 20.f, 5.f );
+    test_draw_destroy_path( canvas, tangent_path );
 
     gp_bounds_t bounds;
     if( gp_calculate_bounds( canvas, &bounds ) == GP_FAILURE )
@@ -819,9 +891,12 @@ static gp_result_t test_dashed_paths( void )
     gp_set_line_cap( closed_canvas, GP_LINE_CAP_ROUND );
     gp_set_line_dash( closed_canvas, seam_pattern, 2, 2.f );
     gp_arc( closed_canvas, 0.f, 0.f, 10.f, 0.f, pi * 2.f );
-    gp_point_move_to( closed_canvas, 30.f, 0.f );
-    gp_point_quadratic_curve_to( closed_canvas, 40.f, 20.f, 50.f, 0.f );
-    gp_point_bezier_curve_to( closed_canvas, 55.f, -10.f, 65.f, -10.f, 70.f, 0.f );
+    gp_path_t * path;
+    test_path_create( &path );
+    gp_path_move_to( path, 30.f, 0.f );
+    gp_path_quadratic_curve_to( path, 40.f, 20.f, 50.f, 0.f );
+    gp_path_bezier_curve_to( path, 55.f, -10.f, 65.f, -10.f, 70.f, 0.f );
+    test_draw_destroy_path( closed_canvas, path );
     gp_rect( closed_canvas, 80.f, 0.f, 20.f, 10.f );
     gp_rounded_rect( closed_canvas, 110.f, 0.f, 20.f, 10.f, 3.f );
     gp_circle( closed_canvas, 150.f, 5.f, 8.f );
@@ -862,6 +937,7 @@ static gp_result_t test_rich_paths( void )
     gp_path_layout_t layout;
     layout.width_offset = offsetof( test_path_point_t, width );
     layout.color_offset = offsetof( test_path_point_t, color );
+    layout.outline_color_offset = GP_PATH_ATTRIBUTE_NONE;
 
     gp_canvas_t * canvas;
     gp_canvas_create( &canvas, &test_malloc, &test_realloc, &test_free, GP_NULLPTR );
@@ -879,15 +955,22 @@ static gp_result_t test_rich_paths( void )
         return GP_FAILURE;
     }
 
-    gp_set_thickness( canvas, 2.f );
-    gp_set_color( canvas, 1.f, 0.f, 0.f, 1.f );
-    gp_point_move_to( canvas, 20.f, 0.f );
-    gp_set_thickness( canvas, 6.f );
-    gp_set_color( canvas, 0.f, 0.f, 1.f, 1.f );
-    gp_point_quadratic_curve_to( canvas, 25.f, 10.f, 30.f, 0.f );
-    gp_set_thickness( canvas, 4.f );
-    gp_set_color( canvas, 0.f, 1.f, 0.f, 1.f );
-    gp_point_bezier_curve_to( canvas, 32.f, -10.f, 38.f, -10.f, 40.f, 0.f );
+    gp_path_t * path;
+    test_path_create_quality( &path, 4, gp_get_default_ellipse_quality() );
+    gp_path_style_t style = {GP_PATH_STYLE_WIDTH | GP_PATH_STYLE_COLOR, 2.f, {1.f, 0.f, 0.f, 1.f}, {0.f, 0.f, 0.f, 0.f}};
+    gp_path_set_style( path, &style );
+    gp_path_move_to( path, 20.f, 0.f );
+    style.width = 6.f;
+    style.color.r = 0.f;
+    style.color.b = 1.f;
+    gp_path_set_style( path, &style );
+    gp_path_quadratic_curve_to( path, 25.f, 10.f, 30.f, 0.f );
+    style.width = 4.f;
+    style.color.g = 1.f;
+    style.color.b = 0.f;
+    gp_path_set_style( path, &style );
+    gp_path_bezier_curve_to( path, 32.f, -10.f, 38.f, -10.f, 40.f, 0.f );
+    test_draw_destroy_path( canvas, path );
 
     test_path_point_t rounded[] = {
         {50.f, 0.f, 2.f, {1.f, 0.f, 0.f, 1.f}},
@@ -898,7 +981,10 @@ static gp_result_t test_rich_paths( void )
     gp_set_line_join( canvas, GP_LINE_JOIN_MITER );
     gp_polyline( canvas, rounded, 4, sizeof( rounded[0] ), &layout, GP_TRUE );
     gp_rounded_polyline( canvas, rounded, 4, sizeof( rounded[0] ), &layout, 4.f, GP_TRUE );
-    gp_arrowed_polyline( canvas, rounded, 4, sizeof( rounded[0] ), &layout, 5.f, 4.f );
+    gp_path_marker_t marker = {GP_PATH_MARKER_FILLED_ARROW, 5.f, 4.f, 0.f};
+    gp_set_path_markers( canvas, GP_NULLPTR, &marker );
+    gp_polyline( canvas, rounded, 4, sizeof( rounded[0] ), &layout, GP_FALSE );
+    gp_set_path_markers( canvas, GP_NULLPTR, GP_NULLPTR );
 
     gp_mesh_t mesh;
     test_vertex_t * vertices;
@@ -1012,7 +1098,7 @@ static gp_result_t test_soft_round_geometry( void )
         {5.f, 5.f, 3.f, {1.f, 1.f, 1.f, 1.f}},
         {10.f, 0.f, 4.f, {1.f, 1.f, 1.f, 1.f}}
     };
-    gp_path_layout_t layout = {offsetof( test_path_point_t, width ), offsetof( test_path_point_t, color )};
+    gp_path_layout_t layout = {offsetof( test_path_point_t, width ), offsetof( test_path_point_t, color ), GP_PATH_ATTRIBUTE_NONE};
     gp_set_thickness( canvas, 10.f );
     gp_set_penumbra( canvas, 4.f );
     gp_set_line_cap( canvas, GP_LINE_CAP_ROUND );
@@ -1046,10 +1132,13 @@ static gp_result_t test_smooth_round_curve_geometry( void )
     gp_set_line_cap( canvas, GP_LINE_CAP_BUTT );
     gp_set_line_join( canvas, GP_LINE_JOIN_ROUND );
     gp_set_curve_quality( canvas, 4 );
-    gp_point_move_to( canvas, 0.f, 0.f );
-    gp_point_line_to( canvas, 10.f, 0.f );
-    gp_point_quadratic_curve_to( canvas, 15.f, 0.f, 20.f, 5.f );
-    gp_point_line_to( canvas, 25.f, 10.f );
+    gp_path_t * path;
+    test_path_create_quality( &path, 4, gp_get_default_ellipse_quality() );
+    gp_path_move_to( path, 0.f, 0.f );
+    gp_path_line_to( path, 10.f, 0.f );
+    gp_path_quadratic_curve_to( path, 15.f, 0.f, 20.f, 5.f );
+    gp_path_line_to( path, 25.f, 10.f );
+    test_draw_destroy_path( canvas, path );
 
     gp_mesh_t mesh;
     test_vertex_t * vertices;
@@ -1065,6 +1154,354 @@ static gp_result_t test_smooth_round_curve_geometry( void )
     return gp_canvas_destroy( canvas );
 }
 //////////////////////////////////////////////////////////////////////////
+static gp_result_t test_reusable_path_queries_and_snapshot( void )
+{
+    gp_path_t * path;
+    if( gp_path_create( &path, &test_malloc, &test_realloc, &test_free, GP_NULLPTR, 8, 16 ) == GP_FAILURE )
+    {
+        return GP_FAILURE;
+    }
+
+    gp_path_move_to( path, 0.f, 0.f );
+    gp_path_line_to( path, 10.f, 0.f );
+    gp_path_move_to( path, 100.f, 0.f );
+    gp_path_line_to( path, 100.f, 10.f );
+
+    float length;
+    gp_bounds_t bounds;
+    gp_path_sample_t sample;
+    if( gp_path_get_length( path, &length ) == GP_FAILURE || test_near( length, 20.f, 0.0001f ) == GP_FALSE ||
+        gp_path_get_bounds( path, &bounds ) == GP_FAILURE ||
+        test_near( bounds.minimum_x, 0.f, 0.0001f ) == GP_FALSE ||
+        test_near( bounds.minimum_y, 0.f, 0.0001f ) == GP_FALSE ||
+        test_near( bounds.maximum_x, 100.f, 0.0001f ) == GP_FALSE ||
+        test_near( bounds.maximum_y, 10.f, 0.0001f ) == GP_FALSE ||
+        gp_path_sample( path, 0.75f, GP_PATH_SAMPLE_NORMALIZED, &sample ) == GP_FAILURE ||
+        test_near( sample.x, 100.f, 0.0001f ) == GP_FALSE || test_near( sample.y, 5.f, 0.0001f ) == GP_FALSE ||
+        test_near( sample.tangent_x, 0.f, 0.0001f ) == GP_FALSE || test_near( sample.tangent_y, 1.f, 0.0001f ) == GP_FALSE ||
+        test_near( sample.distance, 15.f, 0.0001f ) == GP_FALSE || sample.contour_index != 1 )
+    {
+        return GP_FAILURE;
+    }
+
+    gp_canvas_t * canvas;
+    gp_canvas_create( &canvas, &test_malloc, &test_realloc, &test_free, GP_NULLPTR );
+    gp_set_penumbra( canvas, 0.f );
+    gp_set_line_cap( canvas, GP_LINE_CAP_BUTT );
+    gp_set_path_trim( canvas, 0.6f, 0.8f );
+    gp_draw_path( canvas, path );
+
+    gp_mesh_t before_mutation;
+    gp_calculate_mesh_size( canvas, &before_mutation );
+    gp_path_line_to( path, 110.f, 10.f );
+    gp_mesh_t after_mutation;
+    gp_calculate_mesh_size( canvas, &after_mutation );
+    if( before_mutation.vertex_count != after_mutation.vertex_count ||
+        before_mutation.index_count != after_mutation.index_count ||
+        before_mutation.batch_count != after_mutation.batch_count )
+    {
+        return GP_FAILURE;
+    }
+
+    gp_mesh_t mesh;
+    test_vertex_t * vertices;
+    gp_uint16_t * indices;
+    if( test_render( canvas, &mesh, &vertices, &indices ) == GP_FAILURE || mesh.vertex_count != 4 ||
+        test_near( vertices[0].x, 101.5f, 0.0001f ) == GP_FALSE ||
+        test_near( vertices[0].y, 2.f, 0.0001f ) == GP_FALSE ||
+        test_near( vertices[2].x, 101.5f, 0.0001f ) == GP_FALSE ||
+        test_near( vertices[2].y, 6.f, 0.0001f ) == GP_FALSE )
+    {
+        return GP_FAILURE;
+    }
+
+    free( vertices );
+    free( indices );
+    gp_canvas_destroy( canvas );
+    return gp_path_destroy( path );
+}
+//////////////////////////////////////////////////////////////////////////
+static gp_result_t test_stable_path_trim( void )
+{
+    const float points[][2] = {{0.f, 0.f}, {10.f, 0.f}, {20.f, 0.f}, {30.f, 0.f}};
+    gp_path_t * path;
+    gp_path_create( &path, &test_malloc, &test_realloc, &test_free, GP_NULLPTR, 8, 16 );
+    gp_path_polyline( path, points, 4, sizeof( points[0] ), GP_NULLPTR, GP_FALSE );
+
+    gp_canvas_t * first_canvas;
+    gp_canvas_t * second_canvas;
+    gp_canvas_create( &first_canvas, &test_malloc, &test_realloc, &test_free, GP_NULLPTR );
+    gp_canvas_create( &second_canvas, &test_malloc, &test_realloc, &test_free, GP_NULLPTR );
+    gp_set_penumbra( first_canvas, 0.f );
+    gp_set_penumbra( second_canvas, 0.f );
+    gp_set_line_cap( first_canvas, GP_LINE_CAP_BUTT );
+    gp_set_line_cap( second_canvas, GP_LINE_CAP_BUTT );
+    gp_set_uv_mode( first_canvas, GP_UV_MODE_PATH );
+    gp_set_uv_mode( second_canvas, GP_UV_MODE_PATH );
+    gp_set_path_trim( first_canvas, 0.f, 0.5f );
+    gp_set_path_trim( second_canvas, 0.f, 0.75f );
+    gp_draw_path( first_canvas, path );
+    gp_draw_path( second_canvas, path );
+    gp_path_destroy( path );
+
+    gp_mesh_t first_mesh;
+    gp_mesh_t second_mesh;
+    test_vertex_t * first_vertices;
+    test_vertex_t * second_vertices;
+    gp_uint16_t * first_indices;
+    gp_uint16_t * second_indices;
+    if( test_render( first_canvas, &first_mesh, &first_vertices, &first_indices ) == GP_FAILURE ||
+        test_render( second_canvas, &second_mesh, &second_vertices, &second_indices ) == GP_FAILURE ||
+        first_mesh.vertex_count != 6 || second_mesh.vertex_count != 8 ||
+        memcmp( first_vertices, second_vertices, sizeof( test_vertex_t ) * 4 ) != 0 ||
+        test_near( first_vertices[4].x, 15.f, 0.0001f ) == GP_FALSE ||
+        test_near( second_vertices[6].x, 22.5f, 0.0001f ) == GP_FALSE )
+    {
+        return GP_FAILURE;
+    }
+
+    free( first_vertices );
+    free( first_indices );
+    free( second_vertices );
+    free( second_indices );
+    gp_canvas_destroy( first_canvas );
+    return gp_canvas_destroy( second_canvas );
+}
+//////////////////////////////////////////////////////////////////////////
+static gp_result_t test_path_ellipse_arc( void )
+{
+    gp_path_t * path;
+    gp_path_create( &path, &test_malloc, &test_realloc, &test_free, GP_NULLPTR, 8, 16 );
+    gp_path_ellipse_arc( path, 10.f, 20.f, 8.f, 3.f, 0.f, 3.14159265358979323846f );
+
+    gp_bounds_t bounds;
+    gp_path_sample_t middle;
+    if( gp_path_get_bounds( path, &bounds ) == GP_FAILURE ||
+        gp_path_sample( path, 0.5f, GP_PATH_SAMPLE_NORMALIZED, &middle ) == GP_FAILURE ||
+        test_near( bounds.minimum_x, 2.f, 0.0001f ) == GP_FALSE ||
+        test_near( bounds.minimum_y, 20.f, 0.0001f ) == GP_FALSE ||
+        test_near( bounds.maximum_x, 18.f, 0.0001f ) == GP_FALSE ||
+        test_near( bounds.maximum_y, 23.f, 0.0001f ) == GP_FALSE ||
+        test_near( middle.x, 10.f, 0.0001f ) == GP_FALSE ||
+        test_near( middle.y, 23.f, 0.0001f ) == GP_FALSE )
+    {
+        return GP_FAILURE;
+    }
+
+    return gp_path_destroy( path );
+}
+//////////////////////////////////////////////////////////////////////////
+static gp_result_t test_batches_and_uv( void )
+{
+    gp_canvas_t * canvas;
+    gp_canvas_create( &canvas, &test_malloc, &test_realloc, &test_free, GP_NULLPTR );
+    gp_set_penumbra( canvas, 0.f );
+    gp_begin_fill( canvas );
+    gp_rect( canvas, 0.f, 0.f, 10.f, 10.f );
+    gp_rect( canvas, 12.f, 0.f, 10.f, 10.f );
+    gp_rect( canvas, 24.f, 0.f, 10.f, 10.f );
+    gp_rect( canvas, 36.f, 0.f, 10.f, 10.f );
+
+    gp_mesh_t mesh;
+    if( gp_calculate_mesh_size( canvas, &mesh ) == GP_FAILURE || mesh.batch_count != 1 ||
+        mesh.vertex_count != 16 || mesh.index_count != 24 )
+    {
+        return GP_FAILURE;
+    }
+
+    test_vertex_t * vertices;
+    gp_uint16_t * indices;
+    if( test_render( canvas, &mesh, &vertices, &indices ) == GP_FAILURE )
+    {
+        return GP_FAILURE;
+    }
+
+    for( gp_uint32_t index = 0; index != mesh.vertex_count; ++index )
+    {
+        if( vertices[index].u0 < 0.f || vertices[index].u0 > 1.f ||
+            vertices[index].v0 < 0.f || vertices[index].v0 > 1.f )
+        {
+            return GP_FAILURE;
+        }
+    }
+
+    free( vertices );
+    free( indices );
+    gp_canvas_destroy( canvas );
+
+    gp_canvas_create( &canvas, &test_malloc, &test_realloc, &test_free, GP_NULLPTR );
+    gp_set_penumbra( canvas, 0.f );
+    gp_begin_fill( canvas );
+    const float outer[][2] = {{0.f, 0.f}, {20.f, 0.f}, {20.f, 20.f}, {0.f, 20.f}};
+    const float hole[][2] = {{5.f, 5.f}, {5.f, 15.f}, {15.f, 15.f}, {15.f, 5.f}};
+    gp_path_t * compound_path;
+    test_path_create( &compound_path );
+    gp_path_polyline( compound_path, outer, 4, sizeof( outer[0] ), GP_NULLPTR, GP_TRUE );
+    gp_path_polyline( compound_path, hole, 4, sizeof( hole[0] ), GP_NULLPTR, GP_TRUE );
+    test_draw_destroy_path( canvas, compound_path );
+    if( test_render( canvas, &mesh, &vertices, &indices ) == GP_FAILURE )
+    {
+        return GP_FAILURE;
+    }
+
+    float minimum_u = vertices[0].u0;
+    float maximum_u = vertices[0].u0;
+    float minimum_v = vertices[0].v0;
+    float maximum_v = vertices[0].v0;
+    for( gp_uint32_t index = 1; index != mesh.vertex_count; ++index )
+    {
+        minimum_u = vertices[index].u0 < minimum_u ? vertices[index].u0 : minimum_u;
+        maximum_u = vertices[index].u0 > maximum_u ? vertices[index].u0 : maximum_u;
+        minimum_v = vertices[index].v0 < minimum_v ? vertices[index].v0 : minimum_v;
+        maximum_v = vertices[index].v0 > maximum_v ? vertices[index].v0 : maximum_v;
+    }
+    if( test_near( minimum_u, 0.f, 0.0001f ) == GP_FALSE ||
+        test_near( maximum_u, 1.f, 0.0001f ) == GP_FALSE ||
+        test_near( minimum_v, 0.f, 0.0001f ) == GP_FALSE ||
+        test_near( maximum_v, 1.f, 0.0001f ) == GP_FALSE )
+    {
+        return GP_FAILURE;
+    }
+
+    free( vertices );
+    free( indices );
+    gp_canvas_destroy( canvas );
+
+    gp_canvas_create( &canvas, &test_malloc, &test_realloc, &test_free, GP_NULLPTR );
+    gp_set_penumbra( canvas, 0.f );
+    gp_set_thickness( canvas, 4.f );
+    gp_set_line_cap( canvas, GP_LINE_CAP_ROUND );
+    gp_set_uv_mode( canvas, GP_UV_MODE_PATH );
+    const float line[][2] = {{0.f, 0.f}, {10.f, 0.f}};
+    gp_polyline( canvas, line, 2, sizeof( line[0] ), GP_NULLPTR, GP_FALSE );
+    if( test_render( canvas, &mesh, &vertices, &indices ) == GP_FAILURE )
+    {
+        return GP_FAILURE;
+    }
+
+    minimum_u = vertices[0].u0;
+    maximum_u = vertices[0].u0;
+    for( gp_uint32_t index = 1; index != mesh.vertex_count; ++index )
+    {
+        minimum_u = vertices[index].u0 < minimum_u ? vertices[index].u0 : minimum_u;
+        maximum_u = vertices[index].u0 > maximum_u ? vertices[index].u0 : maximum_u;
+    }
+    if( minimum_u >= 0.f || maximum_u <= 1.f )
+    {
+        return GP_FAILURE;
+    }
+
+    free( vertices );
+    free( indices );
+    return gp_canvas_destroy( canvas );
+}
+//////////////////////////////////////////////////////////////////////////
+static gp_result_t test_catmull_rom_and_superellipse( void )
+{
+    const float anchors[][2] = {{0.f, 0.f}, {10.f, 10.f}, {20.f, -5.f}, {30.f, 0.f}};
+    gp_path_t * path;
+    gp_path_create( &path, &test_malloc, &test_realloc, &test_free, GP_NULLPTR, 8, 16 );
+    if( gp_path_catmull_rom( path, anchors, 4, sizeof( anchors[0] ), GP_NULLPTR, GP_FALSE ) == GP_FAILURE )
+    {
+        return GP_FAILURE;
+    }
+
+    gp_path_sample_t first;
+    gp_path_sample_t last;
+    if( gp_path_sample( path, 0.f, GP_PATH_SAMPLE_NORMALIZED, &first ) == GP_FAILURE ||
+        gp_path_sample( path, 1.f, GP_PATH_SAMPLE_NORMALIZED, &last ) == GP_FAILURE ||
+        test_near( first.x, 0.f, 0.0001f ) == GP_FALSE || test_near( first.y, 0.f, 0.0001f ) == GP_FALSE ||
+        test_near( last.x, 30.f, 0.0001f ) == GP_FALSE || test_near( last.y, 0.f, 0.0001f ) == GP_FALSE )
+    {
+        return GP_FAILURE;
+    }
+
+    gp_canvas_t * canvas;
+    gp_canvas_create( &canvas, &test_malloc, &test_realloc, &test_free, GP_NULLPTR );
+    gp_set_penumbra( canvas, 0.f );
+    gp_draw_path( canvas, path );
+    gp_path_destroy( path );
+    gp_begin_fill( canvas );
+    gp_superellipse( canvas, 50.f, 10.f, 12.f, 8.f, 4.f, 0.35f );
+
+    gp_mesh_t mesh;
+    test_vertex_t * vertices;
+    gp_uint16_t * indices;
+    if( test_render( canvas, &mesh, &vertices, &indices ) == GP_FAILURE || mesh.vertex_count < 20 )
+    {
+        return GP_FAILURE;
+    }
+    free( vertices );
+    free( indices );
+    return gp_canvas_destroy( canvas );
+}
+//////////////////////////////////////////////////////////////////////////
+static gp_result_t test_trim_markers( void )
+{
+    const float points[][2] = {{0.f, 0.f}, {20.f, 0.f}};
+    for( gp_uint32_t type = GP_PATH_MARKER_FILLED_ARROW; type <= GP_PATH_MARKER_DIAMOND; ++type )
+    {
+        gp_canvas_t * canvas;
+        gp_canvas_create( &canvas, &test_malloc, &test_realloc, &test_free, GP_NULLPTR );
+        gp_set_thickness( canvas, 2.f );
+        gp_set_penumbra( canvas, 1.f );
+        gp_set_path_trim( canvas, 0.25f, 0.75f );
+        gp_path_marker_t start = {(gp_path_marker_type_t)type, 4.f, 5.f, 0.f};
+        gp_path_marker_t end = {(gp_path_marker_type_t)type, 4.f, 5.f, 1.f};
+        gp_set_path_markers( canvas, &start, &end );
+        gp_polyline( canvas, points, 2, sizeof( points[0] ), GP_NULLPTR, GP_FALSE );
+
+        gp_mesh_t mesh;
+        test_vertex_t * vertices;
+        gp_uint16_t * indices;
+        if( test_render( canvas, &mesh, &vertices, &indices ) == GP_FAILURE )
+        {
+            return GP_FAILURE;
+        }
+
+        gp_bool_t transparent = GP_FALSE;
+        for( gp_uint32_t index = 0; index != mesh.vertex_count; ++index )
+        {
+            transparent |= (vertices[index].color >> 24) == 0 ? GP_TRUE : GP_FALSE;
+        }
+        if( transparent == GP_FALSE )
+        {
+            return GP_FAILURE;
+        }
+        free( vertices );
+        free( indices );
+        gp_canvas_destroy( canvas );
+    }
+
+    gp_canvas_t * canvas;
+    gp_canvas_create( &canvas, &test_malloc, &test_realloc, &test_free, GP_NULLPTR );
+    gp_set_penumbra( canvas, 0.f );
+    gp_set_outline_width( canvas, 2.f );
+    gp_set_outline_color( canvas, 0.f, 1.f, 0.f, 1.f );
+    gp_path_marker_t marker = {GP_PATH_MARKER_DIAMOND, 5.f, 5.f, 0.f};
+    gp_set_path_markers( canvas, &marker, &marker );
+    gp_polyline( canvas, points, 2, sizeof( points[0] ), GP_NULLPTR, GP_FALSE );
+    gp_mesh_t mesh;
+    test_vertex_t * vertices;
+    gp_uint16_t * indices;
+    if( test_render( canvas, &mesh, &vertices, &indices ) == GP_FAILURE )
+    {
+        return GP_FAILURE;
+    }
+    gp_bool_t outline_color = GP_FALSE;
+    for( gp_uint32_t index = 0; index != mesh.vertex_count; ++index )
+    {
+        outline_color |= vertices[index].color == 0xff00ff00U ? GP_TRUE : GP_FALSE;
+    }
+    if( outline_color == GP_FALSE )
+    {
+        return GP_FAILURE;
+    }
+    free( vertices );
+    free( indices );
+    return gp_canvas_destroy( canvas );
+}
+//////////////////////////////////////////////////////////////////////////
 #if defined(GP_DEBUG)
 static gp_result_t test_invalid_path_layout( void )
 {
@@ -1075,8 +1512,8 @@ static gp_result_t test_invalid_path_layout( void )
     gp_canvas_t * canvas;
     gp_canvas_create( &canvas, &test_malloc, &test_realloc, &test_free, GP_NULLPTR );
 
-    gp_path_layout_t bad_width_offset = {0, GP_PATH_ATTRIBUTE_NONE};
-    gp_path_layout_t bad_color_offset = {GP_PATH_ATTRIBUTE_NONE, sizeof( points[0] )};
+    gp_path_layout_t bad_width_offset = {0, GP_PATH_ATTRIBUTE_NONE, GP_PATH_ATTRIBUTE_NONE};
+    gp_path_layout_t bad_color_offset = {GP_PATH_ATTRIBUTE_NONE, sizeof( points[0] ), GP_PATH_ATTRIBUTE_NONE};
     if( gp_polyline( canvas, points, 2, sizeof( points[0] ), &bad_width_offset, GP_FALSE ) != GP_FAILURE ||
         gp_polyline( canvas, points, 2, sizeof( points[0] ), &bad_color_offset, GP_FALSE ) != GP_FAILURE ||
         gp_polyline( canvas, points, 2, sizeof( float ), GP_NULLPTR, GP_FALSE ) != GP_FAILURE )
@@ -1084,7 +1521,7 @@ static gp_result_t test_invalid_path_layout( void )
         return GP_FAILURE;
     }
 
-    gp_path_layout_t layout = {offsetof( test_path_point_t, width ), offsetof( test_path_point_t, color )};
+    gp_path_layout_t layout = {offsetof( test_path_point_t, width ), offsetof( test_path_point_t, color ), GP_PATH_ATTRIBUTE_NONE};
     points[0].width = 0.f;
     if( gp_polyline( canvas, points, 2, sizeof( points[0] ), &layout, GP_FALSE ) != GP_FAILURE )
     {
@@ -1096,6 +1533,33 @@ static gp_result_t test_invalid_path_layout( void )
     {
         return GP_FAILURE;
     }
+
+    gp_path_marker_t invalid_marker = {GP_PATH_MARKER_CIRCLE, NAN, 2.f, 0.f};
+    if( gp_set_path_markers( canvas, &invalid_marker, GP_NULLPTR ) != GP_FAILURE ||
+        gp_set_path_trim( canvas, NAN, 1.f ) != GP_FAILURE ||
+        gp_set_thickness( canvas, NAN ) != GP_FAILURE || gp_set_thickness( canvas, 0.f ) != GP_FAILURE ||
+        gp_set_penumbra( canvas, -1.f ) != GP_FAILURE || gp_set_outline_width( canvas, NAN ) != GP_FAILURE ||
+        gp_set_color( canvas, NAN, 1.f, 1.f, 1.f ) != GP_FAILURE ||
+        gp_set_uv_offset( canvas, 0.f, 0.f, NAN, 1.f ) != GP_FAILURE ||
+        gp_set_ellipse_quality( canvas, 253 ) != GP_FAILURE )
+    {
+        return GP_FAILURE;
+    }
+
+    gp_path_t * path;
+    test_path_create( &path );
+    if( gp_path_polyline( path, points, 2, sizeof( float ) * 2, &bad_color_offset, GP_FALSE ) != GP_FAILURE )
+    {
+        return GP_FAILURE;
+    }
+    gp_path_move_to( path, 0.f, 0.f );
+    gp_path_line_to( path, 10.f, 0.f );
+    gp_set_stroke_alignment( canvas, GP_STROKE_ALIGNMENT_INNER );
+    if( gp_draw_path( canvas, path ) != GP_FAILURE )
+    {
+        return GP_FAILURE;
+    }
+    gp_path_destroy( path );
 
     return gp_canvas_destroy( canvas );
 }
@@ -1189,6 +1653,42 @@ int main( int argc, char ** argv )
     if( test_smooth_round_curve_geometry() == GP_FAILURE )
     {
         fprintf( stderr, "test_smooth_round_curve_geometry failed\n" );
+        return EXIT_FAILURE;
+    }
+
+    if( test_reusable_path_queries_and_snapshot() == GP_FAILURE )
+    {
+        fprintf( stderr, "test_reusable_path_queries_and_snapshot failed\n" );
+        return EXIT_FAILURE;
+    }
+
+    if( test_stable_path_trim() == GP_FAILURE )
+    {
+        fprintf( stderr, "test_stable_path_trim failed\n" );
+        return EXIT_FAILURE;
+    }
+
+    if( test_path_ellipse_arc() == GP_FAILURE )
+    {
+        fprintf( stderr, "test_path_ellipse_arc failed\n" );
+        return EXIT_FAILURE;
+    }
+
+    if( test_batches_and_uv() == GP_FAILURE )
+    {
+        fprintf( stderr, "test_batches_and_uv failed\n" );
+        return EXIT_FAILURE;
+    }
+
+    if( test_catmull_rom_and_superellipse() == GP_FAILURE )
+    {
+        fprintf( stderr, "test_catmull_rom_and_superellipse failed\n" );
+        return EXIT_FAILURE;
+    }
+
+    if( test_trim_markers() == GP_FAILURE )
+    {
+        fprintf( stderr, "test_trim_markers failed\n" );
         return EXIT_FAILURE;
     }
 

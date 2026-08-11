@@ -35,6 +35,24 @@ static void gp_free( void * _ptr, void * _ud )
     free( p );
 }
 //////////////////////////////////////////////////////////////////////////
+static void * path_malloc( gp_size_t _size, void * _ud )
+{
+    GP_UNUSED( _ud );
+    return malloc( _size );
+}
+//////////////////////////////////////////////////////////////////////////
+static void * path_realloc( void * _ptr, gp_size_t _size, void * _ud )
+{
+    GP_UNUSED( _ud );
+    return realloc( _ptr, _size );
+}
+//////////////////////////////////////////////////////////////////////////
+static void path_free( void * _ptr, void * _ud )
+{
+    GP_UNUSED( _ud );
+    free( _ptr );
+}
+//////////////////////////////////////////////////////////////////////////
 typedef struct gl_vertex_t
 {
     float x;
@@ -58,14 +76,28 @@ static gp_result_t __draw_figure( gp_canvas_t * _canvas, float _dx, float _dy )
         {_dx + 400.f, _dy + 100.f}
     };
 
-    GP_CALL( gp_set_color, (_canvas, 1.f, 0.5f, 0.25f, 1.f) );
-    GP_CALL( gp_point_move_to, (_canvas, _dx + 0.f, _dy + 0.f) );
-    GP_CALL( gp_set_color, (_canvas, 0.5f, 1.0f, 0.25f, 1.f) );
-    GP_CALL( gp_point_quadratic_curve_to, (_canvas, _dx + 50.f, _dy + 100.f, _dx + 100.f, _dy + 100.f) );
-    GP_CALL( gp_set_color, (_canvas, 0.5f, 0.5f, 1.f, 1.f) );
-    GP_CALL( gp_point_bezier_curve_to, (_canvas, _dx + 125.f, _dy + 175.f, _dx + 175.f, _dy + 150.f, _dx + 200.f, _dy) );
-    GP_CALL( gp_set_color, (_canvas, 0.25f, 1.f, 1.f, 1.f) );
-    GP_CALL( gp_point_line_to, (_canvas, _dx + 250.f, _dy + 100.f) );
+    gp_path_t * path;
+    GP_CALL( gp_path_create, (&path, &path_malloc, &path_realloc, &path_free, GP_NULLPTR, gp_get_default_curve_quality(), gp_get_default_ellipse_quality()) );
+    gp_path_style_t style = {GP_PATH_STYLE_COLOR, 0.f, {1.f, 0.5f, 0.25f, 1.f}, {0.f, 0.f, 0.f, 0.f}};
+    GP_CALL( gp_path_set_style, (path, &style) );
+    GP_CALL( gp_path_move_to, (path, _dx + 0.f, _dy + 0.f) );
+    style.color.r = 0.5f;
+    style.color.g = 1.f;
+    style.color.b = 0.25f;
+    GP_CALL( gp_path_set_style, (path, &style) );
+    GP_CALL( gp_path_quadratic_curve_to, (path, _dx + 50.f, _dy + 100.f, _dx + 100.f, _dy + 100.f) );
+    style.color.r = 0.5f;
+    style.color.g = 0.5f;
+    style.color.b = 1.f;
+    GP_CALL( gp_path_set_style, (path, &style) );
+    GP_CALL( gp_path_bezier_curve_to, (path, _dx + 125.f, _dy + 175.f, _dx + 175.f, _dy + 150.f, _dx + 200.f, _dy) );
+    style.color.r = 0.25f;
+    style.color.g = 1.f;
+    style.color.b = 1.f;
+    GP_CALL( gp_path_set_style, (path, &style) );
+    GP_CALL( gp_path_line_to, (path, _dx + 250.f, _dy + 100.f) );
+    GP_CALL( gp_draw_path, (_canvas, path) );
+    GP_CALL( gp_path_destroy, (path) );
 
     GP_CALL( gp_set_color, (_canvas, 0.2f, 0.6f, 0.9f, 1.f) );
     GP_CALL( gp_rect, (_canvas, _dx + 275.f, _dy + 0.f, 100.f, 50.f) );
@@ -149,6 +181,7 @@ int main( int argc, char ** argv )
     if( mesh.vertex_count >= max_vertex_count ||
         mesh.index_count >= max_index_count )
     {
+        fprintf( stderr, "mesh size: %u %u\n", mesh.vertex_count, mesh.index_count );
         return EXIT_FAILURE;
     }
 
@@ -178,6 +211,7 @@ int main( int argc, char ** argv )
 
     if( gp_render( canvas, &mesh ) == GP_FAILURE )
     {
+        fprintf( stderr, "render failed\n" );
         return EXIT_FAILURE;
     }
 
@@ -191,6 +225,7 @@ int main( int argc, char ** argv )
 
     if( msz != 0 )
     {
+        fprintf( stderr, "leaked: %zu\n", msz );
         return EXIT_FAILURE;
     }
 

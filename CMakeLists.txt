@@ -70,6 +70,8 @@ set(GRAPHICS_SOURCES
     ${SOURCE_DIR}/rounded_rect.h
     ${SOURCE_DIR}/rounded_polygon.c
     ${SOURCE_DIR}/primitives.c
+    ${SOURCE_DIR}/path.c
+    ${SOURCE_DIR}/path.h
     ${SOURCE_DIR}/bounds.c
     ${SOURCE_DIR}/compound.c
     ${SOURCE_DIR}/compound.h

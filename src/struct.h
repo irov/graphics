@@ -24,6 +24,8 @@ typedef struct gp_state_t
     gp_line_cap_t line_cap;
     gp_line_join_t line_join;
     gp_fill_rule_t fill_rule;
+    gp_stroke_alignment_t stroke_alignment;
+    gp_uv_mode_t uv_mode;
 
     float thickness;
     float outline_width;
@@ -31,12 +33,19 @@ typedef struct gp_state_t
     float inner_radius;
     float miter_limit;
     float dash_offset;
+    float trim_from;
+    float trim_to;
+    float path_length_offset;
+    float path_total_length;
 
     float dash_pattern[GP_DASH_PATTERN_MAX];
     gp_uint8_t dash_count;
 
     gp_color_t color;
     gp_color_t outline_color;
+
+    gp_path_marker_t start_marker;
+    gp_path_marker_t end_marker;
 
     float uv_ou;
     float uv_ov;

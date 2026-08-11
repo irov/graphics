@@ -16,6 +16,7 @@
 #include <stdio.h>
 #include <setjmp.h>
 #include <math.h>
+#include <vector>
 
 //////////////////////////////////////////////////////////////////////////
 static const char * identifiers[] =
@@ -189,7 +190,7 @@ static void __draw_radial_progress( gp_canvas_t * _canvas, float _progress )
     gp_push_state( _canvas );
     gp_set_outline_width( _canvas, 0.f );
     gp_set_penumbra( _canvas, 0.f );
-    gp_set_color( _canvas, 0.25f, 0.86f, 1.f, 1.f );
+    gp_set_color( _canvas, 0.18f, 0.86f, 1.f, 1.f );
     gp_rounded_ring( _canvas, x, y, 68.f, 84.f, angle_from, angle_to );
 
     gp_set_penumbra( _canvas, 0.f );
@@ -232,19 +233,19 @@ static void __draw_segmented_cooldown( gp_canvas_t * _canvas, float _progress, f
     gp_pop_state( _canvas );
 }
 //////////////////////////////////////////////////////////////////////////
-static void __draw_rich_paths( gp_canvas_t * _canvas, float _time )
+static void __draw_rich_paths( gp_canvas_t * _canvas, float _progress, float _time )
 {
     const gp_path_layout_t layout = {
         offsetof( example_path_point_t, width ),
-        offsetof( example_path_point_t, color )
+        offsetof( example_path_point_t, color ),
+        GP_PATH_ATTRIBUTE_NONE
     };
-    const float wave = sinf( _time * 1.7f ) * 9.f;
     const example_path_point_t trail[] = {
         {336.f, 470.f, 4.f, {0.20f, 0.92f, 1.f, 0.22f}},
-        {421.f, 426.f + wave, 9.f, {0.18f, 0.82f, 1.f, 0.90f}},
-        {518.f, 482.f - wave, 24.f, {0.48f, 0.42f, 1.f, 1.f}},
-        {628.f, 421.f + wave, 17.f, {0.92f, 0.28f, 0.82f, 1.f}},
-        {743.f, 481.f - wave, 10.f, {1.f, 0.39f, 0.58f, 0.96f}},
+        {421.f, 426.f, 9.f, {0.18f, 0.82f, 1.f, 0.90f}},
+        {518.f, 482.f, 24.f, {0.48f, 0.42f, 1.f, 1.f}},
+        {628.f, 421.f, 17.f, {0.92f, 0.28f, 0.82f, 1.f}},
+        {743.f, 481.f, 10.f, {1.f, 0.39f, 0.58f, 0.96f}},
         {862.f, 432.f, 3.f, {1.f, 0.72f, 0.26f, 0.20f}}
     };
 
@@ -253,7 +254,20 @@ static void __draw_rich_paths( gp_canvas_t * _canvas, float _time )
     gp_set_penumbra( _canvas, 6.f );
     gp_set_line_cap( _canvas, GP_LINE_CAP_ROUND );
     gp_set_line_join( _canvas, GP_LINE_JOIN_ROUND );
-    gp_rounded_polyline( _canvas, trail, sizeof( trail ) / sizeof( trail[0] ), sizeof( trail[0] ), &layout, 26.f, GP_FALSE );
+    gp_path_t * stable_path;
+    gp_path_create( &stable_path, &gp_malloc, &gp_realloc, &gp_free, GP_NULLPTR, gp_get_default_curve_quality(), gp_get_default_ellipse_quality() );
+    gp_path_catmull_rom( stable_path, trail, sizeof( trail ) / sizeof( trail[0] ), sizeof( trail[0] ), &layout, GP_FALSE );
+    gp_set_path_trim( _canvas, 0.f, _progress );
+    gp_draw_path( _canvas, stable_path );
+    gp_path_sample_t caret;
+    gp_path_sample( stable_path, _progress, GP_PATH_SAMPLE_NORMALIZED, &caret );
+    gp_set_path_trim( _canvas, 0.f, 1.f );
+    gp_set_penumbra( _canvas, 1.f );
+    gp_set_color( _canvas, 1.f, 0.95f, 0.65f, 1.f );
+    gp_begin_fill( _canvas );
+    gp_circle( _canvas, caret.x, caret.y, 5.f );
+    gp_end_fill( _canvas );
+    gp_path_destroy( stable_path );
 
     const example_path_point_t route[] = {
         {355.f, 606.f, 5.f, {0.23f, 0.96f, 0.65f, 0.40f}},
@@ -265,7 +279,19 @@ static void __draw_rich_paths( gp_canvas_t * _canvas, float _time )
 
     gp_set_penumbra( _canvas, 3.f );
     gp_set_line_join( _canvas, GP_LINE_JOIN_BEVEL );
-    gp_arrowed_polyline( _canvas, route, sizeof( route ) / sizeof( route[0] ), sizeof( route[0] ), &layout, 24.f, 26.f );
+    const gp_path_marker_t end_marker = {GP_PATH_MARKER_FILLED_ARROW, 24.f, 26.f, 0.f};
+    gp_set_path_markers( _canvas, GP_NULLPTR, &end_marker );
+    gp_set_uv_mode( _canvas, GP_UV_MODE_PATH );
+    const float dash[] = {28.f, 12.f, 5.f};
+    gp_set_line_dash( _canvas, dash, 3, _time * 16.f );
+    gp_path_t * route_path;
+    gp_path_create( &route_path, &gp_malloc, &gp_realloc, &gp_free, GP_NULLPTR, gp_get_default_curve_quality(), gp_get_default_ellipse_quality() );
+    gp_path_catmull_rom( route_path, route + 1, sizeof( route ) / sizeof( route[0] ) - 1, sizeof( route[0] ), &layout, GP_FALSE );
+    gp_draw_path( _canvas, route_path );
+    gp_path_destroy( route_path );
+    gp_clear_line_dash( _canvas );
+    gp_set_path_markers( _canvas, GP_NULLPTR, GP_NULLPTR );
+    gp_set_uv_mode( _canvas, GP_UV_MODE_BOUNDS );
 
     gp_set_penumbra( _canvas, 1.f );
     gp_set_color( _canvas, 0.28f, 0.88f, 1.f, 0.9f );
@@ -274,15 +300,19 @@ static void __draw_rich_paths( gp_canvas_t * _canvas, float _time )
     gp_set_color( _canvas, 0.68f, 0.41f, 1.f, 0.9f );
     gp_rounded_rect_varying( _canvas, 500.f, 656.f, 126.f, 42.f, 20.f, 6.f, 20.f, 6.f );
     gp_set_color( _canvas, 1.f, 0.42f, 0.65f, 0.9f );
-    gp_star( _canvas, 689.f, 677.f, 10.f, 23.f, 6, _time * 0.35f );
+    gp_superellipse( _canvas, 688.f, 674.f, 30.f, 22.f, 4.5f, _time * 0.35f );
     gp_end_fill( _canvas );
 
     gp_set_color( _canvas, 1.f, 0.7f, 0.24f, 0.95f );
     gp_set_thickness( _canvas, 5.f );
     gp_set_line_cap( _canvas, GP_LINE_CAP_ROUND );
-    gp_point_move_to( _canvas, 757.f, 687.f );
-    gp_point_tangent_arc_to( _canvas, 812.f, 644.f, 882.f, 682.f, 28.f );
-    gp_point_line_to( _canvas, 901.f, 668.f );
+    gp_path_t * path;
+    gp_path_create( &path, &gp_malloc, &gp_realloc, &gp_free, GP_NULLPTR, gp_get_default_curve_quality(), gp_get_default_ellipse_quality() );
+    gp_path_move_to( path, 757.f, 687.f );
+    gp_path_tangent_arc_to( path, 812.f, 644.f, 882.f, 682.f, 28.f );
+    gp_path_line_to( path, 901.f, 668.f );
+    gp_draw_path( _canvas, path );
+    gp_path_destroy( path );
     gp_pop_state( _canvas );
 }
 //////////////////////////////////////////////////////////////////////////
@@ -294,7 +324,7 @@ static void __draw_showcase( gp_canvas_t * _canvas, float _progress, float _time
 
     __draw_radial_progress( _canvas, _progress );
     __draw_segmented_cooldown( _canvas, _progress, _time );
-    __draw_rich_paths( _canvas, _time );
+    __draw_rich_paths( _canvas, _progress, _time );
 }
 //////////////////////////////////////////////////////////////////////////
 int main( int argc, char ** argv )
@@ -398,8 +428,8 @@ int main( int argc, char ** argv )
     example_script_handle_t * script_handle;
     initialize_script( &script_handle, canvas );
 
-    uint32_t max_vertex_count = 65535;
-    uint32_t max_index_count = 262144;
+    uint32_t max_vertex_count = 262144;
+    uint32_t max_index_count = 524288;
 
     example_opengl_handle_t * opengl_handle;
     initialize_opengl( &opengl_handle, (float)window_width, (float)window_height, max_vertex_count, max_index_count );
@@ -449,8 +479,8 @@ int main( int argc, char ** argv )
         ImGui::SetNextWindowSize( ImVec2( 268.f, 736.f ), ImGuiCond_Once );
         ImGui::Begin( "Graphics playground" );
 
-        ImGui::TextColored( ImVec4( 0.25f, 0.86f, 1.f, 1.f ), "PHASE 2 SHOWCASE" );
-        ImGui::TextWrapped( "Game-ready radial indicators and rich vector paths." );
+        ImGui::TextColored( ImVec4( 0.25f, 0.86f, 1.f, 1.f ), "PHASE 3 SHOWCASE" );
+        ImGui::TextWrapped( "Reusable paths, stable trim and VFX trails." );
         ImGui::Spacing();
         ImGui::Checkbox( "Animate", &animate );
         float progress_percent = progress * 100.f;
@@ -466,11 +496,11 @@ int main( int argc, char ** argv )
         ImGui::Separator();
         ImGui::Spacing();
         ImGui::Text( "On canvas" );
-        ImGui::BulletText( "rounded ring progress" );
-        ImGui::BulletText( "segmented animated dash" );
-        ImGui::BulletText( "per-point width and color" );
-        ImGui::BulletText( "rounded trail and arrow" );
-        ImGui::BulletText( "capsule, star and arcTo" );
+        ImGui::BulletText( "rounded radial ring" );
+        ImGui::BulletText( "stable trim + sampled caret" );
+        ImGui::BulletText( "dashed rich spline" );
+        ImGui::BulletText( "rich Catmull-Rom + marker" );
+        ImGui::BulletText( "superellipse and arcTo" );
 
         if( ImGui::CollapsingHeader( "Diagnostics" ) == true )
         {
@@ -593,25 +623,8 @@ int main( int argc, char ** argv )
             glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
         }
 
-        if( texture == 1 )
-        {
-            glActiveTexture( GL_TEXTURE0 );
-            glBindTexture( GL_TEXTURE_2D, opengl_handle->textureId );
-
-            opengl_use_texture_program( opengl_handle );
-
-            glEnableVertexAttribArray( 2 );
-        }
-        else
-        {
-            glActiveTexture( GL_TEXTURE0 );
-            glBindTexture( GL_TEXTURE_2D, 0 );
-
-            opengl_use_color_program( opengl_handle );
-
-            glDisableVertexAttribArray( 2 );
-        }
-
+        glEnableVertexAttribArray( 2 );
+        opengl_use_color_program( opengl_handle );
         opengl_set_camera( opengl_handle, camera_offset_x, camera_offset_y, camera_scale );
 
         glClearColor( 0.018f, 0.024f, 0.055f, 1.f );
@@ -629,8 +642,8 @@ int main( int argc, char ** argv )
         gp_mesh_t mesh;
         gp_calculate_mesh_size( canvas, &mesh );
 
-        if( mesh.vertex_count >= max_vertex_count ||
-            mesh.index_count >= max_index_count )
+        if( mesh.vertex_count > max_vertex_count ||
+            mesh.index_count > max_index_count )
         {
             break;
         }
@@ -662,6 +675,11 @@ int main( int argc, char ** argv )
         mesh.indices_offset = 0;
         mesh.indices_stride = sizeof( gp_uint16_t );
 
+        std::vector<gp_render_batch_t> batches( mesh.batch_count );
+        mesh.batches_buffer = batches.data();
+        mesh.batches_offset = 0;
+        mesh.batches_stride = sizeof( gp_render_batch_t );
+
         gp_result_t result = gp_render( canvas, &mesh );
 
         glUnmapBuffer( GL_ARRAY_BUFFER );
@@ -669,7 +687,13 @@ int main( int argc, char ** argv )
 
         if( result == GP_SUCCESSFUL )
         {
-            glDrawElements( GL_TRIANGLES, mesh.index_count, GL_UNSIGNED_SHORT, GP_NULLPTR );
+            for( const gp_render_batch_t & batch : batches )
+            {
+                opengl_use_batch_program( opengl_handle, texture );
+                opengl_set_camera( opengl_handle, camera_offset_x, camera_offset_y, camera_scale );
+                const void * index_offset = (const void *)(uintptr_t)(batch.index_offset * sizeof( gp_uint16_t ));
+                glDrawElementsBaseVertex( GL_TRIANGLES, batch.index_count, GL_UNSIGNED_SHORT, index_offset, (GLint)batch.vertex_offset );
+            }
         }
 
         if( TextEditorCollapsingHeader == true )
@@ -692,10 +716,10 @@ int main( int argc, char ** argv )
             foreground->AddText( ImVec2( 740.f, 91.f ), title_color, "SEGMENTED COOLDOWN" );
             foreground->AddText( ImVec2( 462.f, 216.f ), IM_COL32( 228, 238, 255, 255 ), progress_text );
             foreground->AddText( ImVec2( 795.f, 216.f ), IM_COL32( 228, 238, 255, 255 ), progress_text );
-            foreground->AddText( ImVec2( 328.f, 416.f ), title_color, "RICH GAME PATHS" );
+            foreground->AddText( ImVec2( 328.f, 416.f ), title_color, "STABLE TRIM + VFX PATHS" );
             foreground->AddText( ImVec2( 328.f, 702.f ), caption_color, "CAPSULE" );
             foreground->AddText( ImVec2( 500.f, 702.f ), caption_color, "4 RADII" );
-            foreground->AddText( ImVec2( 663.f, 702.f ), caption_color, "STAR" );
+            foreground->AddText( ImVec2( 646.f, 702.f ), caption_color, "SUPERELLIPSE" );
             foreground->AddText( ImVec2( 790.f, 702.f ), caption_color, "arcTo" );
         }
 

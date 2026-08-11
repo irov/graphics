@@ -556,24 +556,31 @@ gp_result_t gp_calculate_mesh_compound_fill_size( const gp_canvas_t * _canvas, g
 {
     for( const gp_compound_fill_t * compound = _canvas->compound_fills; compound != GP_NULLPTR; compound = compound->next )
     {
-        gp_compound_data_t data;
-        GP_CALL( __compound_build, (compound, GP_NULLPTR, &data) );
+        GP_CALL( gp_calculate_mesh_compound_size, (compound, _mesh) );
+    }
 
-        for( gp_uint32_t index = 0; index != data.contour_count; ++index )
+    return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
+gp_result_t gp_calculate_mesh_compound_size( const gp_compound_fill_t * _compound, gp_mesh_t * _mesh )
+{
+    gp_compound_data_t data;
+    GP_CALL( __compound_build, (_compound, GP_NULLPTR, &data) );
+
+    for( gp_uint32_t index = 0; index != data.contour_count; ++index )
+    {
+        _mesh->vertex_count += data.contours[index].count;
+        if( data.contours[index].outer == GP_TRUE )
         {
-            _mesh->vertex_count += data.contours[index].count;
-            if( data.contours[index].outer == GP_TRUE )
+            gp_uint32_t order_count = __compound_order_count( &data, index );
+            if( order_count >= 3 )
             {
-                gp_uint32_t order_count = __compound_order_count( &data, index );
-                if( order_count >= 3 )
-                {
-                    _mesh->index_count += (order_count - 2) * 3;
-                }
+                _mesh->index_count += (order_count - 2) * 3;
             }
         }
-
-        __compound_destroy( &data );
     }
+
+    __compound_destroy( &data );
 
     return GP_SUCCESSFUL;
 }
@@ -582,6 +589,23 @@ gp_result_t gp_render_compound_fill( const gp_compound_fill_t * _compound, const
 {
     gp_compound_data_t data;
     GP_CALL( __compound_build, (_compound, _mesh, &data) );
+
+    gp_vec2f_t minimum = data.contours[0].points[0].position;
+    gp_vec2f_t maximum = minimum;
+    for( gp_uint32_t contour_index = 0; contour_index != data.contour_count; ++contour_index )
+    {
+        const gp_compound_contour_t * contour = data.contours + contour_index;
+        for( gp_uint32_t index = 0; index != contour->count; ++index )
+        {
+            const gp_vec2f_t * position = &contour->points[index].position;
+            minimum.x = position->x < minimum.x ? position->x : minimum.x;
+            minimum.y = position->y < minimum.y ? position->y : minimum.y;
+            maximum.x = position->x > maximum.x ? position->x : maximum.x;
+            maximum.y = position->y > maximum.y ? position->y : maximum.y;
+        }
+    }
+    float width = maximum.x - minimum.x;
+    float height = maximum.y - minimum.y;
 
     gp_uint32_t vertex_begin = *_vertex_iterator;
     for( gp_uint32_t contour_index = 0; contour_index != data.contour_count; ++contour_index )
@@ -592,7 +616,9 @@ gp_result_t gp_render_compound_fill( const gp_compound_fill_t * _compound, const
             const gp_compound_point_t * point = contour->points + index;
             GP_CALL( gp_mesh_push_position, (_mesh, *_vertex_iterator, point->position.x, point->position.y) );
             GP_CALL( gp_mesh_push_color, (_mesh, *_vertex_iterator, point->color) );
-            GP_CALL( gp_mesh_push_uv, (_compound->first_line->state, _mesh, *_vertex_iterator, 0.f, 0.f) );
+            float u = width > 0.f ? (point->position.x - minimum.x) / width : 0.f;
+            float v = height > 0.f ? (point->position.y - minimum.y) / height : 0.f;
+            GP_CALL( gp_mesh_push_uv, (_compound->first_line->state, _mesh, *_vertex_iterator, u, v) );
             ++(*_vertex_iterator);
         }
     }

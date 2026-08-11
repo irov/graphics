@@ -145,25 +145,31 @@ gp_result_t gp_rounded_polygon( gp_canvas_t * _canvas, const void * _points, gp_
     gp_rounded_polygon_vertex_t vertex;
     __rounded_polygon_calculate_vertex( _points, _point_count, _point_stride, 0, radius, signed_area, &vertex );
 
-    GP_CALL( gp_point_move_to, (_canvas, vertex.entry_x, vertex.entry_y) );
+    const gp_state_t * state = GP_GET_STATE( _canvas );
+    gp_path_t * path;
+    GP_CALL( gp_path_create, (&path, _canvas->malloc, _canvas->realloc, _canvas->free, _canvas->ud, state->curve_quality, state->ellipse_quality) );
+
+    GP_CALL( gp_path_move_to, (path, vertex.entry_x, vertex.entry_y) );
     if( vertex.rounded == GP_TRUE )
     {
-        GP_CALL( gp_point_quadratic_curve_to, (_canvas, vertex.control_x, vertex.control_y, vertex.exit_x, vertex.exit_y) );
+        GP_CALL( gp_path_quadratic_curve_to, (path, vertex.control_x, vertex.control_y, vertex.exit_x, vertex.exit_y) );
     }
 
     for( gp_size_t index = 1; index != _point_count; ++index )
     {
         __rounded_polygon_calculate_vertex( _points, _point_count, _point_stride, index, radius, signed_area, &vertex );
 
-        GP_CALL( gp_point_line_to, (_canvas, vertex.entry_x, vertex.entry_y) );
+        GP_CALL( gp_path_line_to, (path, vertex.entry_x, vertex.entry_y) );
 
         if( vertex.rounded == GP_TRUE )
         {
-            GP_CALL( gp_point_quadratic_curve_to, (_canvas, vertex.control_x, vertex.control_y, vertex.exit_x, vertex.exit_y) );
+            GP_CALL( gp_path_quadratic_curve_to, (path, vertex.control_x, vertex.control_y, vertex.exit_x, vertex.exit_y) );
         }
     }
 
-    GP_CALL( gp_point_close, (_canvas) );
+    GP_CALL( gp_path_close, (path) );
+    gp_result_t result = gp_draw_path( _canvas, path );
+    GP_CALL( gp_path_destroy, (path) );
 
-    return GP_SUCCESSFUL;
+    return result;
 }

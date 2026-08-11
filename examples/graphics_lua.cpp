@@ -1,6 +1,58 @@
 #include "graphics_lua.h"
 
 //////////////////////////////////////////////////////////////////////////
+static void * __path_malloc( gp_size_t _size, void * _ud )
+{
+    GP_UNUSED( _ud );
+    return malloc( _size );
+}
+//////////////////////////////////////////////////////////////////////////
+static void * __path_realloc( void * _ptr, gp_size_t _size, void * _ud )
+{
+    GP_UNUSED( _ud );
+    return realloc( _ptr, _size );
+}
+//////////////////////////////////////////////////////////////////////////
+static void __path_free( void * _ptr, void * _ud )
+{
+    GP_UNUSED( _ud );
+    free( _ptr );
+}
+//////////////////////////////////////////////////////////////////////////
+static gp_result_t __flush_path( example_script_handle_t * _handle )
+{
+    if( _handle->path == GP_NULLPTR )
+    {
+        return GP_SUCCESSFUL;
+    }
+
+    gp_result_t result = gp_draw_path( _handle->canvas, _handle->path );
+    gp_path_destroy( _handle->path );
+    _handle->path = GP_NULLPTR;
+
+    return result;
+}
+//////////////////////////////////////////////////////////////////////////
+static gp_result_t __sync_path_style( example_script_handle_t * _handle )
+{
+    if( _handle->path == GP_NULLPTR )
+    {
+        if( gp_path_create( &_handle->path, &__path_malloc, &__path_realloc, &__path_free, GP_NULLPTR,
+            gp_get_default_curve_quality(), gp_get_default_ellipse_quality() ) == GP_FAILURE )
+        {
+            return GP_FAILURE;
+        }
+    }
+
+    gp_path_style_t style;
+    style.attributes = GP_PATH_STYLE_WIDTH | GP_PATH_STYLE_COLOR | GP_PATH_STYLE_OUTLINE_COLOR;
+    gp_get_thickness( _handle->canvas, &style.width );
+    gp_get_color( _handle->canvas, &style.color );
+    gp_get_outline_color( _handle->canvas, &style.outline_color );
+
+    return gp_path_set_style( _handle->path, &style );
+}
+//////////////////////////////////////////////////////////////////////////
 static int __lua_panic( lua_State * L )
 {
     example_script_handle_t * handle = *(example_script_handle_t **)lua_getextraspace( L );
@@ -169,6 +221,8 @@ static int __lua_f_begin_fill( lua_State * L )
 
     example_script_handle_t * handle = *(example_script_handle_t **)lua_getextraspace( L );
 
+    __flush_path( handle );
+
     if( gp_begin_fill( handle->canvas ) == GP_FAILURE )
     {
         handle->result = GP_FAILURE;
@@ -189,6 +243,8 @@ static int __lua_f_end_fill( lua_State * L )
     }
 
     example_script_handle_t * handle = *(example_script_handle_t **)lua_getextraspace( L );
+
+    __flush_path( handle );
 
     if( gp_end_fill( handle->canvas ) == GP_FAILURE )
     {
@@ -214,7 +270,7 @@ static int __lua_f_move_to( lua_State * L )
     lua_Number x = lua_tonumber( L, 1 );
     lua_Number y = lua_tonumber( L, 2 );
 
-    if( gp_point_move_to( handle->canvas, (float)x, (float)y ) == GP_FAILURE )
+    if( __sync_path_style( handle ) == GP_FAILURE || gp_path_move_to( handle->path, (float)x, (float)y ) == GP_FAILURE )
     {
         handle->result = GP_FAILURE;
         handle->error_msg = "invalid move to";
@@ -238,7 +294,7 @@ static int __lua_f_line_to( lua_State * L )
     lua_Number x = lua_tonumber( L, 1 );
     lua_Number y = lua_tonumber( L, 2 );
 
-    if( gp_point_line_to( handle->canvas, (float)x, (float)y ) == GP_FAILURE )
+    if( __sync_path_style( handle ) == GP_FAILURE || gp_path_line_to( handle->path, (float)x, (float)y ) == GP_FAILURE )
     {
         handle->result = GP_FAILURE;
         handle->error_msg = "invalid line to";
@@ -264,7 +320,7 @@ static int __lua_f_quadratic_curve_to( lua_State * L )
     lua_Number x = lua_tonumber( L, 3 );
     lua_Number y = lua_tonumber( L, 4 );
 
-    if( gp_point_quadratic_curve_to( handle->canvas, (float)p0x, (float)p0y, (float)x, (float)y ) == GP_FAILURE )
+    if( __sync_path_style( handle ) == GP_FAILURE || gp_path_quadratic_curve_to( handle->path, (float)p0x, (float)p0y, (float)x, (float)y ) == GP_FAILURE )
     {
         handle->result = GP_FAILURE;
         handle->error_msg = "invalid quadratic curve to";
@@ -292,7 +348,7 @@ static int __lua_f_bezier_curve_to( lua_State * L )
     lua_Number x = lua_tonumber( L, 5 );
     lua_Number y = lua_tonumber( L, 6 );
 
-    if( gp_point_bezier_curve_to( handle->canvas, (float)p0x, (float)p0y, (float)p1x, (float)p1y, (float)x, (float)y ) == GP_FAILURE )
+    if( __sync_path_style( handle ) == GP_FAILURE || gp_path_bezier_curve_to( handle->path, (float)p0x, (float)p0y, (float)p1x, (float)p1y, (float)x, (float)y ) == GP_FAILURE )
     {
         handle->result = GP_FAILURE;
         handle->error_msg = "invalid bezier curve to";
@@ -312,6 +368,7 @@ static int __lua_f_rect( lua_State * L )
     }
 
     example_script_handle_t * handle = *(example_script_handle_t **)lua_getextraspace( L );
+    __flush_path( handle );
 
     lua_Number x = lua_tonumber( L, 1 );
     lua_Number y = lua_tonumber( L, 2 );
@@ -338,6 +395,7 @@ static int __lua_f_rounded_rect( lua_State * L )
     }
 
     example_script_handle_t * handle = *(example_script_handle_t **)lua_getextraspace( L );
+    __flush_path( handle );
 
     lua_Number x = lua_tonumber( L, 1 );
     lua_Number y = lua_tonumber( L, 2 );
@@ -365,6 +423,7 @@ static int __lua_f_circle( lua_State * L )
     }
 
     example_script_handle_t * handle = *(example_script_handle_t **)lua_getextraspace( L );
+    __flush_path( handle );
 
     lua_Number x = lua_tonumber( L, 1 );
     lua_Number y = lua_tonumber( L, 2 );
@@ -390,6 +449,7 @@ static int __lua_f_ellipse( lua_State * L )
     }
 
     example_script_handle_t * handle = *(example_script_handle_t **)lua_getextraspace( L );
+    __flush_path( handle );
 
     lua_Number x = lua_tonumber( L, 1 );
     lua_Number y = lua_tonumber( L, 2 );
@@ -454,6 +514,7 @@ bool initialize_script( example_script_handle_t ** _handle, gp_canvas_t * _canva
     example_script_handle_t * script_handle = new example_script_handle_t;
     script_handle->L = L;
     script_handle->result = GP_SUCCESSFUL;
+    script_handle->path = GP_NULLPTR;
 
     *(example_script_handle_t **)lua_getextraspace( L ) = script_handle;
 
@@ -466,6 +527,10 @@ bool initialize_script( example_script_handle_t ** _handle, gp_canvas_t * _canva
 //////////////////////////////////////////////////////////////////////////
 void finalize_script( example_script_handle_t * _handle )
 {
+    if( _handle->path != GP_NULLPTR )
+    {
+        gp_path_destroy( _handle->path );
+    }
     lua_close( _handle->L );
 
     delete _handle;
@@ -474,6 +539,11 @@ void finalize_script( example_script_handle_t * _handle )
 int call_script( example_script_handle_t * _handle )
 {
     int result = __lua_call( _handle );
+    if( result == 0 && __flush_path( _handle ) == GP_FAILURE )
+    {
+        _handle->result = GP_FAILURE;
+        return -1;
+    }
 
     return result;
 }

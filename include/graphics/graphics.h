@@ -8,6 +8,7 @@
 *************************************************************************/
 
 typedef struct gp_canvas_t gp_canvas_t;
+typedef struct gp_path_t gp_path_t;
 
 typedef enum gp_line_cap_e
 {
@@ -29,9 +30,42 @@ typedef enum gp_fill_rule_e
     GP_FILL_RULE_EVEN_ODD
 } gp_fill_rule_e;
 
+typedef enum gp_path_sample_unit_e
+{
+    GP_PATH_SAMPLE_NORMALIZED,
+    GP_PATH_SAMPLE_DISTANCE
+} gp_path_sample_unit_e;
+
+typedef enum gp_path_marker_type_e
+{
+    GP_PATH_MARKER_NONE,
+    GP_PATH_MARKER_FILLED_ARROW,
+    GP_PATH_MARKER_OPEN_ARROW,
+    GP_PATH_MARKER_TRIANGLE,
+    GP_PATH_MARKER_CIRCLE,
+    GP_PATH_MARKER_DIAMOND
+} gp_path_marker_type_e;
+
+typedef enum gp_stroke_alignment_e
+{
+    GP_STROKE_ALIGNMENT_CENTER,
+    GP_STROKE_ALIGNMENT_INNER,
+    GP_STROKE_ALIGNMENT_OUTER
+} gp_stroke_alignment_e;
+
+typedef enum gp_uv_mode_e
+{
+    GP_UV_MODE_BOUNDS,
+    GP_UV_MODE_PATH
+} gp_uv_mode_e;
+
 typedef gp_line_cap_e gp_line_cap_t;
 typedef gp_line_join_e gp_line_join_t;
 typedef gp_fill_rule_e gp_fill_rule_t;
+typedef gp_path_sample_unit_e gp_path_sample_unit_t;
+typedef gp_path_marker_type_e gp_path_marker_type_t;
+typedef gp_stroke_alignment_e gp_stroke_alignment_t;
+typedef gp_uv_mode_e gp_uv_mode_t;
 
 typedef struct gp_bounds_t
 {
@@ -47,7 +81,48 @@ typedef struct gp_path_layout_t
 {
     gp_size_t width_offset;
     gp_size_t color_offset;
+    gp_size_t outline_color_offset;
 } gp_path_layout_t;
+
+#define GP_PATH_STYLE_WIDTH (1U << 0)
+#define GP_PATH_STYLE_COLOR (1U << 1)
+#define GP_PATH_STYLE_OUTLINE_COLOR (1U << 2)
+
+typedef struct gp_path_style_t
+{
+    gp_uint32_t attributes;
+    float width;
+    gp_color_t color;
+    gp_color_t outline_color;
+} gp_path_style_t;
+
+typedef struct gp_path_sample_t
+{
+    float x;
+    float y;
+    float tangent_x;
+    float tangent_y;
+    float distance;
+    float ratio;
+    gp_uint32_t contour_index;
+} gp_path_sample_t;
+
+typedef struct gp_path_marker_t
+{
+    gp_path_marker_type_t type;
+    float length;
+    float width;
+    float inset;
+} gp_path_marker_t;
+
+typedef struct gp_render_batch_t
+{
+    gp_uint32_t vertex_offset;
+    gp_uint32_t vertex_count;
+    gp_uint32_t index_offset;
+    gp_uint32_t index_count;
+    gp_bounds_t bounds;
+} gp_render_batch_t;
 
 typedef void * (*gp_malloc_t)(gp_size_t _size, void * _ud);
 typedef void * (*gp_realloc_t)(void * _ptr, gp_size_t _size, void * _ud);
@@ -107,6 +182,14 @@ gp_result_t gp_get_fill_rule( const gp_canvas_t * _canvas, gp_fill_rule_t * _rul
 gp_result_t gp_set_line_dash( gp_canvas_t * _canvas, const float * _pattern, gp_uint8_t _count, float _offset );
 gp_result_t gp_clear_line_dash( gp_canvas_t * _canvas );
 
+gp_result_t gp_set_path_trim( gp_canvas_t * _canvas, float _from, float _to );
+gp_result_t gp_set_path_markers( gp_canvas_t * _canvas, const gp_path_marker_t * _start, const gp_path_marker_t * _end );
+gp_result_t gp_set_stroke_alignment( gp_canvas_t * _canvas, gp_stroke_alignment_t _alignment );
+gp_result_t gp_get_stroke_alignment( const gp_canvas_t * _canvas, gp_stroke_alignment_t * _alignment );
+
+gp_result_t gp_set_uv_mode( gp_canvas_t * _canvas, gp_uv_mode_t _mode );
+gp_result_t gp_get_uv_mode( const gp_canvas_t * _canvas, gp_uv_mode_t * _mode );
+
 gp_result_t gp_set_color( gp_canvas_t * _canvas, float _r, float _g, float _b, float _a );
 gp_result_t gp_get_color( const gp_canvas_t * _canvas, gp_color_t * _color );
 
@@ -132,12 +215,28 @@ gp_result_t gp_pop_state( gp_canvas_t * _canvas );
 *
 *************************************************************************/
 
-gp_result_t gp_point_move_to( gp_canvas_t * _canvas, float _x, float _y );
-gp_result_t gp_point_line_to( gp_canvas_t * _canvas, float _x, float _y );
-gp_result_t gp_point_quadratic_curve_to( gp_canvas_t * _canvas, float _p0x, float _p0y, float _x, float _y );
-gp_result_t gp_point_bezier_curve_to( gp_canvas_t * _canvas, float _p0x, float _p0y, float _p1x, float _p1y, float _x, float _y );
-gp_result_t gp_point_close( gp_canvas_t * _canvas );
-gp_result_t gp_point_tangent_arc_to( gp_canvas_t * _canvas, float _x1, float _y1, float _x2, float _y2, float _radius );
+gp_result_t gp_path_create( gp_path_t ** _path, gp_malloc_t _malloc, gp_realloc_t _realloc, gp_free_t _free, void * _ud, gp_uint8_t _curve_quality, gp_uint8_t _ellipse_quality );
+gp_result_t gp_path_destroy( gp_path_t * _path );
+gp_result_t gp_path_clear( gp_path_t * _path );
+gp_result_t gp_path_set_style( gp_path_t * _path, const gp_path_style_t * _style );
+gp_result_t gp_path_move_to( gp_path_t * _path, float _x, float _y );
+gp_result_t gp_path_line_to( gp_path_t * _path, float _x, float _y );
+gp_result_t gp_path_quadratic_curve_to( gp_path_t * _path, float _p0x, float _p0y, float _x, float _y );
+gp_result_t gp_path_bezier_curve_to( gp_path_t * _path, float _p0x, float _p0y, float _p1x, float _p1y, float _x, float _y );
+gp_result_t gp_path_tangent_arc_to( gp_path_t * _path, float _x1, float _y1, float _x2, float _y2, float _radius );
+gp_result_t gp_path_ellipse_arc( gp_path_t * _path, float _x, float _y, float _width, float _height, float _angle_from, float _angle_to );
+gp_result_t gp_path_close( gp_path_t * _path );
+gp_result_t gp_path_polyline( gp_path_t * _path, const void * _points, gp_size_t _point_count, gp_size_t _point_stride, const gp_path_layout_t * _layout, gp_bool_t _closed );
+gp_result_t gp_path_catmull_rom( gp_path_t * _path, const void * _points, gp_size_t _point_count, gp_size_t _point_stride, const gp_path_layout_t * _layout, gp_bool_t _closed );
+gp_result_t gp_path_get_length( const gp_path_t * _path, float * _length );
+gp_result_t gp_path_get_bounds( const gp_path_t * _path, gp_bounds_t * _bounds );
+gp_result_t gp_path_sample( const gp_path_t * _path, float _value, gp_path_sample_unit_t _unit, gp_path_sample_t * _sample );
+
+gp_result_t gp_draw_path( gp_canvas_t * _canvas, const gp_path_t * _path );
+
+/*************************************************************************
+*
+*************************************************************************/
 
 gp_result_t gp_rect( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height );
 gp_result_t gp_rounded_rect( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height, float _radius );
@@ -146,23 +245,16 @@ gp_result_t gp_polyline( gp_canvas_t * _canvas, const void * _points, gp_size_t 
 gp_result_t gp_rounded_polygon( gp_canvas_t * _canvas, const void * _points, gp_size_t _point_count, gp_size_t _point_stride, float _radius );
 gp_result_t gp_rounded_polyline( gp_canvas_t * _canvas, const void * _points, gp_size_t _point_count, gp_size_t _point_stride, const gp_path_layout_t * _layout, float _radius, gp_bool_t _closed );
 gp_result_t gp_polygon_offset( gp_canvas_t * _canvas, const void * _points, gp_size_t _point_count, gp_size_t _point_stride, float _offset, gp_line_join_t _join );
+gp_result_t gp_superellipse( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height, float _exponent, float _rotation );
 gp_result_t gp_circle( gp_canvas_t * _canvas, float _x, float _y, float _radius );
 gp_result_t gp_ellipse( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height );
 gp_result_t gp_arc( gp_canvas_t * _canvas, float _x, float _y, float _radius, float _angle_from, float _angle_to );
-gp_result_t gp_arc_to( gp_canvas_t * _canvas, float _x, float _y, float _radius, float _angle_from, float _angle_to );
 gp_result_t gp_ellipse_arc( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height, float _angle_from, float _angle_to );
-gp_result_t gp_ellipse_arc_to( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height, float _angle_from, float _angle_to );
 gp_result_t gp_ring( gp_canvas_t * _canvas, float _x, float _y, float _inner_radius, float _outer_radius, float _angle_from, float _angle_to );
 gp_result_t gp_rounded_ring( gp_canvas_t * _canvas, float _x, float _y, float _inner_radius, float _outer_radius, float _angle_from, float _angle_to );
 gp_result_t gp_capsule( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height );
 gp_result_t gp_regular_polygon( gp_canvas_t * _canvas, float _x, float _y, float _radius, gp_uint32_t _vertex_count, float _rotation );
 gp_result_t gp_star( gp_canvas_t * _canvas, float _x, float _y, float _inner_radius, float _outer_radius, gp_uint32_t _ray_count, float _rotation );
-gp_result_t gp_arrow( gp_canvas_t * _canvas, float _from_x, float _from_y, float _to_x, float _to_y, float _head_length, float _head_width );
-gp_result_t gp_arrowed_polyline( gp_canvas_t * _canvas, const void * _points, gp_size_t _point_count, gp_size_t _point_stride, const gp_path_layout_t * _layout, float _head_length, float _head_width );
-
-gp_result_t gp_begin_compound_fill( gp_canvas_t * _canvas, gp_fill_rule_t _rule );
-gp_result_t gp_end_compound_fill( gp_canvas_t * _canvas );
-
 /*************************************************************************
 *
 *************************************************************************/
@@ -171,6 +263,7 @@ typedef struct gp_mesh_t
 {
     gp_uint32_t vertex_count;
     gp_uint32_t index_count;
+    gp_uint32_t batch_count;
 
     gp_color_t color;
 
@@ -189,6 +282,10 @@ typedef struct gp_mesh_t
     void * indices_buffer;
     gp_size_t indices_offset;
     gp_size_t indices_stride;
+
+    void * batches_buffer;
+    gp_size_t batches_offset;
+    gp_size_t batches_stride;
 } gp_mesh_t;
 
 gp_result_t gp_calculate_mesh_size( const gp_canvas_t * _canvas, gp_mesh_t * _mesh );

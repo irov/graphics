@@ -21,6 +21,7 @@ typedef struct example_script_handle_t
     jmp_buf panic_jump;
 
     gp_canvas_t * canvas;
+    gp_path_t * path;
 
     gp_result_t result;
     std::string error_msg;

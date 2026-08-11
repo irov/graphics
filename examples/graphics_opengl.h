@@ -34,5 +34,6 @@ void finalize_opengl( example_opengl_handle_t * _handle );
 //////////////////////////////////////////////////////////////////////////
 void opengl_use_color_program( example_opengl_handle_t * _handle );
 void opengl_use_texture_program( example_opengl_handle_t * _handle );
+void opengl_use_batch_program( example_opengl_handle_t * _handle, bool _use_texture );
 void opengl_set_camera( example_opengl_handle_t * _handle, float _offsetX, float _offsetY, float _scale );
 //////////////////////////////////////////////////////////////////////////
