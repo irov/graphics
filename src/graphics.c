@@ -10,6 +10,8 @@
 #include "struct.h"
 #include "detail.h"
 
+#include <string.h>
+
 static gp_result_t __push_render_order( gp_canvas_t * _canvas, gp_render_order_type_e _type, void * _primitive );
 static gp_result_t __render_order( const gp_render_order_t * _order, const gp_mesh_t * _mesh, gp_uint32_t * _vertex_iterator, gp_uint32_t * _index_iterator );
 
@@ -97,7 +99,50 @@ static void __canvas_default_state_setup( gp_canvas_t * _canvas )
 //////////////////////////////////////////////////////////////////////////
 gp_result_t gp_canvas_create( gp_canvas_t ** _canvas, gp_malloc_t _malloc, gp_realloc_t _realloc, gp_free_t _free, void * _ud )
 {
-    gp_canvas_t * canvas = (gp_canvas_t *)(*_malloc)(sizeof( gp_canvas_t ), _ud);
+    if( _canvas == GP_NULLPTR || _malloc == GP_NULLPTR || _realloc == GP_NULLPTR || _free == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
+
+    const gp_size_t alignment = sizeof( void * );
+    const gp_size_t render_order_capacity = GP_CANVAS_RENDER_ORDER_CAPACITY;
+    if( render_order_capacity > SIZE_MAX / sizeof( gp_render_order_t ) )
+    {
+        return GP_FAILURE;
+    }
+
+    const gp_size_t render_order_size = render_order_capacity * sizeof( gp_render_order_t );
+    const gp_size_t recording_capacity = GP_CANVAS_RECORDING_MEMORY_SIZE;
+    const gp_size_t scratch_capacity = GP_CANVAS_SCRATCH_MEMORY_SIZE;
+    if( render_order_size > SIZE_MAX - recording_capacity ||
+        render_order_size + recording_capacity > SIZE_MAX - scratch_capacity ||
+        render_order_size + recording_capacity + scratch_capacity > SIZE_MAX - sizeof( gp_canvas_t ) - alignment + 1U )
+    {
+        return GP_FAILURE;
+    }
+
+    const gp_size_t allocation_size = sizeof( gp_canvas_t ) + alignment - 1U + render_order_size + recording_capacity + scratch_capacity;
+    gp_canvas_t * canvas = (gp_canvas_t *)(*_malloc)(allocation_size, _ud);
+    if( canvas == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
+
+    gp_uint8_t * arena_memory = (gp_uint8_t *)(canvas + 1);
+    gp_size_t arena_address = (gp_size_t)arena_memory;
+    arena_memory += (alignment - arena_address % alignment) % alignment;
+
+    canvas->render_orders = (gp_render_order_t *)arena_memory;
+    canvas->render_order_count = 0;
+
+    canvas->recording_arena.memory = arena_memory + render_order_size;
+    canvas->recording_arena.capacity = recording_capacity;
+    canvas->recording_arena.offset = 0;
+    canvas->recording_arena.peak = 0;
+    canvas->scratch_arena.memory = canvas->recording_arena.memory + recording_capacity;
+    canvas->scratch_arena.capacity = scratch_capacity;
+    canvas->scratch_arena.offset = 0;
+    canvas->scratch_arena.peak = 0;
 
     canvas->state_stack = 0;
     canvas->state_invalidate = GP_TRUE;
@@ -111,7 +156,6 @@ gp_result_t gp_canvas_create( gp_canvas_t ** _canvas, gp_malloc_t _malloc, gp_re
     canvas->compound_fills = GP_NULLPTR;
     canvas->active_compound_fill = GP_NULLPTR;
     canvas->compound_previous_fill = GP_FALSE;
-    canvas->render_order = GP_NULLPTR;
 
     __canvas_default_state_setup( canvas );
 
@@ -127,30 +171,34 @@ gp_result_t gp_canvas_create( gp_canvas_t ** _canvas, gp_malloc_t _malloc, gp_re
 //////////////////////////////////////////////////////////////////////////
 gp_result_t gp_canvas_destroy( gp_canvas_t * _canvas )
 {
-    gp_canvas_clear( _canvas );
+    if( _canvas == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
 
-    GP_FREE( _canvas, _canvas );
+    (*_canvas->free)( _canvas, _canvas->ud );
 
     return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
 gp_result_t gp_canvas_clear( gp_canvas_t * _canvas )
 {
-    GP_LIST_DESTROY( _canvas, gp_state_t, _canvas->states );
-
-    GP_LIST_FOREACH( gp_line_t, _canvas->lines, l )
+    if( _canvas == GP_NULLPTR )
     {
-        GP_LIST_DESTROY( _canvas, gp_line_point_t, l->points );
-        GP_LIST_DESTROY( _canvas, gp_line_edge_t, l->edges );
+        return GP_FAILURE;
     }
 
-    GP_LIST_DESTROY( _canvas, gp_line_t, _canvas->lines );
-    GP_LIST_DESTROY( _canvas, gp_rect_t, _canvas->rects );
-    GP_LIST_DESTROY( _canvas, gp_rounded_rect_t, _canvas->rounded_rects );
-    GP_LIST_DESTROY( _canvas, gp_ellipse_t, _canvas->ellipses );
-    GP_LIST_DESTROY( _canvas, gp_ellipse_arc_t, _canvas->ellipse_arcs );
-    GP_LIST_DESTROY( _canvas, gp_compound_fill_t, _canvas->compound_fills );
-    GP_LIST_DESTROY( _canvas, gp_render_order_t, _canvas->render_order );
+    _canvas->recording_arena.offset = 0;
+    _canvas->scratch_arena.offset = 0;
+
+    _canvas->states = GP_NULLPTR;
+    _canvas->lines = GP_NULLPTR;
+    _canvas->rects = GP_NULLPTR;
+    _canvas->rounded_rects = GP_NULLPTR;
+    _canvas->ellipses = GP_NULLPTR;
+    _canvas->ellipse_arcs = GP_NULLPTR;
+    _canvas->compound_fills = GP_NULLPTR;
+    _canvas->render_order_count = 0;
 
     _canvas->state_stack = 0;
     _canvas->state_invalidate = GP_TRUE;
@@ -158,6 +206,25 @@ gp_result_t gp_canvas_clear( gp_canvas_t * _canvas )
     _canvas->compound_previous_fill = GP_FALSE;
 
     __canvas_default_state_setup( _canvas );
+
+    return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
+gp_result_t gp_canvas_get_memory_stats( const gp_canvas_t * _canvas, gp_canvas_memory_stats_t * _stats )
+{
+    if( _canvas == GP_NULLPTR || _stats == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
+
+    _stats->render_order_count = _canvas->render_order_count;
+    _stats->render_order_capacity = GP_CANVAS_RENDER_ORDER_CAPACITY;
+    _stats->recording_used = _canvas->recording_arena.offset;
+    _stats->recording_capacity = _canvas->recording_arena.capacity;
+    _stats->recording_peak = _canvas->recording_arena.peak;
+    _stats->scratch_used = _canvas->scratch_arena.offset;
+    _stats->scratch_capacity = _canvas->scratch_arena.capacity;
+    _stats->scratch_peak = _canvas->scratch_arena.peak;
 
     return GP_SUCCESSFUL;
 }
@@ -881,6 +948,11 @@ static const gp_state_t * __copy_state( gp_canvas_t * _canvas )
     }
 
     gp_state_t * s = GP_NEW( _canvas, gp_state_t );
+    if( s == GP_NULLPTR )
+    {
+        return GP_NULLPTR;
+    }
+
     s->next = GP_NULLPTR;
     s->prev = GP_NULLPTR;
 
@@ -897,13 +969,83 @@ static const gp_state_t * __copy_state( gp_canvas_t * _canvas )
 //////////////////////////////////////////////////////////////////////////
 static gp_result_t __push_render_order( gp_canvas_t * _canvas, gp_render_order_type_e _type, void * _primitive )
 {
-    gp_render_order_t * order = GP_NEW( _canvas, gp_render_order_t );
-    order->next = GP_NULLPTR;
-    order->prev = GP_NULLPTR;
+    if( _canvas->render_order_count == GP_CANVAS_RENDER_ORDER_CAPACITY )
+    {
+        return GP_FAILURE;
+    }
+
+    gp_render_order_t * order = _canvas->render_orders + _canvas->render_order_count++;
     order->type = _type;
     order->primitive = _primitive;
 
-    GP_LIST_PUSHBACK( gp_render_order_t, _canvas->render_order, order );
+    return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
+static gp_result_t __record_payload( gp_canvas_t * _canvas, const void * _payload, gp_size_t _payload_size, const void ** _recorded_payload )
+{
+    if( _payload_size == 0 )
+    {
+        *_recorded_payload = _payload;
+        return GP_SUCCESSFUL;
+    }
+
+    if( _payload == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
+
+    void * recorded_payload = gp_canvas_recording_allocate( _canvas, _payload_size );
+    if( recorded_payload == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
+
+    memcpy( recorded_payload, _payload, _payload_size );
+    *_recorded_payload = recorded_payload;
+
+    return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
+gp_result_t gp_inject_branch( gp_canvas_t * _canvas, gp_branch_callback_t _callback, const void * _payload, gp_size_t _payload_size )
+{
+    if( _canvas == GP_NULLPTR || _callback == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
+
+    gp_branch_injection_t * injection = GP_NEW( _canvas, gp_branch_injection_t );
+    if( injection == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
+
+    injection->callback = _callback;
+    GP_CALL( __record_payload, (_canvas, _payload, _payload_size, &injection->payload) );
+    GP_CALL( __push_render_order, (_canvas, GP_RENDER_ORDER_BRANCH_INJECTION, injection) );
+
+    return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
+gp_result_t gp_inject_geometry( gp_canvas_t * _canvas, gp_uint32_t _vertex_count, gp_uint32_t _index_count,
+    gp_geometry_callback_t _callback, const void * _payload, gp_size_t _payload_size )
+{
+    if( _canvas == GP_NULLPTR || _callback == GP_NULLPTR ||
+        _vertex_count == 0 || _index_count == 0 || _index_count % 3U != 0U )
+    {
+        return GP_FAILURE;
+    }
+
+    gp_geometry_injection_t * injection = GP_NEW( _canvas, gp_geometry_injection_t );
+    if( injection == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
+
+    injection->vertex_count = _vertex_count;
+    injection->index_count = _index_count;
+    injection->callback = _callback;
+    GP_CALL( __record_payload, (_canvas, _payload, _payload_size, &injection->payload) );
+    GP_CALL( __push_render_order, (_canvas, GP_RENDER_ORDER_GEOMETRY_INJECTION, injection) );
 
     return GP_SUCCESSFUL;
 }
@@ -912,6 +1054,11 @@ static gp_state_t * __copy_path_state( gp_canvas_t * _canvas, const gp_path_t * 
     float _length_offset, float _total_length, gp_bool_t _start_marker, gp_bool_t _end_marker )
 {
     gp_state_t * state = GP_NEW( _canvas, gp_state_t );
+    if( state == GP_NULLPTR )
+    {
+        return GP_NULLPTR;
+    }
+
     *state = *GP_GET_STATE( _canvas );
     state->next = GP_NULLPTR;
     state->prev = GP_NULLPTR;
@@ -1002,6 +1149,11 @@ gp_result_t gp_draw_path( gp_canvas_t * _canvas, const gp_path_t * _path )
     if( canvas_state->fill == GP_TRUE && contour_count > 1 )
     {
         compound = GP_NEW( _canvas, gp_compound_fill_t );
+        if( compound == GP_NULLPTR )
+        {
+            return GP_FAILURE;
+        }
+
         compound->next = GP_NULLPTR;
         compound->prev = GP_NULLPTR;
         compound->first_line = GP_NULLPTR;
@@ -1033,6 +1185,11 @@ gp_result_t gp_draw_path( gp_canvas_t * _canvas, const gp_path_t * _path )
             : GP_FALSE;
 
         gp_line_t * line = GP_NEW( _canvas, gp_line_t );
+        if( line == GP_NULLPTR )
+        {
+            return GP_FAILURE;
+        }
+
         line->next = GP_NULLPTR;
         line->prev = GP_NULLPTR;
         line->points = GP_NULLPTR;
@@ -1040,18 +1197,28 @@ gp_result_t gp_draw_path( gp_canvas_t * _canvas, const gp_path_t * _path )
         line->state = GP_NULLPTR;
         line->closed = contour->closed;
         line->compound_fill = compound;
-        line->realloc = _canvas->realloc;
-        line->free = _canvas->free;
-        line->ud = _canvas->ud;
+        line->realloc = gp_canvas_scratch_realloc_callback;
+        line->free = gp_canvas_scratch_free_callback;
+        line->ud = _canvas;
 
         for( const gp_path_anchor_t * anchor = contour->anchors; anchor != GP_NULLPTR; anchor = anchor->next )
         {
             gp_line_point_t * point = GP_NEW( _canvas, gp_line_point_t );
+            if( point == GP_NULLPTR )
+            {
+                return GP_FAILURE;
+            }
+
             point->next = GP_NULLPTR;
             point->prev = GP_NULLPTR;
             point->p = anchor->point;
             point->state = __copy_path_state( _canvas, _path, &anchor->style,
                 length_offset, total_length, start_marker, end_marker );
+            if( point->state == GP_NULLPTR )
+            {
+                return GP_FAILURE;
+            }
+
             GP_LIST_PUSHBACK( gp_line_point_t, line->points, point );
 
             if( line->state == GP_NULLPTR )
@@ -1063,6 +1230,11 @@ gp_result_t gp_draw_path( gp_canvas_t * _canvas, const gp_path_t * _path )
         for( const gp_path_edge_t * source_edge = contour->edges; source_edge != GP_NULLPTR; source_edge = source_edge->next )
         {
             gp_line_edge_t * edge = GP_NEW( _canvas, gp_line_edge_t );
+            if( edge == GP_NULLPTR )
+            {
+                return GP_FAILURE;
+            }
+
             edge->next = GP_NULLPTR;
             edge->prev = GP_NULLPTR;
             edge->controls = source_edge->controls;
@@ -1116,6 +1288,11 @@ gp_result_t gp_rect( gp_canvas_t * _canvas, float _x, float _y, float _width, fl
     }
 
     gp_rect_t * r = GP_NEW( _canvas, gp_rect_t );
+    if( r == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
+
     r->next = GP_NULLPTR;
     r->prev = GP_NULLPTR;
 
@@ -1125,6 +1302,10 @@ gp_result_t gp_rect( gp_canvas_t * _canvas, float _x, float _y, float _width, fl
     r->height = _height;
 
     r->state = GP_COPY_STATE( _canvas );
+    if( r->state == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
 
     GP_LIST_PUSHBACK( gp_rect_t, _canvas->rects, r );
     GP_CALL( __push_render_order, (_canvas, GP_RENDER_ORDER_RECT, r) );
@@ -1141,6 +1322,11 @@ gp_result_t gp_rounded_rect( gp_canvas_t * _canvas, float _x, float _y, float _w
     }
 
     gp_rounded_rect_t * rr = GP_NEW( _canvas, gp_rounded_rect_t );
+    if( rr == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
+
     rr->next = GP_NULLPTR;
     rr->prev = GP_NULLPTR;
 
@@ -1151,6 +1337,10 @@ gp_result_t gp_rounded_rect( gp_canvas_t * _canvas, float _x, float _y, float _w
     rr->radius = _radius;
 
     rr->state = GP_COPY_STATE( _canvas );
+    if( rr->state == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
 
     GP_LIST_PUSHBACK( gp_rounded_rect_t, _canvas->rounded_rects, rr );
     GP_CALL( __push_render_order, (_canvas, GP_RENDER_ORDER_ROUNDED_RECT, rr) );
@@ -1174,6 +1364,11 @@ gp_result_t gp_ellipse( gp_canvas_t * _canvas, float _x, float _y, float _width,
     }
 
     gp_ellipse_t * e = GP_NEW( _canvas, gp_ellipse_t );
+    if( e == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
+
     e->next = GP_NULLPTR;
     e->prev = GP_NULLPTR;
 
@@ -1183,6 +1378,10 @@ gp_result_t gp_ellipse( gp_canvas_t * _canvas, float _x, float _y, float _width,
     e->radius_height = _height;
 
     e->state = GP_COPY_STATE( _canvas );
+    if( e->state == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
 
     GP_LIST_PUSHBACK( gp_ellipse_t, _canvas->ellipses, e );
     GP_CALL( __push_render_order, (_canvas, GP_RENDER_ORDER_ELLIPSE, e) );
@@ -1216,6 +1415,11 @@ static gp_result_t gp_ellipse_arc_internal( gp_canvas_t * _canvas, float _x, flo
     if( state->fill == GP_TRUE )
     {
         gp_ellipse_arc_t * a = GP_NEW( _canvas, gp_ellipse_arc_t );
+        if( a == GP_NULLPTR )
+        {
+            return GP_FAILURE;
+        }
+
         a->next = GP_NULLPTR;
         a->prev = GP_NULLPTR;
 
@@ -1228,6 +1432,10 @@ static gp_result_t gp_ellipse_arc_internal( gp_canvas_t * _canvas, float _x, flo
         a->rounded_caps = _rounded_caps;
 
         a->state = GP_COPY_STATE( _canvas );
+        if( a->state == GP_NULLPTR )
+        {
+            return GP_FAILURE;
+        }
 
         GP_LIST_PUSHBACK( gp_ellipse_arc_t, _canvas->ellipse_arcs, a );
         GP_CALL( __push_render_order, (_canvas, GP_RENDER_ORDER_ELLIPSE_ARC, a) );
@@ -1238,7 +1446,7 @@ static gp_result_t gp_ellipse_arc_internal( gp_canvas_t * _canvas, float _x, flo
     GP_UNUSED( _move_to );
     GP_UNUSED( _rounded_caps );
     gp_path_t * path;
-    GP_CALL( gp_path_create, (&path, _canvas->malloc, _canvas->realloc, _canvas->free, _canvas->ud, state->curve_quality, state->ellipse_quality) );
+    GP_CALL( gp_path_create, (&path, gp_canvas_scratch_malloc_callback, gp_canvas_scratch_realloc_callback, gp_canvas_scratch_free_callback, _canvas, state->curve_quality, state->ellipse_quality) );
     GP_CALL( gp_path_ellipse_arc, (path, _x, _y, _width, _height, _angle_from, _angle_to) );
     gp_result_t result = gp_draw_path( _canvas, path );
     GP_CALL( gp_path_destroy, (path) );
@@ -1324,6 +1532,17 @@ static gp_result_t __calculate_render_order_size( const gp_render_order_t * _ord
     {
         GP_CALL( gp_calculate_mesh_compound_size, ((const gp_compound_fill_t *)_order->primitive, _mesh) );
     } break;
+    case GP_RENDER_ORDER_BRANCH_INJECTION:
+    {
+        _mesh->vertex_count = 0;
+        _mesh->index_count = 0;
+    } break;
+    case GP_RENDER_ORDER_GEOMETRY_INJECTION:
+    {
+        const gp_geometry_injection_t * injection = (const gp_geometry_injection_t *)_order->primitive;
+        _mesh->vertex_count = injection->vertex_count;
+        _mesh->index_count = injection->index_count;
+    } break;
     default:
         return GP_FAILURE;
     }
@@ -1333,7 +1552,12 @@ static gp_result_t __calculate_render_order_size( const gp_render_order_t * _ord
 //////////////////////////////////////////////////////////////////////////
 static gp_result_t __render_order_indices32( const gp_canvas_t * _canvas, const gp_render_order_t * _order, const gp_mesh_t * _size, gp_uint32_t ** _indices )
 {
-    gp_uint32_t * indices = (gp_uint32_t *)(*_canvas->malloc)( sizeof( gp_uint32_t ) * _size->index_count, _canvas->ud );
+    gp_canvas_t * canvas = (gp_canvas_t *)_canvas;
+    gp_uint32_t * indices = GP_REALLOC( canvas, GP_NULLPTR, gp_uint32_t, _size->index_count );
+    if( indices == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
 
     gp_mesh_t mesh = *_size;
     mesh.positions_buffer = GP_NULLPTR;
@@ -1357,7 +1581,7 @@ static gp_result_t __render_order_indices32( const gp_canvas_t * _canvas, const 
 
     if( result == GP_FAILURE )
     {
-        (*_canvas->free)( indices, _canvas->ud );
+        GP_FREE( canvas, indices );
         return GP_FAILURE;
     }
 
@@ -1367,13 +1591,25 @@ static gp_result_t __render_order_indices32( const gp_canvas_t * _canvas, const 
 //////////////////////////////////////////////////////////////////////////
 gp_result_t gp_calculate_mesh_size( const gp_canvas_t * _canvas, gp_mesh_t * _mesh )
 {
+    gp_canvas_t * canvas = (gp_canvas_t *)_canvas;
+    gp_canvas_scratch_reset( canvas, 0 );
+
     _mesh->vertex_count = 0;
     _mesh->index_count = 0;
     _mesh->batch_count = 0;
 
     gp_uint32_t batch_vertex_count = 0;
-    for( const gp_render_order_t * order = _canvas->render_order; order != GP_NULLPTR; order = order->next )
+    gp_bool_t has_batch = GP_FALSE;
+    for( gp_uint32_t order_index = 0; order_index != _canvas->render_order_count; ++order_index )
     {
+        const gp_render_order_t * order = _canvas->render_orders + order_index;
+        if( order->type == GP_RENDER_ORDER_BRANCH_INJECTION )
+        {
+            batch_vertex_count = 0;
+            has_batch = GP_FALSE;
+            continue;
+        }
+
         gp_mesh_t primitive_mesh;
         GP_CALL( __calculate_render_order_size, (order, &primitive_mesh) );
         if( primitive_mesh.vertex_count == 0 || primitive_mesh.index_count == 0 )
@@ -1383,10 +1619,11 @@ gp_result_t gp_calculate_mesh_size( const gp_canvas_t * _canvas, gp_mesh_t * _me
 
         if( primitive_mesh.vertex_count <= UINT16_MAX )
         {
-            if( _mesh->batch_count == 0 || batch_vertex_count + primitive_mesh.vertex_count > UINT16_MAX )
+            if( has_batch == GP_FALSE || batch_vertex_count + primitive_mesh.vertex_count > UINT16_MAX )
             {
                 ++_mesh->batch_count;
                 batch_vertex_count = primitive_mesh.vertex_count;
+                has_batch = GP_TRUE;
             }
             else
             {
@@ -1398,15 +1635,21 @@ gp_result_t gp_calculate_mesh_size( const gp_canvas_t * _canvas, gp_mesh_t * _me
             continue;
         }
 
-        if( _mesh->batch_count == 0 )
+        if( has_batch == GP_FALSE )
         {
             ++_mesh->batch_count;
             batch_vertex_count = 0;
+            has_batch = GP_TRUE;
         }
 
         gp_uint32_t * indices;
         GP_CALL( __render_order_indices32, (_canvas, order, &primitive_mesh, &indices) );
-        gp_uint32_t * vertex_map = (gp_uint32_t *)(*_canvas->malloc)( sizeof( gp_uint32_t ) * primitive_mesh.vertex_count, _canvas->ud );
+        gp_uint32_t * vertex_map = GP_REALLOC( canvas, GP_NULLPTR, gp_uint32_t, primitive_mesh.vertex_count );
+        if( vertex_map == GP_NULLPTR )
+        {
+            return GP_FAILURE;
+        }
+
         for( gp_uint32_t vertex = 0; vertex != primitive_mesh.vertex_count; ++vertex )
         {
             vertex_map[vertex] = UINT32_MAX;
@@ -1447,8 +1690,8 @@ gp_result_t gp_calculate_mesh_size( const gp_canvas_t * _canvas, gp_mesh_t * _me
             }
         }
 
-        (*_canvas->free)( vertex_map, _canvas->ud );
-        (*_canvas->free)( indices, _canvas->ud );
+        GP_FREE( canvas, vertex_map );
+        GP_FREE( canvas, indices );
         _mesh->index_count += primitive_mesh.index_count;
     }
 
@@ -1476,6 +1719,9 @@ gp_result_t gp_calculate_mesh_size( const gp_canvas_t * _canvas, gp_mesh_t * _me
     _mesh->batches_buffer = GP_NULLPTR;
     _mesh->batches_offset = ~0U;
     _mesh->batches_stride = ~0U;
+    _mesh->render_context = GP_NULLPTR;
+
+    gp_canvas_scratch_reset( canvas, 0 );
 
     return GP_SUCCESSFUL;
 }
@@ -1488,6 +1734,41 @@ static gp_render_batch_t * __mesh_get_batch( const gp_mesh_t * _mesh, gp_uint32_
     }
 
     return (gp_render_batch_t *)((gp_uint8_t *)_mesh->batches_buffer + _mesh->batches_offset + _mesh->batches_stride * _index);
+}
+//////////////////////////////////////////////////////////////////////////
+static gp_result_t __finalize_batch( const gp_mesh_t * _mesh, gp_uint32_t _batch_index,
+    gp_render_batch_t * _batch, const gp_branch_injection_t * _branch )
+{
+    if( _mesh->positions_buffer != GP_NULLPTR && _batch->vertex_count != 0 )
+    {
+        gp_vec2f_t position;
+        GP_CALL( gp_mesh_get_position, (_mesh, _batch->vertex_offset, &position) );
+        _batch->bounds.minimum_x = position.x;
+        _batch->bounds.minimum_y = position.y;
+        _batch->bounds.maximum_x = position.x;
+        _batch->bounds.maximum_y = position.y;
+        for( gp_uint32_t vertex = 1; vertex != _batch->vertex_count; ++vertex )
+        {
+            GP_CALL( gp_mesh_get_position, (_mesh, _batch->vertex_offset + vertex, &position) );
+            _batch->bounds.minimum_x = position.x < _batch->bounds.minimum_x ? position.x : _batch->bounds.minimum_x;
+            _batch->bounds.minimum_y = position.y < _batch->bounds.minimum_y ? position.y : _batch->bounds.minimum_y;
+            _batch->bounds.maximum_x = position.x > _batch->bounds.maximum_x ? position.x : _batch->bounds.maximum_x;
+            _batch->bounds.maximum_y = position.y > _batch->bounds.maximum_y ? position.y : _batch->bounds.maximum_y;
+        }
+    }
+
+    gp_render_batch_t * output = __mesh_get_batch( _mesh, _batch_index );
+    if( output != GP_NULLPTR )
+    {
+        *output = *_batch;
+    }
+
+    if( _branch != GP_NULLPTR && _mesh->render_context != GP_NULLPTR )
+    {
+        GP_CALL( _branch->callback, (_batch, _mesh->render_context, _branch->payload) );
+    }
+
+    return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
 static gp_result_t __render_order( const gp_render_order_t * _order, const gp_mesh_t * _mesh, gp_uint32_t * _vertex_iterator, gp_uint32_t * _index_iterator )
@@ -1524,6 +1805,26 @@ static gp_result_t __render_order( const gp_render_order_t * _order, const gp_me
         const gp_compound_fill_t * compound = (const gp_compound_fill_t *)_order->primitive;
         return gp_render_compound_fill( compound, _mesh, _vertex_iterator, _index_iterator );
     }
+    case GP_RENDER_ORDER_BRANCH_INJECTION:
+    {
+        return GP_SUCCESSFUL;
+    }
+    case GP_RENDER_ORDER_GEOMETRY_INJECTION:
+    {
+        const gp_geometry_injection_t * injection = (const gp_geometry_injection_t *)_order->primitive;
+        gp_mesh_writer_t writer;
+        writer.mesh = _mesh;
+        writer.vertex_offset = *_vertex_iterator;
+        writer.vertex_count = injection->vertex_count;
+        writer.index_offset = *_index_iterator;
+        writer.index_count = injection->index_count;
+
+        GP_CALL( injection->callback, (&writer, injection->payload) );
+        *_vertex_iterator += injection->vertex_count;
+        *_index_iterator += injection->index_count;
+
+        return GP_SUCCESSFUL;
+    }
     default:
         return GP_FAILURE;
     }
@@ -1559,13 +1860,32 @@ gp_result_t gp_render( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh )
     }
 #endif
 
+    gp_canvas_t * canvas = (gp_canvas_t *)_canvas;
+    const gp_size_t scratch_mark = gp_canvas_scratch_mark( canvas );
+
     gp_uint32_t batch_index = 0;
     gp_uint32_t global_vertex_iterator = 0;
     gp_uint32_t global_index_iterator = 0;
     gp_render_batch_t batch;
     gp_bool_t has_batch = GP_FALSE;
-    for( const gp_render_order_t * order = _canvas->render_order; order != GP_NULLPTR; order = order->next )
+    const gp_branch_injection_t * branch = GP_NULLPTR;
+    for( gp_uint32_t order_index = 0; order_index != _canvas->render_order_count; ++order_index )
     {
+        const gp_render_order_t * order = _canvas->render_orders + order_index;
+        if( order->type == GP_RENDER_ORDER_BRANCH_INJECTION )
+        {
+            if( has_batch == GP_TRUE )
+            {
+                GP_CALL( __finalize_batch, (_mesh, batch_index++, &batch, branch) );
+                global_vertex_iterator += batch.vertex_count;
+                global_index_iterator += batch.index_count;
+                has_batch = GP_FALSE;
+            }
+
+            branch = (const gp_branch_injection_t *)order->primitive;
+            continue;
+        }
+
         gp_mesh_t primitive_size;
         GP_CALL( __calculate_render_order_size, (order, &primitive_size) );
         if( primitive_size.vertex_count == 0 || primitive_size.index_count == 0 )
@@ -1589,12 +1909,19 @@ gp_result_t gp_render( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh )
             }
 
             gp_vec2f_t * positions = _mesh->positions_buffer == GP_NULLPTR ? GP_NULLPTR :
-                (gp_vec2f_t *)(*_canvas->malloc)( sizeof( gp_vec2f_t ) * primitive_size.vertex_count, _canvas->ud );
+                GP_REALLOC( canvas, GP_NULLPTR, gp_vec2f_t, primitive_size.vertex_count );
             gp_argb_t * colors = _mesh->colors_buffer == GP_NULLPTR ? GP_NULLPTR :
-                (gp_argb_t *)(*_canvas->malloc)( sizeof( gp_argb_t ) * primitive_size.vertex_count, _canvas->ud );
+                GP_REALLOC( canvas, GP_NULLPTR, gp_argb_t, primitive_size.vertex_count );
             gp_vec2f_t * uv0 = _mesh->uv_buffer == GP_NULLPTR ? GP_NULLPTR :
-                (gp_vec2f_t *)(*_canvas->malloc)( sizeof( gp_vec2f_t ) * primitive_size.vertex_count, _canvas->ud );
-            gp_uint32_t * indices = (gp_uint32_t *)(*_canvas->malloc)( sizeof( gp_uint32_t ) * primitive_size.index_count, _canvas->ud );
+                GP_REALLOC( canvas, GP_NULLPTR, gp_vec2f_t, primitive_size.vertex_count );
+            gp_uint32_t * indices = GP_REALLOC( canvas, GP_NULLPTR, gp_uint32_t, primitive_size.index_count );
+            if( (_mesh->positions_buffer != GP_NULLPTR && positions == GP_NULLPTR) ||
+                (_mesh->colors_buffer != GP_NULLPTR && colors == GP_NULLPTR) ||
+                (_mesh->uv_buffer != GP_NULLPTR && uv0 == GP_NULLPTR) || indices == GP_NULLPTR )
+            {
+                gp_canvas_scratch_reset( canvas, scratch_mark );
+                return GP_FAILURE;
+            }
 
             gp_mesh_t raw_mesh = *_mesh;
             raw_mesh.vertex_count = primitive_size.vertex_count;
@@ -1618,14 +1945,20 @@ gp_result_t gp_render( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh )
             gp_result_t raw_result = __render_order( order, &raw_mesh, &raw_vertex_iterator, &raw_index_iterator );
             if( raw_result == GP_FAILURE )
             {
-                if( positions != GP_NULLPTR ) (*_canvas->free)( positions, _canvas->ud );
-                if( colors != GP_NULLPTR ) (*_canvas->free)( colors, _canvas->ud );
-                if( uv0 != GP_NULLPTR ) (*_canvas->free)( uv0, _canvas->ud );
-                (*_canvas->free)( indices, _canvas->ud );
+                if( positions != GP_NULLPTR ) GP_FREE( canvas, positions );
+                if( colors != GP_NULLPTR ) GP_FREE( canvas, colors );
+                if( uv0 != GP_NULLPTR ) GP_FREE( canvas, uv0 );
+                GP_FREE( canvas, indices );
                 return GP_FAILURE;
             }
 
-            gp_uint32_t * vertex_map = (gp_uint32_t *)(*_canvas->malloc)( sizeof( gp_uint32_t ) * primitive_size.vertex_count, _canvas->ud );
+            gp_uint32_t * vertex_map = GP_REALLOC( canvas, GP_NULLPTR, gp_uint32_t, primitive_size.vertex_count );
+            if( vertex_map == GP_NULLPTR )
+            {
+                gp_canvas_scratch_reset( canvas, scratch_mark );
+                return GP_FAILURE;
+            }
+
             for( gp_uint32_t vertex = 0; vertex != primitive_size.vertex_count; ++vertex )
             {
                 vertex_map[vertex] = UINT32_MAX;
@@ -1653,11 +1986,7 @@ gp_result_t gp_render( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh )
 
                 if( batch.vertex_count + needed > UINT16_MAX )
                 {
-                    gp_render_batch_t * output = __mesh_get_batch( _mesh, batch_index++ );
-                    if( output != GP_NULLPTR )
-                    {
-                        *output = batch;
-                    }
+                    GP_CALL( __finalize_batch, (_mesh, batch_index++, &batch, branch) );
                     global_vertex_iterator += batch.vertex_count;
                     global_index_iterator += batch.index_count;
 
@@ -1694,11 +2023,11 @@ gp_result_t gp_render( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh )
                 }
             }
 
-            (*_canvas->free)( vertex_map, _canvas->ud );
-            if( positions != GP_NULLPTR ) (*_canvas->free)( positions, _canvas->ud );
-            if( colors != GP_NULLPTR ) (*_canvas->free)( colors, _canvas->ud );
-            if( uv0 != GP_NULLPTR ) (*_canvas->free)( uv0, _canvas->ud );
-            (*_canvas->free)( indices, _canvas->ud );
+            GP_FREE( canvas, vertex_map );
+            if( positions != GP_NULLPTR ) GP_FREE( canvas, positions );
+            if( colors != GP_NULLPTR ) GP_FREE( canvas, colors );
+            if( uv0 != GP_NULLPTR ) GP_FREE( canvas, uv0 );
+            GP_FREE( canvas, indices );
             continue;
         }
 
@@ -1706,11 +2035,7 @@ gp_result_t gp_render( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh )
         {
             if( has_batch == GP_TRUE )
             {
-                gp_render_batch_t * output = __mesh_get_batch( _mesh, batch_index++ );
-                if( output != GP_NULLPTR )
-                {
-                    *output = batch;
-                }
+                GP_CALL( __finalize_batch, (_mesh, batch_index++, &batch, branch) );
                 global_vertex_iterator += batch.vertex_count;
                 global_index_iterator += batch.index_count;
             }
@@ -1755,11 +2080,7 @@ gp_result_t gp_render( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh )
 
     if( has_batch == GP_TRUE )
     {
-        gp_render_batch_t * output = __mesh_get_batch( _mesh, batch_index++ );
-        if( output != GP_NULLPTR )
-        {
-            *output = batch;
-        }
+        GP_CALL( __finalize_batch, (_mesh, batch_index++, &batch, branch) );
     }
 
 #if defined(GP_DEBUG)
@@ -1769,27 +2090,7 @@ gp_result_t gp_render( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh )
     }
 #endif
 
-    if( _mesh->positions_buffer != GP_NULLPTR && _mesh->batches_buffer != GP_NULLPTR )
-    {
-        for( gp_uint32_t index = 0; index != _mesh->batch_count; ++index )
-        {
-            gp_render_batch_t * output = __mesh_get_batch( _mesh, index );
-            gp_vec2f_t position;
-            GP_CALL( gp_mesh_get_position, (_mesh, output->vertex_offset, &position) );
-            output->bounds.minimum_x = position.x;
-            output->bounds.minimum_y = position.y;
-            output->bounds.maximum_x = position.x;
-            output->bounds.maximum_y = position.y;
-            for( gp_uint32_t vertex = 1; vertex != output->vertex_count; ++vertex )
-            {
-                GP_CALL( gp_mesh_get_position, (_mesh, output->vertex_offset + vertex, &position) );
-                output->bounds.minimum_x = position.x < output->bounds.minimum_x ? position.x : output->bounds.minimum_x;
-                output->bounds.minimum_y = position.y < output->bounds.minimum_y ? position.y : output->bounds.minimum_y;
-                output->bounds.maximum_x = position.x > output->bounds.maximum_x ? position.x : output->bounds.maximum_x;
-                output->bounds.maximum_y = position.y > output->bounds.maximum_y ? position.y : output->bounds.maximum_y;
-            }
-        }
-    }
+    gp_canvas_scratch_reset( canvas, scratch_mark );
 
     return GP_SUCCESSFUL;
 }

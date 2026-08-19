@@ -165,7 +165,8 @@ static void __primitive_lerp_style( gp_primitive_style_t * const _style, const g
 static gp_result_t __primitive_create_path( gp_canvas_t * _canvas, gp_path_t ** _path )
 {
     const gp_state_t * state = GP_GET_STATE( _canvas );
-    return gp_path_create( _path, _canvas->malloc, _canvas->realloc, _canvas->free, _canvas->ud, state->curve_quality, state->ellipse_quality );
+    return gp_path_create( _path, gp_canvas_scratch_malloc_callback, gp_canvas_scratch_realloc_callback,
+        gp_canvas_scratch_free_callback, _canvas, state->curve_quality, state->ellipse_quality );
 }
 //////////////////////////////////////////////////////////////////////////
 static gp_result_t __primitive_draw_destroy_path( gp_canvas_t * _canvas, gp_path_t * _path )
@@ -317,6 +318,11 @@ gp_result_t gp_regular_polygon( gp_canvas_t * _canvas, float _x, float _y, float
 #endif
 
     float * points = GP_REALLOC( _canvas, GP_NULLPTR, float, _vertex_count * 2 );
+    if( points == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
+
     for( gp_uint32_t index = 0; index != _vertex_count; ++index )
     {
         float angle = _rotation + gp_constant_two_pi * (float)index / (float)_vertex_count;
@@ -341,6 +347,11 @@ gp_result_t gp_star( gp_canvas_t * _canvas, float _x, float _y, float _inner_rad
 
     gp_uint32_t point_count = _ray_count * 2;
     float * points = GP_REALLOC( _canvas, GP_NULLPTR, float, point_count * 2 );
+    if( points == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
+
     for( gp_uint32_t index = 0; index != point_count; ++index )
     {
         float radius = index % 2 == 0 ? _outer_radius : _inner_radius;
@@ -375,6 +386,11 @@ gp_result_t gp_superellipse( gp_canvas_t * _canvas, float _x, float _y, float _w
     const gp_state_t * state = GP_GET_STATE( _canvas );
     gp_uint32_t point_count = state->ellipse_quality;
     float * points = GP_REALLOC( _canvas, GP_NULLPTR, float, point_count * 2 );
+    if( points == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
+
     float power = 2.f / _exponent;
     float cosine_rotation = GP_MATH_COSF( _rotation );
     float sine_rotation = GP_MATH_SINF( _rotation );

@@ -27,7 +27,12 @@ gp_result_t gp_calculate_bounds( const gp_canvas_t * _canvas, gp_bounds_t * _bou
     }
 
     gp_canvas_t * canvas = (gp_canvas_t *)_canvas;
+    const gp_size_t scratch_mark = gp_canvas_scratch_mark( canvas );
     gp_vec2f_t * positions = GP_REALLOC( canvas, GP_NULLPTR, gp_vec2f_t, mesh.vertex_count );
+    if( positions == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
 
     mesh.positions_buffer = positions;
     mesh.positions_offset = 0;
@@ -40,6 +45,7 @@ gp_result_t gp_calculate_bounds( const gp_canvas_t * _canvas, gp_bounds_t * _bou
     if( render_result == GP_FAILURE )
     {
         GP_FREE( canvas, positions );
+        gp_canvas_scratch_reset( canvas, scratch_mark );
 
         return GP_FAILURE;
     }
@@ -71,6 +77,7 @@ gp_result_t gp_calculate_bounds( const gp_canvas_t * _canvas, gp_bounds_t * _bou
     }
 
     GP_FREE( canvas, positions );
+    gp_canvas_scratch_reset( canvas, scratch_mark );
 
     _bounds->minimum_x = minimum_x;
     _bounds->minimum_y = minimum_y;

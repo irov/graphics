@@ -6,15 +6,11 @@
 
 #include "struct.h"
 
-#define GP_NEW(c, t) ((t*)(*c->malloc)(sizeof(t), c->ud))
-#define GP_REALLOC(c, p, t, s) ((t*)(*c->realloc)((p), sizeof(t) * s, c->ud))
-#define GP_FREE(c, p) (*c->free)((p), c->ud)
+#define GP_NEW(c, t) ((t*)gp_canvas_recording_allocate(c, sizeof(t)))
+#define GP_REALLOC(c, p, t, s) ((t*)gp_canvas_scratch_reallocate_array(c, p, sizeof(t), (s)))
+#define GP_FREE(c, p) gp_canvas_scratch_free(c, p)
 
-#if defined(GP_DEBUG)
-#   define GP_CALL(m, args) if( m args == GP_FAILURE) return GP_FAILURE
-#else
-#   define GP_CALL(m, args) m args
-#endif
+#define GP_CALL(m, args) do { if( m args == GP_FAILURE ) return GP_FAILURE; } while( 0 )
 
 #define GP_LIST_FOREACH(t, list, e) for( t * e = list; e != GP_NULLPTR; e = e->next )
 #define GP_LIST_PUSHBACK(t, list, e) {if( list == GP_NULLPTR ){list = e; list->prev = e;}else{e->prev = list->prev; e->next = GP_NULLPTR; list->prev->next = e; list->prev = e;}}
@@ -44,5 +40,15 @@ gp_result_t gp_mesh_push_uv( const gp_state_t * _state, const gp_mesh_t * _mesh,
 gp_result_t gp_mesh_push_uv_map( const gp_state_t * _state, const gp_mesh_t * _mesh, gp_uint32_t _iterator, float _x, float _y, float _ox, float _oy, float _w, float _h );
 
 gp_result_t gp_mesh_get_position( const gp_mesh_t * _mesh, gp_uint32_t _iterator, gp_vec2f_t * const _pos );
+
+void * gp_canvas_recording_allocate( gp_canvas_t * _canvas, gp_size_t _size );
+void * gp_canvas_scratch_reallocate( gp_canvas_t * _canvas, void * _pointer, gp_size_t _size );
+void * gp_canvas_scratch_reallocate_array( gp_canvas_t * _canvas, void * _pointer, gp_size_t _element_size, gp_size_t _count );
+void gp_canvas_scratch_free( gp_canvas_t * _canvas, void * _pointer );
+void * gp_canvas_scratch_malloc_callback( gp_size_t _size, void * _ud );
+void * gp_canvas_scratch_realloc_callback( void * _pointer, gp_size_t _size, void * _ud );
+void gp_canvas_scratch_free_callback( void * _pointer, void * _ud );
+gp_size_t gp_canvas_scratch_mark( const gp_canvas_t * _canvas );
+void gp_canvas_scratch_reset( gp_canvas_t * _canvas, gp_size_t _mark );
 
 #endif

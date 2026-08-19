@@ -25,6 +25,8 @@ typedef size_t gp_size_t;
 
 typedef gp_uint32_t gp_argb_t;
 
+#define GP_CANVAS_INJECTION_API 1
+
 typedef struct gp_color_t
 {
     float r;
@@ -69,6 +71,18 @@ typedef struct gp_color_t
 
 #ifndef GP_DASH_PATTERN_MAX
 #define GP_DASH_PATTERN_MAX 8
+#endif
+
+#ifndef GP_CANVAS_RECORDING_MEMORY_SIZE
+#define GP_CANVAS_RECORDING_MEMORY_SIZE (16U * 1024U * 1024U)
+#endif
+
+#ifndef GP_CANVAS_RENDER_ORDER_CAPACITY
+#define GP_CANVAS_RENDER_ORDER_CAPACITY 65536U
+#endif
+
+#ifndef GP_CANVAS_SCRATCH_MEMORY_SIZE
+#define GP_CANVAS_SCRATCH_MEMORY_SIZE (64U * 1024U * 1024U)
 #endif
 
 #ifndef GP_MATH_SQRTF

@@ -96,10 +96,14 @@ static void __compound_write_color( gp_compound_point_t * _point, const gp_mesh_
     _point->color = gp_color_argb( &color );
 }
 //////////////////////////////////////////////////////////////////////////
-static void __compound_flatten_line( const gp_line_t * _line, const gp_mesh_t * _mesh, gp_compound_contour_t * _contour, gp_realloc_t _realloc, void * _ud )
+static gp_result_t __compound_flatten_line( const gp_line_t * _line, const gp_mesh_t * _mesh, gp_compound_contour_t * _contour, gp_realloc_t _realloc, void * _ud )
 {
     _contour->count = __compound_line_point_count( _line );
     _contour->points = (gp_compound_point_t *)(*_realloc)(GP_NULLPTR, sizeof( gp_compound_point_t ) * _contour->count, _ud);
+    if( _contour->points == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
 
     gp_uint32_t write = 0;
     const gp_line_point_t * point = _line->points;
@@ -164,6 +168,8 @@ static void __compound_flatten_line( const gp_line_t * _line, const gp_mesh_t * 
         _contour->area += p0->x * p1->y - p0->y * p1->x;
     }
     _contour->area *= 0.5f;
+
+    return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
 static gp_bool_t __compound_contains( const gp_compound_contour_t * _contour, const gp_vec2f_t * _point )
@@ -273,6 +279,11 @@ static gp_result_t __compound_build( const gp_compound_fill_t * _compound, const
     }
 
     _data->contours = (gp_compound_contour_t *)(*_data->realloc)(GP_NULLPTR, sizeof( gp_compound_contour_t ) * _data->contour_count, _data->ud);
+    if( _data->contours == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
+
     gp_uint32_t index = 0;
     for( const gp_line_t * line = first; line != GP_NULLPTR; line = line->next )
     {
@@ -284,7 +295,7 @@ static gp_result_t __compound_build( const gp_compound_fill_t * _compound, const
                 return GP_FAILURE;
             }
 #endif
-            __compound_flatten_line( line, _mesh, _data->contours + index, _data->realloc, _data->ud );
+            GP_CALL( __compound_flatten_line, (line, _mesh, _data->contours + index, _data->realloc, _data->ud) );
             ++index;
         }
         if( line == _compound->last_line )
@@ -363,10 +374,15 @@ static const gp_vec2f_t * __compound_get_position( const gp_compound_data_t * _d
     return GP_NULLPTR;
 }
 //////////////////////////////////////////////////////////////////////////
-static gp_uint32_t * __compound_make_order( const gp_compound_data_t * _data, gp_uint32_t _outer_index, gp_uint32_t * _order_count )
+static gp_result_t __compound_make_order( const gp_compound_data_t * _data, gp_uint32_t _outer_index, gp_uint32_t ** _order, gp_uint32_t * _order_count )
 {
     gp_uint32_t capacity = __compound_order_count( _data, _outer_index );
     gp_uint32_t * order = (gp_uint32_t *)(*_data->realloc)(GP_NULLPTR, sizeof( gp_uint32_t ) * capacity, _data->ud);
+    if( order == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
+
     const gp_compound_contour_t * outer = _data->contours + _outer_index;
     gp_uint32_t outer_offset = __compound_global_offset( _data, _outer_index );
     gp_uint32_t count = outer->count;
@@ -438,8 +454,9 @@ static gp_uint32_t * __compound_make_order( const gp_compound_data_t * _data, gp
     }
 
     *_order_count = count;
+    *_order = order;
 
-    return order;
+    return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
 static float __compound_triangle_area( const gp_vec2f_t * _a, const gp_vec2f_t * _b, const gp_vec2f_t * _c )
@@ -631,7 +648,8 @@ gp_result_t gp_render_compound_fill( const gp_compound_fill_t * _compound, const
         }
 
         gp_uint32_t order_count;
-        gp_uint32_t * order = __compound_make_order( &data, contour_index, &order_count );
+        gp_uint32_t * order;
+        GP_CALL( __compound_make_order, (&data, contour_index, &order, &order_count) );
         GP_CALL( __compound_triangulate, (&data, order, order_count, _mesh, vertex_begin, _index_iterator) );
         (*data.free)(order, data.ud);
     }

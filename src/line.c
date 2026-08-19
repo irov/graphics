@@ -99,20 +99,29 @@ static void __line_perpendicular( gp_vec2f_t * const _perpendicular, const gp_ve
     _perpendicular->y = direction.x;
 }
 //////////////////////////////////////////////////////////////////////////
-static void __line_reserve_points( const gp_line_t * _line, gp_cooked_point_t ** _points, gp_uint32_t _count, gp_uint32_t * _capacity, gp_uint32_t _required )
+static gp_result_t __line_reserve_points( const gp_line_t * _line, gp_cooked_point_t ** _points, gp_uint32_t _count, gp_uint32_t * _capacity, gp_uint32_t _required )
 {
     if( _required <= *_capacity )
     {
-        return;
+        return GP_SUCCESSFUL;
     }
 
     gp_uint32_t capacity = *_capacity == 0 ? 16 : *_capacity;
     while( capacity < _required )
     {
+        if( capacity > UINT32_MAX / 2U )
+        {
+            return GP_FAILURE;
+        }
         capacity *= 2;
     }
 
     gp_cooked_point_t * points = (gp_cooked_point_t *)(*_line->realloc)(GP_NULLPTR, sizeof( gp_cooked_point_t ) * capacity, _line->ud);
+    if( points == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
+
     for( gp_uint32_t index = 0; index != _count; ++index )
     {
         points[index] = (*_points)[index];
@@ -124,9 +133,11 @@ static void __line_reserve_points( const gp_line_t * _line, gp_cooked_point_t **
 
     *_points = points;
     *_capacity = capacity;
+
+    return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
-static void __line_push_point( const gp_line_t * _line, gp_cooked_path_t * _path, const gp_cooked_point_t * _point )
+static gp_result_t __line_push_point( const gp_line_t * _line, gp_cooked_path_t * _path, const gp_cooked_point_t * _point )
 {
     if( _path->count != 0 && __line_same_point( &_path->points[_path->count - 1].position, &_point->position ) == GP_TRUE )
     {
@@ -147,10 +158,10 @@ static void __line_push_point( const gp_line_t * _line, gp_cooked_path_t * _path
 
         _path->points[_path->count - 1].source_length = _path->points[_path->count - 1].length;
 
-        return;
+        return GP_SUCCESSFUL;
     }
 
-    __line_reserve_points( _line, &_path->points, _path->count, &_path->capacity, _path->count + 1 );
+    GP_CALL( __line_reserve_points, (_line, &_path->points, _path->count, &_path->capacity, _path->count + 1) );
 
     gp_cooked_point_t * point = _path->points + _path->count;
     *point = *_point;
@@ -159,6 +170,8 @@ static void __line_push_point( const gp_line_t * _line, gp_cooked_path_t * _path
         : _path->points[_path->count - 1].length + __line_distance( &_path->points[_path->count - 1].position, &_point->position );
     point->source_length = point->length;
     ++_path->count;
+
+    return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
 static void __line_edge_tangent( gp_vec2f_t * const _tangent, const gp_line_point_t * _from, const gp_line_point_t * _to, const gp_line_edge_t * _edge, gp_bool_t _end )
@@ -393,7 +406,7 @@ static gp_result_t __line_cook_path( const gp_line_t * _line, gp_cooked_path_t *
                 point.position.x = edge->p[0].x + GP_MATH_COSF( angle ) * edge->p[1].x;
                 point.position.y = edge->p[0].y + GP_MATH_SINF( angle ) * edge->p[1].y;
             }
-            __line_push_point( _line, _path, &point );
+            GP_CALL( __line_push_point, (_line, _path, &point) );
         }
 
         from = to;
@@ -407,7 +420,7 @@ static gp_result_t __line_cook_path( const gp_line_t * _line, gp_cooked_path_t *
     last.length = 0.f;
     last.source_length = 0.f;
     last.join = __line_last_point_join( _line, from );
-    __line_push_point( _line, _path, &last );
+    GP_CALL( __line_push_point, (_line, _path, &last) );
 
     if( _line->closed == GP_TRUE && _line->state->fill == GP_FALSE && _path->count >= 2 )
     {
@@ -417,7 +430,7 @@ static gp_result_t __line_cook_path( const gp_line_t * _line, gp_cooked_path_t *
         }
 
         gp_cooked_point_t closing = _path->points[0];
-        __line_push_point( _line, _path, &closing );
+        GP_CALL( __line_push_point, (_line, _path, &closing) );
     }
 
     if( _path->count != 0 )
@@ -451,11 +464,13 @@ static void __line_destroy_path( const gp_line_t * _line, gp_cooked_path_t * _pa
     }
 }
 //////////////////////////////////////////////////////////////////////////
-static void __line_trim_push( const gp_line_t * _line, gp_cooked_path_t * _trimmed, const gp_cooked_point_t * _point, float _source_length )
+static gp_result_t __line_trim_push( const gp_line_t * _line, gp_cooked_path_t * _trimmed, const gp_cooked_point_t * _point, float _source_length )
 {
     gp_cooked_point_t point = *_point;
-    __line_push_point( _line, _trimmed, &point );
+    GP_CALL( __line_push_point, (_line, _trimmed, &point) );
     _trimmed->points[_trimmed->count - 1].source_length = _source_length;
+
+    return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
 static void __line_trim_sample( const gp_cooked_path_t * _path, float _distance, gp_cooked_point_t * const _point )
@@ -495,18 +510,18 @@ static void __line_trim_sample( const gp_cooked_path_t * _path, float _distance,
     *_point = _path->points[_path->count - 1];
 }
 //////////////////////////////////////////////////////////////////////////
-static void __line_trim_append_range( const gp_line_t * _line, const gp_cooked_path_t * _path, gp_cooked_path_t * _trimmed, float _from, float _to, float _source_offset, gp_bool_t _include_from )
+static gp_result_t __line_trim_append_range( const gp_line_t * _line, const gp_cooked_path_t * _path, gp_cooked_path_t * _trimmed, float _from, float _to, float _source_offset, gp_bool_t _include_from )
 {
     if( _to < _from || GP_EQUAL_F( _to - _from, 0.00001f ) == GP_TRUE )
     {
-        return;
+        return GP_SUCCESSFUL;
     }
 
     if( _include_from == GP_TRUE )
     {
         gp_cooked_point_t boundary;
         __line_trim_sample( _path, _from, &boundary );
-        __line_trim_push( _line, _trimmed, &boundary, _from + _source_offset );
+        GP_CALL( __line_trim_push, (_line, _trimmed, &boundary, _from + _source_offset) );
     }
 
     for( gp_uint32_t index = 0; index != _path->count; ++index )
@@ -517,12 +532,14 @@ static void __line_trim_append_range( const gp_line_t * _line, const gp_cooked_p
             continue;
         }
 
-        __line_trim_push( _line, _trimmed, point, point->length + _source_offset );
+        GP_CALL( __line_trim_push, (_line, _trimmed, point, point->length + _source_offset) );
     }
 
     gp_cooked_point_t boundary;
     __line_trim_sample( _path, _to, &boundary );
-    __line_trim_push( _line, _trimmed, &boundary, _to + _source_offset );
+    GP_CALL( __line_trim_push, (_line, _trimmed, &boundary, _to + _source_offset) );
+
+    return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
 static gp_result_t __line_trim_path( const gp_line_t * _line, const gp_cooked_path_t * _path, gp_cooked_path_t * const _trimmed )
@@ -546,8 +563,8 @@ static gp_result_t __line_trim_path( const gp_line_t * _line, const gp_cooked_pa
     float to_absolute = _line->state->trim_to * _path->source_total_length;
     if( _path->closed == GP_TRUE && _line->state->trim_from > _line->state->trim_to )
     {
-        __line_trim_append_range( _line, _path, _trimmed, from_absolute, local_length, _path->source_offset, GP_TRUE );
-        __line_trim_append_range( _line, _path, _trimmed, 0.f, to_absolute, _path->source_total_length, GP_FALSE );
+        GP_CALL( __line_trim_append_range, (_line, _path, _trimmed, from_absolute, local_length, _path->source_offset, GP_TRUE) );
+        GP_CALL( __line_trim_append_range, (_line, _path, _trimmed, 0.f, to_absolute, _path->source_total_length, GP_FALSE) );
         return GP_SUCCESSFUL;
     }
 
@@ -555,7 +572,7 @@ static gp_result_t __line_trim_path( const gp_line_t * _line, const gp_cooked_pa
     float to = to_absolute - _path->source_offset;
     from = from < 0.f ? 0.f : from;
     to = to > local_length ? local_length : to;
-    __line_trim_append_range( _line, _path, _trimmed, from, to, _path->source_offset, GP_TRUE );
+    GP_CALL( __line_trim_append_range, (_line, _path, _trimmed, from, to, _path->source_offset, GP_TRUE) );
     if( _path->closed == GP_TRUE && GP_EQUAL_F( from, 0.000001f ) == GP_TRUE &&
         GP_EQUAL_F( to - local_length, 0.000001f ) == GP_TRUE )
     {
@@ -565,7 +582,7 @@ static gp_result_t __line_trim_path( const gp_line_t * _line, const gp_cooked_pa
     return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
-static void __line_span_push( const gp_line_t * _line, gp_cooked_span_t * _span, const gp_cooked_point_t * _point )
+static gp_result_t __line_span_push( const gp_line_t * _line, gp_cooked_span_t * _span, const gp_cooked_point_t * _point )
 {
     if( _span->count != 0 && __line_same_point( &_span->points[_span->count - 1].position, &_point->position ) == GP_TRUE )
     {
@@ -574,23 +591,35 @@ static void __line_span_push( const gp_line_t * _line, gp_cooked_span_t * _span,
             : GP_FALSE;
         _span->points[_span->count - 1] = *_point;
         _span->points[_span->count - 1].join = join;
-        return;
+        return GP_SUCCESSFUL;
     }
 
-    __line_reserve_points( _line, &_span->points, _span->count, &_span->capacity, _span->count + 1 );
+    GP_CALL( __line_reserve_points, (_line, &_span->points, _span->count, &_span->capacity, _span->count + 1) );
     _span->points[_span->count] = *_point;
     _span->points[_span->count].length = _span->count == 0
         ? 0.f
         : _span->points[_span->count - 1].length + __line_distance( &_span->points[_span->count - 1].position, &_point->position );
     ++_span->count;
+
+    return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
-static gp_cooked_span_t * __line_new_span( const gp_line_t * _line, gp_cooked_stroke_t * _stroke )
+static gp_result_t __line_new_span( const gp_line_t * _line, gp_cooked_stroke_t * _stroke, gp_cooked_span_t ** _span )
 {
     if( _stroke->count == _stroke->capacity )
     {
+        if( _stroke->capacity > UINT32_MAX / 2U )
+        {
+            return GP_FAILURE;
+        }
+
         gp_uint32_t capacity = _stroke->capacity == 0 ? 8 : _stroke->capacity * 2;
         gp_cooked_span_t * spans = (gp_cooked_span_t *)(*_line->realloc)(GP_NULLPTR, sizeof( gp_cooked_span_t ) * capacity, _line->ud);
+        if( spans == GP_NULLPTR )
+        {
+            return GP_FAILURE;
+        }
+
         for( gp_uint32_t index = 0; index != _stroke->count; ++index )
         {
             spans[index] = _stroke->spans[index];
@@ -613,7 +642,8 @@ static gp_cooked_span_t * __line_new_span( const gp_line_t * _line, gp_cooked_st
     span->source_closed = GP_FALSE;
     span->source_ccw = GP_TRUE;
 
-    return span;
+    *_span = span;
+    return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
 static void __line_interpolate_cooked_point( gp_cooked_point_t * const _point, const gp_cooked_point_t * _from, const gp_cooked_point_t * _to, float _t )
@@ -654,17 +684,21 @@ static void __line_recalculate_span_lengths( gp_cooked_span_t * _span )
     }
 }
 //////////////////////////////////////////////////////////////////////////
-static void __line_merge_closed_dash_seam( const gp_line_t * _line, gp_cooked_stroke_t * _stroke )
+static gp_result_t __line_merge_closed_dash_seam( const gp_line_t * _line, gp_cooked_stroke_t * _stroke )
 {
     if( _stroke->count < 2 )
     {
-        return;
+        return GP_SUCCESSFUL;
     }
 
     gp_cooked_span_t * first = _stroke->spans;
     gp_cooked_span_t * last = _stroke->spans + _stroke->count - 1;
     gp_uint32_t merged_count = last->count + first->count - 1;
     gp_cooked_point_t * merged = (gp_cooked_point_t *)(*_line->realloc)(GP_NULLPTR, sizeof( gp_cooked_point_t ) * merged_count, _line->ud);
+    if( merged == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
 
     for( gp_uint32_t index = 0; index != last->count; ++index )
     {
@@ -687,6 +721,8 @@ static void __line_merge_closed_dash_seam( const gp_line_t * _line, gp_cooked_st
     __line_recalculate_span_lengths( first );
 
     --_stroke->count;
+
+    return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
 static gp_result_t __line_cook_stroke( const gp_line_t * _line, const gp_cooked_path_t * _path, gp_cooked_stroke_t * const _stroke )
@@ -705,10 +741,11 @@ static gp_result_t __line_cook_stroke( const gp_line_t * _line, const gp_cooked_
     const gp_state_t * state = _line->state;
     if( state->dash_count == 0 )
     {
-        gp_cooked_span_t * span = __line_new_span( _line, _stroke );
+        gp_cooked_span_t * span;
+        GP_CALL( __line_new_span, (_line, _stroke, &span) );
         for( gp_uint32_t index = 0; index != _path->count; ++index )
         {
-            __line_span_push( _line, span, _path->points + index );
+            GP_CALL( __line_span_push, (_line, span, _path->points + index) );
         }
         span->closed = _path->closed;
         span->source_total_length = _path->source_total_length;
@@ -767,13 +804,13 @@ static gp_result_t __line_cook_stroke( const gp_line_t * _line, const gp_cooked_
             {
                 if( active_span == GP_NULLPTR )
                 {
-                    active_span = __line_new_span( _line, _stroke );
+                    GP_CALL( __line_new_span, (_line, _stroke, &active_span) );
                     active_span->source_total_length = _path->source_total_length;
                     active_span->source_closed = _line->closed;
                     active_span->source_ccw = source_ccw;
-                    __line_span_push( _line, active_span, &piece_from );
+                    GP_CALL( __line_span_push, (_line, active_span, &piece_from) );
                 }
-                __line_span_push( _line, active_span, &piece_to );
+                GP_CALL( __line_span_push, (_line, active_span, &piece_to) );
             }
 
             consumed += step;
@@ -804,7 +841,7 @@ static gp_result_t __line_cook_stroke( const gp_line_t * _line, const gp_cooked_
         }
         else if( _stroke->count > 1 && first_at_seam == GP_TRUE && last_at_seam == GP_TRUE )
         {
-            __line_merge_closed_dash_seam( _line, _stroke );
+            GP_CALL( __line_merge_closed_dash_seam, (_line, _stroke) );
         }
     }
 
@@ -1100,6 +1137,11 @@ static gp_bool_t __line_point_in_triangle( const gp_vec2f_t * _point, const gp_v
 static gp_result_t __line_render_fill_indices( const gp_line_t * _line, const gp_cooked_path_t * _path, const gp_mesh_t * _mesh, gp_uint32_t _vertex_begin, gp_uint32_t * _index_iterator )
 {
     gp_uint32_t * order = (gp_uint32_t *)(*_line->realloc)(GP_NULLPTR, sizeof( gp_uint32_t ) * _path->count, _line->ud);
+    if( order == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
+
     float area = 0.f;
     for( gp_uint32_t index = 0; index != _path->count; ++index )
     {

@@ -59,6 +59,11 @@ static void __path_destroy_contour( gp_path_t * _path, gp_path_contour_t * _cont
 static gp_path_anchor_t * __path_push_anchor( gp_path_t * _path, gp_path_contour_t * _contour, float _x, float _y )
 {
     gp_path_anchor_t * anchor = (gp_path_anchor_t *)(*_path->malloc)(sizeof( gp_path_anchor_t ), _path->ud);
+    if( anchor == GP_NULLPTR )
+    {
+        return GP_NULLPTR;
+    }
+
     anchor->next = GP_NULLPTR;
     anchor->prev = GP_NULLPTR;
     anchor->point.x = _x;
@@ -81,6 +86,11 @@ static gp_result_t __path_push_edge( gp_path_t * _path, gp_uint32_t _controls, c
 #endif
 
     gp_path_edge_t * edge = (gp_path_edge_t *)(*_path->malloc)(sizeof( gp_path_edge_t ), _path->ud);
+    if( edge == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
+
     edge->next = GP_NULLPTR;
     edge->prev = GP_NULLPTR;
     edge->controls = _controls;
@@ -105,6 +115,11 @@ gp_result_t gp_path_create( gp_path_t ** _path, gp_malloc_t _malloc, gp_realloc_
 #endif
 
     gp_path_t * path = (gp_path_t *)(*_malloc)(sizeof( gp_path_t ), _ud);
+    if( path == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
+
     path->contours = GP_NULLPTR;
     path->current_contour = GP_NULLPTR;
     memset( &path->current_style, 0, sizeof( path->current_style ) );
@@ -218,12 +233,21 @@ gp_result_t gp_path_move_to( gp_path_t * _path, float _x, float _y )
 #endif
 
     gp_path_contour_t * contour = (gp_path_contour_t *)(*_path->malloc)(sizeof( gp_path_contour_t ), _path->ud);
+    if( contour == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
+
     contour->anchors = GP_NULLPTR;
     contour->edges = GP_NULLPTR;
     contour->closed = GP_FALSE;
     contour->next = GP_NULLPTR;
     contour->prev = GP_NULLPTR;
-    __path_push_anchor( _path, contour, _x, _y );
+    if( __path_push_anchor( _path, contour, _x, _y ) == GP_NULLPTR )
+    {
+        (*_path->free)(contour, _path->ud);
+        return GP_FAILURE;
+    }
 
     GP_LIST_PUSHBACK( gp_path_contour_t, _path->contours, contour );
     _path->current_contour = contour;
@@ -242,7 +266,10 @@ gp_result_t gp_path_line_to( gp_path_t * _path, float _x, float _y )
 
     gp_vec2f_t unused[1];
     GP_CALL( __path_push_edge, (_path, 0, unused) );
-    __path_push_anchor( _path, _path->current_contour, _x, _y );
+    if( __path_push_anchor( _path, _path->current_contour, _x, _y ) == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
 
     return GP_SUCCESSFUL;
 }
@@ -259,7 +286,10 @@ gp_result_t gp_path_quadratic_curve_to( gp_path_t * _path, float _p0x, float _p0
 
     gp_vec2f_t controls[1] = {{_p0x, _p0y}};
     GP_CALL( __path_push_edge, (_path, 1, controls) );
-    __path_push_anchor( _path, _path->current_contour, _x, _y );
+    if( __path_push_anchor( _path, _path->current_contour, _x, _y ) == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
 
     return GP_SUCCESSFUL;
 }
@@ -277,7 +307,10 @@ gp_result_t gp_path_bezier_curve_to( gp_path_t * _path, float _p0x, float _p0y, 
 
     gp_vec2f_t controls[2] = {{_p0x, _p0y}, {_p1x, _p1y}};
     GP_CALL( __path_push_edge, (_path, 2, controls) );
-    __path_push_anchor( _path, _path->current_contour, _x, _y );
+    if( __path_push_anchor( _path, _path->current_contour, _x, _y ) == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
 
     return GP_SUCCESSFUL;
 }
@@ -321,9 +354,12 @@ gp_result_t gp_path_ellipse_arc( gp_path_t * _path, float _x, float _y, float _w
 
     gp_vec2f_t controls[3] = {{_x, _y}, {_width, _height}, {_angle_from, _angle_to}};
     GP_CALL( __path_push_edge, (_path, 3, controls) );
-    __path_push_anchor( _path, _path->current_contour,
+    if( __path_push_anchor( _path, _path->current_contour,
         _x + GP_MATH_COSF( _angle_to ) * _width,
-        _y + GP_MATH_SINF( _angle_to ) * _height );
+        _y + GP_MATH_SINF( _angle_to ) * _height ) == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
 
     float angle_delta_abs = angle_delta < 0.f ? -angle_delta : angle_delta;
     if( new_contour == GP_TRUE && GP_EQUAL_F( angle_delta_abs - gp_constant_two_pi, 0.000001f ) == GP_TRUE )
@@ -583,6 +619,13 @@ gp_result_t gp_path_catmull_rom( gp_path_t * _path, const void * _points, gp_siz
 
     gp_vec2f_t * positions = (gp_vec2f_t *)(*_path->realloc)(GP_NULLPTR, sizeof( gp_vec2f_t ) * _point_count, _path->ud);
     gp_path_style_t * styles = (gp_path_style_t *)(*_path->realloc)(GP_NULLPTR, sizeof( gp_path_style_t ) * _point_count, _path->ud);
+    if( positions == GP_NULLPTR || styles == GP_NULLPTR )
+    {
+        if( styles != GP_NULLPTR ) (*_path->free)(styles, _path->ud);
+        if( positions != GP_NULLPTR ) (*_path->free)(positions, _path->ud);
+        return GP_FAILURE;
+    }
+
     for( gp_size_t index = 0; index != _point_count; ++index )
     {
         __path_read_point( _points, _point_stride, index, &positions[index].x, &positions[index].y, _layout, styles + index );
@@ -659,11 +702,11 @@ gp_result_t gp_path_catmull_rom( gp_path_t * _path, const void * _points, gp_siz
     return GP_SUCCESSFUL;
 }
 
-static void __path_flat_reserve( const gp_path_t * _path, gp_flat_path_t * _flat, gp_uint32_t _required )
+static gp_result_t __path_flat_reserve( const gp_path_t * _path, gp_flat_path_t * _flat, gp_uint32_t _required )
 {
     if( _required <= _flat->capacity )
     {
-        return;
+        return GP_SUCCESSFUL;
     }
 
     gp_uint32_t capacity = _flat->capacity == 0 ? 32 : _flat->capacity * 2;
@@ -673,6 +716,11 @@ static void __path_flat_reserve( const gp_path_t * _path, gp_flat_path_t * _flat
     }
 
     gp_flat_path_point_t * points = (gp_flat_path_point_t *)(*_path->realloc)(GP_NULLPTR, sizeof( gp_flat_path_point_t ) * capacity, _path->ud);
+    if( points == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
+
     for( gp_uint32_t index = 0; index != _flat->count; ++index )
     {
         points[index] = _flat->points[index];
@@ -684,11 +732,13 @@ static void __path_flat_reserve( const gp_path_t * _path, gp_flat_path_t * _flat
 
     _flat->points = points;
     _flat->capacity = capacity;
+
+    return GP_SUCCESSFUL;
 }
 
-static void __path_flat_push( const gp_path_t * _path, gp_flat_path_t * _flat, const gp_vec2f_t * _point, gp_uint32_t _contour_index, gp_bool_t _contour_start )
+static gp_result_t __path_flat_push( const gp_path_t * _path, gp_flat_path_t * _flat, const gp_vec2f_t * _point, gp_uint32_t _contour_index, gp_bool_t _contour_start )
 {
-    __path_flat_reserve( _path, _flat, _flat->count + 1 );
+    GP_CALL( __path_flat_reserve, (_path, _flat, _flat->count + 1) );
     gp_flat_path_point_t * output = _flat->points + _flat->count;
     output->point = *_point;
     output->contour_index = _contour_index;
@@ -703,6 +753,8 @@ static void __path_flat_push( const gp_path_t * _path, gp_flat_path_t * _flat, c
         output->distance = _flat->length;
     }
     ++_flat->count;
+
+    return GP_SUCCESSFUL;
 }
 
 static void __path_evaluate_edge( gp_vec2f_t * _point, const gp_path_anchor_t * _from, const gp_path_anchor_t * _to, const gp_path_edge_t * _edge, float _t )
@@ -792,7 +844,7 @@ static gp_result_t __path_flatten( const gp_path_t * _path, gp_flat_path_t * _fl
         }
 
         const gp_path_anchor_t * from = contour->anchors;
-        __path_flat_push( _path, _flat, &from->point, contour_index, GP_TRUE );
+        GP_CALL( __path_flat_push, (_path, _flat, &from->point, contour_index, GP_TRUE) );
         for( const gp_path_edge_t * edge = contour->edges; edge != GP_NULLPTR; edge = edge->next )
         {
             const gp_path_anchor_t * to = from->next;
@@ -823,7 +875,7 @@ static gp_result_t __path_flatten( const gp_path_t * _path, gp_flat_path_t * _fl
                     point.x = edge->point[0].x + GP_MATH_COSF( angle ) * edge->point[1].x;
                     point.y = edge->point[0].y + GP_MATH_SINF( angle ) * edge->point[1].y;
                 }
-                __path_flat_push( _path, _flat, &point, contour_index, GP_FALSE );
+                GP_CALL( __path_flat_push, (_path, _flat, &point, contour_index, GP_FALSE) );
             }
 
             from = to;
@@ -831,7 +883,7 @@ static gp_result_t __path_flatten( const gp_path_t * _path, gp_flat_path_t * _fl
 
         if( contour->closed == GP_TRUE && __path_same_point( &_flat->points[_flat->count - 1].point, &contour->anchors->point ) == GP_FALSE )
         {
-            __path_flat_push( _path, _flat, &contour->anchors->point, contour_index, GP_FALSE );
+            GP_CALL( __path_flat_push, (_path, _flat, &contour->anchors->point, contour_index, GP_FALSE) );
         }
     }
 

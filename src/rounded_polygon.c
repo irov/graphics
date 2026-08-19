@@ -147,7 +147,7 @@ gp_result_t gp_rounded_polygon( gp_canvas_t * _canvas, const void * _points, gp_
 
     const gp_state_t * state = GP_GET_STATE( _canvas );
     gp_path_t * path;
-    GP_CALL( gp_path_create, (&path, _canvas->malloc, _canvas->realloc, _canvas->free, _canvas->ud, state->curve_quality, state->ellipse_quality) );
+    GP_CALL( gp_path_create, (&path, gp_canvas_scratch_malloc_callback, gp_canvas_scratch_realloc_callback, gp_canvas_scratch_free_callback, _canvas, state->curve_quality, state->ellipse_quality) );
 
     GP_CALL( gp_path_move_to, (path, vertex.entry_x, vertex.entry_y) );
     if( vertex.rounded == GP_TRUE )

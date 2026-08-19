@@ -9,6 +9,7 @@
 
 typedef struct gp_canvas_t gp_canvas_t;
 typedef struct gp_path_t gp_path_t;
+typedef struct gp_mesh_t gp_mesh_t;
 
 typedef enum gp_line_cap_e
 {
@@ -124,6 +125,30 @@ typedef struct gp_render_batch_t
     gp_bounds_t bounds;
 } gp_render_batch_t;
 
+typedef struct gp_mesh_writer_t
+{
+    const gp_mesh_t * mesh;
+    gp_uint32_t vertex_offset;
+    gp_uint32_t vertex_count;
+    gp_uint32_t index_offset;
+    gp_uint32_t index_count;
+} gp_mesh_writer_t;
+
+typedef gp_result_t (*gp_branch_callback_t)(const gp_render_batch_t * _batch, void * _render_context, const void * _payload);
+typedef gp_result_t (*gp_geometry_callback_t)(gp_mesh_writer_t * _writer, const void * _payload);
+
+typedef struct gp_canvas_memory_stats_t
+{
+    gp_size_t render_order_count;
+    gp_size_t render_order_capacity;
+    gp_size_t recording_used;
+    gp_size_t recording_capacity;
+    gp_size_t recording_peak;
+    gp_size_t scratch_used;
+    gp_size_t scratch_capacity;
+    gp_size_t scratch_peak;
+} gp_canvas_memory_stats_t;
+
 typedef void * (*gp_malloc_t)(gp_size_t _size, void * _ud);
 typedef void * (*gp_realloc_t)(void * _ptr, gp_size_t _size, void * _ud);
 typedef void (*gp_free_t)(void * _ptr, void * _ud);
@@ -135,6 +160,7 @@ typedef void (*gp_free_t)(void * _ptr, void * _ud);
 gp_result_t gp_canvas_create( gp_canvas_t ** _canvas, gp_malloc_t _malloc, gp_realloc_t _realloc, gp_free_t _free, void * _ud );
 gp_result_t gp_canvas_destroy( gp_canvas_t * _canvas );
 gp_result_t gp_canvas_clear( gp_canvas_t * _canvas );
+gp_result_t gp_canvas_get_memory_stats( const gp_canvas_t * _canvas, gp_canvas_memory_stats_t * _stats );
 
 /*************************************************************************
 *
@@ -211,6 +237,10 @@ gp_result_t gp_end_fill( gp_canvas_t * _canvas );
 gp_result_t gp_push_state( gp_canvas_t * _canvas );
 gp_result_t gp_pop_state( gp_canvas_t * _canvas );
 
+gp_result_t gp_inject_branch( gp_canvas_t * _canvas, gp_branch_callback_t _callback, const void * _payload, gp_size_t _payload_size );
+gp_result_t gp_inject_geometry( gp_canvas_t * _canvas, gp_uint32_t _vertex_count, gp_uint32_t _index_count,
+    gp_geometry_callback_t _callback, const void * _payload, gp_size_t _payload_size );
+
 /*************************************************************************
 *
 *************************************************************************/
@@ -259,7 +289,7 @@ gp_result_t gp_star( gp_canvas_t * _canvas, float _x, float _y, float _inner_rad
 *
 *************************************************************************/
 
-typedef struct gp_mesh_t
+struct gp_mesh_t
 {
     gp_uint32_t vertex_count;
     gp_uint32_t index_count;
@@ -286,7 +316,14 @@ typedef struct gp_mesh_t
     void * batches_buffer;
     gp_size_t batches_offset;
     gp_size_t batches_stride;
-} gp_mesh_t;
+
+    void * render_context;
+};
+
+gp_result_t gp_mesh_writer_position( gp_mesh_writer_t * _writer, gp_uint32_t _vertex, float _x, float _y );
+gp_result_t gp_mesh_writer_color( gp_mesh_writer_t * _writer, gp_uint32_t _vertex, gp_argb_t _color );
+gp_result_t gp_mesh_writer_uv( gp_mesh_writer_t * _writer, gp_uint32_t _vertex, float _u, float _v );
+gp_result_t gp_mesh_writer_index( gp_mesh_writer_t * _writer, gp_uint32_t _index, gp_uint32_t _vertex );
 
 gp_result_t gp_calculate_mesh_size( const gp_canvas_t * _canvas, gp_mesh_t * _mesh );
 gp_result_t gp_render( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh );

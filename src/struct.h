@@ -168,17 +168,38 @@ typedef enum gp_render_order_type_e
     GP_RENDER_ORDER_ROUNDED_RECT,
     GP_RENDER_ORDER_ELLIPSE,
     GP_RENDER_ORDER_ELLIPSE_ARC,
-    GP_RENDER_ORDER_COMPOUND_FILL
+    GP_RENDER_ORDER_COMPOUND_FILL,
+    GP_RENDER_ORDER_BRANCH_INJECTION,
+    GP_RENDER_ORDER_GEOMETRY_INJECTION
 } gp_render_order_type_e;
+//////////////////////////////////////////////////////////////////////////
+typedef struct gp_branch_injection_t
+{
+    gp_branch_callback_t callback;
+    const void * payload;
+} gp_branch_injection_t;
+//////////////////////////////////////////////////////////////////////////
+typedef struct gp_geometry_injection_t
+{
+    gp_uint32_t vertex_count;
+    gp_uint32_t index_count;
+    gp_geometry_callback_t callback;
+    const void * payload;
+} gp_geometry_injection_t;
 //////////////////////////////////////////////////////////////////////////
 typedef struct gp_render_order_t
 {
     gp_render_order_type_e type;
     void * primitive;
-
-    struct gp_render_order_t * next;
-    struct gp_render_order_t * prev;
 } gp_render_order_t;
+//////////////////////////////////////////////////////////////////////////
+typedef struct gp_arena_t
+{
+    gp_uint8_t * memory;
+    gp_size_t capacity;
+    gp_size_t offset;
+    gp_size_t peak;
+} gp_arena_t;
 //////////////////////////////////////////////////////////////////////////
 typedef struct gp_canvas_t
 {
@@ -196,7 +217,11 @@ typedef struct gp_canvas_t
     gp_compound_fill_t * compound_fills;
     gp_compound_fill_t * active_compound_fill;
     gp_bool_t compound_previous_fill;
-    gp_render_order_t * render_order;
+    gp_render_order_t * render_orders;
+    gp_uint32_t render_order_count;
+
+    gp_arena_t recording_arena;
+    gp_arena_t scratch_arena;
 
     gp_malloc_t malloc;
     gp_realloc_t realloc;
