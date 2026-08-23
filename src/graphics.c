@@ -53,7 +53,7 @@ gp_uint8_t gp_get_default_rect_quality( void )
 //////////////////////////////////////////////////////////////////////////
 static void __canvas_default_state_setup( gp_canvas_t * _canvas )
 {
-    _canvas->state_cook[0].fill = GP_FALSE;
+    _canvas->state_cook[0].flags = 0;
     _canvas->state_cook[0].line_cap = GP_LINE_CAP_BUTT;
     _canvas->state_cook[0].line_join = GP_LINE_JOIN_MITER;
     _canvas->state_cook[0].fill_rule = GP_FILL_RULE_NON_ZERO;
@@ -83,10 +83,34 @@ static void __canvas_default_state_setup( gp_canvas_t * _canvas )
     _canvas->state_cook[0].outline_color.g = 1.f;
     _canvas->state_cook[0].outline_color.b = 1.f;
     _canvas->state_cook[0].outline_color.a = 1.f;
+    _canvas->state_cook[0].fill.type = GP_FILL_TYPE_SOLID;
+    _canvas->state_cook[0].fill.spread = GP_FILL_SPREAD_CLAMP;
+    _canvas->state_cook[0].fill.from_x = 0.f;
+    _canvas->state_cook[0].fill.from_y = 0.f;
+    _canvas->state_cook[0].fill.to_x = 0.f;
+    _canvas->state_cook[0].fill.to_y = 0.f;
+    _canvas->state_cook[0].fill.color = _canvas->state_cook[0].color;
+    _canvas->state_cook[0].fill.stop_count = 0;
+    _canvas->state_cook[0].border_width = 0.f;
+    _canvas->state_cook[0].border_color.r = 0.f;
+    _canvas->state_cook[0].border_color.g = 0.f;
+    _canvas->state_cook[0].border_color.b = 0.f;
+    _canvas->state_cook[0].border_color.a = 0.f;
+    _canvas->state_cook[0].feather = 0.f;
+    _canvas->state_cook[0].shadow.offset_x = 0.f;
+    _canvas->state_cook[0].shadow.offset_y = 0.f;
+    _canvas->state_cook[0].shadow.spread = 0.f;
+    _canvas->state_cook[0].shadow.blur = 0.f;
+    _canvas->state_cook[0].shadow.color.r = 0.f;
+    _canvas->state_cook[0].shadow.color.g = 0.f;
+    _canvas->state_cook[0].shadow.color.b = 0.f;
+    _canvas->state_cook[0].shadow.color.a = 0.f;
     _canvas->state_cook[0].uv_ou = 0.f;
     _canvas->state_cook[0].uv_ov = 0.f;
     _canvas->state_cook[0].uv_su = 1.f;
     _canvas->state_cook[0].uv_sv = 1.f;
+    _canvas->state_cook[0].uv_u = 0.f;
+    _canvas->state_cook[0].uv_v = 0.f;
     _canvas->state_cook[0].curve_quality = gp_get_default_curve_quality();
     _canvas->state_cook[0].ellipse_quality = gp_get_default_ellipse_quality();
     _canvas->state_cook[0].rect_quality = gp_get_default_rect_quality();
@@ -156,6 +180,8 @@ gp_result_t gp_canvas_create( gp_canvas_t ** _canvas, gp_malloc_t _malloc, gp_re
     canvas->compound_fills = GP_NULLPTR;
     canvas->active_compound_fill = GP_NULLPTR;
     canvas->compound_previous_fill = GP_FALSE;
+    canvas->active_rects = GP_NULLPTR;
+    canvas->active_quads = GP_NULLPTR;
 
     __canvas_default_state_setup( canvas );
 
@@ -204,6 +230,8 @@ gp_result_t gp_canvas_clear( gp_canvas_t * _canvas )
     _canvas->state_invalidate = GP_TRUE;
     _canvas->active_compound_fill = GP_NULLPTR;
     _canvas->compound_previous_fill = GP_FALSE;
+    _canvas->active_rects = GP_NULLPTR;
+    _canvas->active_quads = GP_NULLPTR;
 
     __canvas_default_state_setup( _canvas );
 
@@ -712,6 +740,10 @@ gp_result_t gp_set_color( gp_canvas_t * _canvas, float _r, float _g, float _b, f
     state->color.g = _g;
     state->color.b = _b;
     state->color.a = _a;
+    if( state->fill.type == GP_FILL_TYPE_SOLID )
+    {
+        state->fill.color = state->color;
+    }
 
     _canvas->state_invalidate = GP_TRUE;
 
@@ -875,13 +907,13 @@ gp_result_t gp_begin_fill( gp_canvas_t * _canvas )
     gp_state_t * state = GP_GET_STATE( _canvas );
 
 #if defined(GP_DEBUG)
-    if( state->fill == GP_TRUE )
+    if( (state->flags & GP_STATE_FLAG_FILL) != 0 )
     {
         return GP_FAILURE;
     }
 #endif
 
-    state->fill = GP_TRUE;
+    state->flags |= GP_STATE_FLAG_FILL;
 
     _canvas->state_invalidate = GP_TRUE;
 
@@ -893,13 +925,13 @@ gp_result_t gp_end_fill( gp_canvas_t * _canvas )
     gp_state_t * state = GP_GET_STATE( _canvas );
 
 #if defined(GP_DEBUG)
-    if( state->fill == GP_FALSE )
+    if( (state->flags & GP_STATE_FLAG_FILL) == 0 )
     {
         return GP_FAILURE;
     }
 #endif
 
-    state->fill = GP_FALSE;
+    state->flags &= ~GP_STATE_FLAG_FILL;
 
     _canvas->state_invalidate = GP_TRUE;
 
@@ -937,35 +969,6 @@ gp_result_t gp_pop_state( gp_canvas_t * _canvas )
 
     return GP_SUCCESSFUL;
 }
-//////////////////////////////////////////////////////////////////////////
-static const gp_state_t * __copy_state( gp_canvas_t * _canvas )
-{
-    if( _canvas->state_invalidate == GP_FALSE )
-    {
-        const gp_state_t * back = GP_LIST_BACK( _canvas->states );
-
-        return back;
-    }
-
-    gp_state_t * s = GP_NEW( _canvas, gp_state_t );
-    if( s == GP_NULLPTR )
-    {
-        return GP_NULLPTR;
-    }
-
-    s->next = GP_NULLPTR;
-    s->prev = GP_NULLPTR;
-
-    *s = *GP_GET_STATE( _canvas );
-
-    GP_LIST_PUSHBACK( gp_state_t, _canvas->states, s );
-
-    _canvas->state_invalidate = GP_FALSE;
-
-    return s;
-}
-//////////////////////////////////////////////////////////////////////////
-#define GP_COPY_STATE(canvas) __copy_state( canvas )
 //////////////////////////////////////////////////////////////////////////
 static gp_result_t __push_render_order( gp_canvas_t * _canvas, gp_render_order_type_e _type, void * _primitive )
 {
@@ -1026,8 +1029,7 @@ gp_result_t gp_inject_branch( gp_canvas_t * _canvas, gp_branch_callback_t _callb
     return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
-gp_result_t gp_inject_geometry( gp_canvas_t * _canvas, gp_uint32_t _vertex_count, gp_uint32_t _index_count,
-    gp_geometry_callback_t _callback, const void * _payload, gp_size_t _payload_size )
+gp_result_t gp_inject_geometry( gp_canvas_t * _canvas, gp_uint32_t _vertex_count, gp_uint32_t _index_count, gp_geometry_callback_t _callback, const void * _payload, gp_size_t _payload_size )
 {
     if( _canvas == GP_NULLPTR || _callback == GP_NULLPTR ||
         _vertex_count == 0 || _index_count == 0 || _index_count % 3U != 0U )
@@ -1123,7 +1125,7 @@ gp_result_t gp_draw_path( gp_canvas_t * _canvas, const gp_path_t * _path )
         {
             all_closed = GP_FALSE;
         }
-        if( canvas_state->fill == GP_FALSE && contour->closed == GP_FALSE &&
+        if( (canvas_state->flags & GP_STATE_FLAG_FILL) == 0 && contour->closed == GP_FALSE &&
             (canvas_state->trim_from > canvas_state->trim_to || canvas_state->stroke_alignment != GP_STROKE_ALIGNMENT_CENTER) )
         {
             return GP_FAILURE;
@@ -1133,7 +1135,7 @@ gp_result_t gp_draw_path( gp_canvas_t * _canvas, const gp_path_t * _path )
     }
 
 #if defined(GP_DEBUG)
-    if( canvas_state->fill == GP_FALSE && canvas_state->trim_from > canvas_state->trim_to &&
+    if( (canvas_state->flags & GP_STATE_FLAG_FILL) == 0 && canvas_state->trim_from > canvas_state->trim_to &&
         (contour_count != 1 || all_closed == GP_FALSE) )
     {
         return GP_FAILURE;
@@ -1146,7 +1148,7 @@ gp_result_t gp_draw_path( gp_canvas_t * _canvas, const gp_path_t * _path )
     }
 
     gp_compound_fill_t * compound = GP_NULLPTR;
-    if( canvas_state->fill == GP_TRUE && contour_count > 1 )
+    if( (canvas_state->flags & GP_STATE_FLAG_FILL) != 0 && contour_count > 1 )
     {
         compound = GP_NEW( _canvas, gp_compound_fill_t );
         if( compound == GP_NULLPTR )
@@ -1275,7 +1277,7 @@ gp_result_t gp_draw_path( gp_canvas_t * _canvas, const gp_path_t * _path )
 gp_result_t gp_rect( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height )
 {
     const gp_state_t * state = GP_GET_STATE( _canvas );
-    if( state->fill == GP_FALSE && state->dash_count != 0 )
+    if( (state->flags & GP_STATE_FLAG_FILL) == 0 && state->dash_count != 0 )
     {
         float points[4][2] = {
             {_x, _y},
@@ -1284,7 +1286,8 @@ gp_result_t gp_rect( gp_canvas_t * _canvas, float _x, float _y, float _width, fl
             {_x, _y + _height}
         };
 
-        return gp_polyline( _canvas, points, 4, sizeof( points[0] ), GP_NULLPTR, GP_TRUE );
+        gp_result_t result = gp_polyline( _canvas, points, 4, sizeof( points[0] ), GP_NULLPTR, GP_TRUE );
+        return result;
     }
 
     gp_rect_t * r = GP_NEW( _canvas, gp_rect_t );
@@ -1316,9 +1319,10 @@ gp_result_t gp_rect( gp_canvas_t * _canvas, float _x, float _y, float _width, fl
 gp_result_t gp_rounded_rect( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height, float _radius )
 {
     const gp_state_t * state = GP_GET_STATE( _canvas );
-    if( state->fill == GP_FALSE && state->dash_count != 0 )
+    if( (state->flags & GP_STATE_FLAG_FILL) == 0 && state->dash_count != 0 )
     {
-        return gp_rounded_rect_varying( _canvas, _x, _y, _width, _height, _radius, _radius, _radius, _radius );
+        gp_result_t result = gp_rounded_rect_varying( _canvas, _x, _y, _width, _height, _radius, _radius, _radius, _radius );
+        return result;
     }
 
     gp_rounded_rect_t * rr = GP_NEW( _canvas, gp_rounded_rect_t );
@@ -1358,9 +1362,10 @@ gp_result_t gp_circle( gp_canvas_t * _canvas, float _x, float _y, float _radius 
 gp_result_t gp_ellipse( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height )
 {
     const gp_state_t * state = GP_GET_STATE( _canvas );
-    if( state->fill == GP_FALSE )
+    if( (state->flags & GP_STATE_FLAG_FILL) == 0 )
     {
-        return gp_ellipse_arc( _canvas, _x, _y, _width, _height, 0.f, gp_constant_two_pi );
+        gp_result_t result = gp_ellipse_arc( _canvas, _x, _y, _width, _height, 0.f, gp_constant_two_pi );
+        return result;
     }
 
     gp_ellipse_t * e = GP_NEW( _canvas, gp_ellipse_t );
@@ -1412,7 +1417,7 @@ static gp_result_t gp_ellipse_arc_internal( gp_canvas_t * _canvas, float _x, flo
     }
 
     const gp_state_t * state = GP_GET_STATE( _canvas );
-    if( state->fill == GP_TRUE )
+    if( (state->flags & GP_STATE_FLAG_FILL) != 0 )
     {
         gp_ellipse_arc_t * a = GP_NEW( _canvas, gp_ellipse_arc_t );
         if( a == GP_NULLPTR )
@@ -1473,7 +1478,7 @@ gp_result_t gp_rounded_ring( gp_canvas_t * _canvas, float _x, float _y, float _i
     GP_CALL( gp_push_state, (_canvas) );
 
     gp_state_t * state = GP_GET_STATE( _canvas );
-    if( state->fill == GP_FALSE )
+    if( (state->flags & GP_STATE_FLAG_FILL) == 0 )
     {
         GP_CALL( gp_begin_fill, (_canvas) );
     }
@@ -1733,7 +1738,8 @@ static gp_render_batch_t * __mesh_get_batch( const gp_mesh_t * _mesh, gp_uint32_
         return GP_NULLPTR;
     }
 
-    return (gp_render_batch_t *)((gp_uint8_t *)_mesh->batches_buffer + _mesh->batches_offset + _mesh->batches_stride * _index);
+    gp_render_batch_t * batch = (gp_render_batch_t *)((gp_uint8_t *)_mesh->batches_buffer + _mesh->batches_offset + _mesh->batches_stride * _index);
+    return batch;
 }
 //////////////////////////////////////////////////////////////////////////
 static gp_result_t __finalize_batch( const gp_mesh_t * _mesh, gp_uint32_t _batch_index,
@@ -1778,32 +1784,38 @@ static gp_result_t __render_order( const gp_render_order_t * _order, const gp_me
     case GP_RENDER_ORDER_LINE:
     {
         const gp_line_t * line = (const gp_line_t *)_order->primitive;
-        return gp_render_line( line, line->state, _mesh, _vertex_iterator, _index_iterator );
+        gp_result_t result = gp_render_line( line, line->state, _mesh, _vertex_iterator, _index_iterator );
+        return result;
     }
     case GP_RENDER_ORDER_RECT:
     {
         const gp_rect_t * rect = (const gp_rect_t *)_order->primitive;
-        return gp_render_rect( rect, rect->state, _mesh, _vertex_iterator, _index_iterator );
+        gp_result_t result = gp_render_rect( rect, rect->state, _mesh, _vertex_iterator, _index_iterator );
+        return result;
     }
     case GP_RENDER_ORDER_ROUNDED_RECT:
     {
         const gp_rounded_rect_t * rounded_rect = (const gp_rounded_rect_t *)_order->primitive;
-        return gp_render_rounded_rect( rounded_rect, rounded_rect->state, _mesh, _vertex_iterator, _index_iterator );
+        gp_result_t result = gp_render_rounded_rect( rounded_rect, rounded_rect->state, _mesh, _vertex_iterator, _index_iterator );
+        return result;
     }
     case GP_RENDER_ORDER_ELLIPSE:
     {
         const gp_ellipse_t * ellipse = (const gp_ellipse_t *)_order->primitive;
-        return gp_render_ellipse( ellipse, ellipse->state, _mesh, _vertex_iterator, _index_iterator );
+        gp_result_t result = gp_render_ellipse( ellipse, ellipse->state, _mesh, _vertex_iterator, _index_iterator );
+        return result;
     }
     case GP_RENDER_ORDER_ELLIPSE_ARC:
     {
         const gp_ellipse_arc_t * ellipse_arc = (const gp_ellipse_arc_t *)_order->primitive;
-        return gp_render_ellipse_arc( ellipse_arc, ellipse_arc->state, _mesh, _vertex_iterator, _index_iterator );
+        gp_result_t result = gp_render_ellipse_arc( ellipse_arc, ellipse_arc->state, _mesh, _vertex_iterator, _index_iterator );
+        return result;
     }
     case GP_RENDER_ORDER_COMPOUND_FILL:
     {
         const gp_compound_fill_t * compound = (const gp_compound_fill_t *)_order->primitive;
-        return gp_render_compound_fill( compound, _mesh, _vertex_iterator, _index_iterator );
+        gp_result_t result = gp_render_compound_fill( compound, _mesh, _vertex_iterator, _index_iterator );
+        return result;
     }
     case GP_RENDER_ORDER_BRANCH_INJECTION:
     {

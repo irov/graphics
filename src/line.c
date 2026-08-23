@@ -55,7 +55,8 @@ static void __line_interpolate_cooked_point( gp_cooked_point_t * const _point, c
 //////////////////////////////////////////////////////////////////////////
 static float __line_lerp( float _from, float _to, float _t )
 {
-    return _from * (1.f - _t) + _to * _t;
+    float value = _from * (1.f - _t) + _to * _t;
+    return value;
 }
 //////////////////////////////////////////////////////////////////////////
 static void __line_lerp_color( gp_color_t * const _color, const gp_color_t * _from, const gp_color_t * _to, float _t )
@@ -71,12 +72,14 @@ static float __line_distance( const gp_vec2f_t * _from, const gp_vec2f_t * _to )
     float dx = _to->x - _from->x;
     float dy = _to->y - _from->y;
 
-    return GP_MATH_SQRTF( dx * dx + dy * dy );
+    float distance = GP_MATH_SQRTF( dx * dx + dy * dy );
+    return distance;
 }
 //////////////////////////////////////////////////////////////////////////
 static gp_bool_t __line_same_point( const gp_vec2f_t * _from, const gp_vec2f_t * _to )
 {
-    return GP_EQUAL_F( _from->x - _to->x, 0.00001f ) && GP_EQUAL_F( _from->y - _to->y, 0.00001f );
+    gp_bool_t equal = GP_EQUAL_F( _from->x - _to->x, 0.00001f ) && GP_EQUAL_F( _from->y - _to->y, 0.00001f );
+    return equal;
 }
 //////////////////////////////////////////////////////////////////////////
 static void __line_direction( gp_vec2f_t * const _direction, const gp_vec2f_t * _from, const gp_vec2f_t * _to )
@@ -239,7 +242,12 @@ static gp_bool_t __line_tangents_join( const gp_vec2f_t * _incoming, const gp_ve
     float dot = _incoming->x * _outgoing->x + _incoming->y * _outgoing->y;
     float angle = GP_MATH_ATAN2F( cross, dot );
 
-    return GP_EQUAL_F( angle, 0.00001f ) == GP_TRUE ? GP_FALSE : GP_TRUE;
+    if( GP_EQUAL_F( angle, 0.00001f ) == GP_TRUE )
+    {
+        return GP_FALSE;
+    }
+
+    return GP_TRUE;
 }
 //////////////////////////////////////////////////////////////////////////
 static gp_bool_t __line_point_join( const gp_line_t * _line, const gp_line_point_t * _point, const gp_line_edge_t * _outgoing_edge )
@@ -272,7 +280,8 @@ static gp_bool_t __line_point_join( const gp_line_t * _line, const gp_line_point
     gp_vec2f_t outgoing;
     __line_edge_tangent( &outgoing, _point, _point->next, _outgoing_edge, GP_FALSE );
 
-    return __line_tangents_join( &incoming, &outgoing );
+    gp_bool_t join = __line_tangents_join( &incoming, &outgoing );
+    return join;
 }
 //////////////////////////////////////////////////////////////////////////
 static gp_bool_t __line_last_point_join( const gp_line_t * _line, const gp_line_point_t * _point )
@@ -293,14 +302,16 @@ static gp_bool_t __line_last_point_join( const gp_line_t * _line, const gp_line_
         gp_vec2f_t outgoing;
         __line_edge_tangent( &outgoing, first_point, first_point->next, outgoing_edge, GP_FALSE );
 
-        return __line_tangents_join( &incoming, &outgoing );
+        gp_bool_t join = __line_tangents_join( &incoming, &outgoing );
+        return join;
     }
 
     gp_vec2f_t outgoing;
     outgoing.x = first_point->p.x - _point->p.x;
     outgoing.y = first_point->p.y - _point->p.y;
 
-    return __line_tangents_join( &incoming, &outgoing );
+    gp_bool_t join = __line_tangents_join( &incoming, &outgoing );
+    return join;
 }
 //////////////////////////////////////////////////////////////////////////
 static void __line_make_point( gp_cooked_point_t * const _point, const gp_line_point_t * _from, const gp_line_point_t * _to, const gp_line_edge_t * _edge, float _t )
@@ -422,7 +433,7 @@ static gp_result_t __line_cook_path( const gp_line_t * _line, gp_cooked_path_t *
     last.join = __line_last_point_join( _line, from );
     GP_CALL( __line_push_point, (_line, _path, &last) );
 
-    if( _line->closed == GP_TRUE && _line->state->fill == GP_FALSE && _path->count >= 2 )
+    if( _line->closed == GP_TRUE && (_line->state->flags & GP_STATE_FLAG_FILL) == 0 && _path->count >= 2 )
     {
         if( __line_same_point( &_path->points[0].position, &_path->points[_path->count - 1].position ) == GP_TRUE )
         {
@@ -874,7 +885,12 @@ static gp_uint32_t __line_round_sector_segment_count( const gp_state_t * _state,
         ++segment_count;
     }
 
-    return segment_count == 0 ? 1 : segment_count;
+    if( segment_count == 0 )
+    {
+        return 1;
+    }
+
+    return segment_count;
 }
 //////////////////////////////////////////////////////////////////////////
 static void __line_make_cap_sector( const gp_cooked_span_t * _span, gp_bool_t _start, const gp_state_t * _state, gp_round_sector_t * const _sector )
@@ -956,7 +972,12 @@ static gp_uint32_t __line_point_section_count( const gp_cooked_span_t * _span, g
     }
 
     gp_round_sector_t sector;
-    return __line_make_join_sector( _span, _index, _state, &sector ) == GP_TRUE ? 2 : 1;
+    if( __line_make_join_sector( _span, _index, _state, &sector ) == GP_TRUE )
+    {
+        return 2;
+    }
+
+    return 1;
 }
 //////////////////////////////////////////////////////////////////////////
 static gp_uint32_t __line_body_section_count( const gp_cooked_span_t * _span, const gp_state_t * _state )
@@ -1068,7 +1089,7 @@ static gp_result_t __line_calculate_size( const gp_line_t * _line, gp_uint32_t *
     gp_cooked_path_t path;
     GP_CALL( __line_cook_path, (_line, &path) );
 
-    if( _line->state->fill == GP_TRUE )
+    if( (_line->state->flags & GP_STATE_FLAG_FILL) != 0 )
     {
         if( path.count >= 3 )
         {
@@ -1120,7 +1141,8 @@ gp_result_t gp_calculate_mesh_line_size( const gp_canvas_t * _canvas, gp_mesh_t 
 //////////////////////////////////////////////////////////////////////////
 static float __line_triangle_area( const gp_vec2f_t * _a, const gp_vec2f_t * _b, const gp_vec2f_t * _c )
 {
-    return (_b->x - _a->x) * (_c->y - _a->y) - (_b->y - _a->y) * (_c->x - _a->x);
+    float area = (_b->x - _a->x) * (_c->y - _a->y) - (_b->y - _a->y) * (_c->x - _a->x);
+    return area;
 }
 //////////////////////////////////////////////////////////////////////////
 static gp_bool_t __line_point_in_triangle( const gp_vec2f_t * _point, const gp_vec2f_t * _a, const gp_vec2f_t * _b, const gp_vec2f_t * _c )
@@ -1131,7 +1153,12 @@ static gp_bool_t __line_point_in_triangle( const gp_vec2f_t * _point, const gp_v
     gp_bool_t negative = c0 < -0.00001f || c1 < -0.00001f || c2 < -0.00001f ? GP_TRUE : GP_FALSE;
     gp_bool_t positive = c0 > 0.00001f || c1 > 0.00001f || c2 > 0.00001f ? GP_TRUE : GP_FALSE;
 
-    return negative == GP_TRUE && positive == GP_TRUE ? GP_FALSE : GP_TRUE;
+    if( negative == GP_TRUE && positive == GP_TRUE )
+    {
+        return GP_FALSE;
+    }
+
+    return GP_TRUE;
 }
 //////////////////////////////////////////////////////////////////////////
 static gp_result_t __line_render_fill_indices( const gp_line_t * _line, const gp_cooked_path_t * _path, const gp_mesh_t * _mesh, gp_uint32_t _vertex_begin, gp_uint32_t * _index_iterator )
@@ -1265,7 +1292,12 @@ static float __line_point_width( const gp_cooked_point_t * _point, float _additi
 {
     float width = _point->half_width + _addition - _subtraction;
 
-    return width > 0.f ? width : 0.f;
+    if( width < 0.f )
+    {
+        return 0.f;
+    }
+
+    return width;
 }
 //////////////////////////////////////////////////////////////////////////
 static void __line_make_offset_line( gp_linef_t * const _line, const gp_vec2f_t * _from, const gp_vec2f_t * _to, const gp_vec2f_t * _perpendicular, float _from_width, float _to_width, float _side )
@@ -1635,8 +1667,8 @@ static gp_result_t __line_render_round_sector( const gp_cooked_point_t * _point,
             inner_radius = 0.f;
         }
 
-        return __line_render_soft_sector( _mesh, _state, _point, _cap_tangent, _source_total_length, _point->half_width,
-            inner_radius, _sector, color, _vertex_iterator, _index_iterator );
+        gp_result_t result = __line_render_soft_sector( _mesh, _state, _point, _cap_tangent, _source_total_length, _point->half_width, inner_radius, _sector, color, _vertex_iterator, _index_iterator );
+        return result;
     }
 
     if( _state->outline_width > 0.f )
@@ -2141,7 +2173,7 @@ gp_result_t gp_render_line( const gp_line_t * _line, const gp_state_t * _state, 
 
     gp_cooked_path_t path;
     GP_CALL( __line_cook_path, (_line, &path) );
-    if( _state->fill == GP_TRUE )
+    if( (_state->flags & GP_STATE_FLAG_FILL) != 0 )
     {
         GP_CALL( __line_render_fill, (_line, &path, _state, _mesh, _vertex_iterator, _index_iterator) );
         __line_destroy_path( _line, &path );

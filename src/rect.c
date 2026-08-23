@@ -11,7 +11,7 @@ static gp_result_t __calculate_mesh_rect_size( const gp_canvas_t * _canvas, gp_u
 
     for( const gp_rect_t * r = _canvas->rects; r != GP_NULLPTR; r = r->next )
     {
-        if( r->state->fill == GP_FALSE )
+        if( (r->state->flags & GP_STATE_FLAG_FILL) == 0 )
         {
             if( r->state->penumbra > 0.f )
             {
@@ -100,7 +100,7 @@ gp_result_t gp_render_rect( const gp_rect_t * _rect, const gp_state_t * _state, 
     float u_offset = -(p0.x - half_thickness);
     float v_offset = -(p0.y - half_thickness);
 
-    if( r->state->fill == GP_FALSE )
+    if( (r->state->flags & GP_STATE_FLAG_FILL) == 0 )
     {
         if( penumbra > 0.f )
         {

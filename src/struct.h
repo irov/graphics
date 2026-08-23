@@ -3,12 +3,55 @@
 
 #include "graphics/config.h"
 
+#define GP_FILL_STOP_CAPACITY 32U
+
 //////////////////////////////////////////////////////////////////////////
 typedef struct gp_vec2f_t
 {
     float x;
     float y;
 } gp_vec2f_t;
+//////////////////////////////////////////////////////////////////////////
+typedef enum gp_fill_type_e
+{
+    GP_FILL_TYPE_SOLID,
+    GP_FILL_TYPE_LINEAR,
+    GP_FILL_TYPE_RADIAL,
+    GP_FILL_TYPE_CONIC
+} gp_fill_type_e;
+//////////////////////////////////////////////////////////////////////////
+typedef struct gp_fill_stop_t
+{
+    float offset;
+    gp_color_t color;
+} gp_fill_stop_t;
+//////////////////////////////////////////////////////////////////////////
+typedef struct gp_fill_t
+{
+    gp_fill_type_e type;
+    gp_fill_spread_t spread;
+    float from_x;
+    float from_y;
+    float to_x;
+    float to_y;
+    gp_color_t color;
+    gp_fill_stop_t stops[GP_FILL_STOP_CAPACITY];
+    gp_uint32_t stop_count;
+} gp_fill_t;
+//////////////////////////////////////////////////////////////////////////
+typedef struct gp_shadow_t
+{
+    float offset_x;
+    float offset_y;
+    float spread;
+    float blur;
+    gp_color_t color;
+} gp_shadow_t;
+//////////////////////////////////////////////////////////////////////////
+typedef enum gp_state_flag_e
+{
+    GP_STATE_FLAG_FILL = 1U << 0
+} gp_state_flag_e;
 //////////////////////////////////////////////////////////////////////////
 typedef struct gp_linef_t
 {
@@ -19,7 +62,7 @@ typedef struct gp_linef_t
 //////////////////////////////////////////////////////////////////////////
 typedef struct gp_state_t
 {
-    gp_bool_t fill;
+    gp_uint32_t flags;
 
     gp_line_cap_t line_cap;
     gp_line_join_t line_join;
@@ -43,6 +86,11 @@ typedef struct gp_state_t
 
     gp_color_t color;
     gp_color_t outline_color;
+    gp_fill_t fill;
+    float border_width;
+    gp_color_t border_color;
+    float feather;
+    gp_shadow_t shadow;
 
     gp_path_marker_t start_marker;
     gp_path_marker_t end_marker;
@@ -51,6 +99,8 @@ typedef struct gp_state_t
     float uv_ov;
     float uv_su;
     float uv_sv;
+    float uv_u;
+    float uv_v;
 
     gp_uint8_t curve_quality;
     gp_uint8_t ellipse_quality;
@@ -201,6 +251,9 @@ typedef struct gp_arena_t
     gp_size_t peak;
 } gp_arena_t;
 //////////////////////////////////////////////////////////////////////////
+typedef struct gp_rects_payload_t gp_rects_payload_t;
+typedef struct gp_quads_payload_t gp_quads_payload_t;
+//////////////////////////////////////////////////////////////////////////
 typedef struct gp_canvas_t
 {
     gp_state_t state_cook[GP_STATE_STACK_MAX];
@@ -217,6 +270,8 @@ typedef struct gp_canvas_t
     gp_compound_fill_t * compound_fills;
     gp_compound_fill_t * active_compound_fill;
     gp_bool_t compound_previous_fill;
+    gp_rects_payload_t * active_rects;
+    gp_quads_payload_t * active_quads;
     gp_render_order_t * render_orders;
     gp_uint32_t render_order_count;
 

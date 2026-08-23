@@ -13,7 +13,7 @@ static gp_result_t __calculate_mesh_rounded_rect_size( const gp_canvas_t * _canv
     {
         gp_uint8_t rect_quality = r->state->rect_quality;
 
-        if( r->state->fill == GP_FALSE )
+        if( (r->state->flags & GP_STATE_FLAG_FILL) == 0 )
         {
             if( r->state->penumbra > 0.f )
             {
@@ -161,7 +161,7 @@ gp_result_t gp_render_rounded_rect( const gp_rounded_rect_t * _rounded_rect, con
 
     gp_uint32_t base_vertex_iterator = vertex_iterator;
 
-    if( rr->state->fill == GP_FALSE )
+    if( (rr->state->flags & GP_STATE_FLAG_FILL) == 0 )
     {
         if( penumbra > 0.f )
         {

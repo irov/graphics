@@ -33,7 +33,8 @@ typedef struct gp_compound_data_t
 //////////////////////////////////////////////////////////////////////////
 static float __compound_lerp( float _a, float _b, float _t )
 {
-    return _a * (1.f - _t) + _b * _t;
+    float value = _a * (1.f - _t) + _b * _t;
+    return value;
 }
 //////////////////////////////////////////////////////////////////////////
 static void __compound_lerp_color( gp_color_t * _result, const gp_color_t * _a, const gp_color_t * _b, float _t )
@@ -366,7 +367,9 @@ static const gp_vec2f_t * __compound_get_position( const gp_compound_data_t * _d
         const gp_compound_contour_t * contour = _data->contours + index;
         if( _global_index < offset + contour->count )
         {
-            return &contour->points[_global_index - offset].position;
+            gp_uint32_t point_index = _global_index - offset;
+            const gp_vec2f_t * position = &contour->points[point_index].position;
+            return position;
         }
         offset += contour->count;
     }
@@ -461,12 +464,14 @@ static gp_result_t __compound_make_order( const gp_compound_data_t * _data, gp_u
 //////////////////////////////////////////////////////////////////////////
 static float __compound_triangle_area( const gp_vec2f_t * _a, const gp_vec2f_t * _b, const gp_vec2f_t * _c )
 {
-    return (_b->x - _a->x) * (_c->y - _a->y) - (_b->y - _a->y) * (_c->x - _a->x);
+    float cross = (_b->x - _a->x) * (_c->y - _a->y) - (_b->y - _a->y) * (_c->x - _a->x);
+    return cross;
 }
 //////////////////////////////////////////////////////////////////////////
 static gp_bool_t __compound_same_point( const gp_vec2f_t * _a, const gp_vec2f_t * _b )
 {
-    return GP_EQUAL_F( _a->x - _b->x, 0.00001f ) && GP_EQUAL_F( _a->y - _b->y, 0.00001f );
+    gp_bool_t equal = GP_EQUAL_F( _a->x - _b->x, 0.00001f ) && GP_EQUAL_F( _a->y - _b->y, 0.00001f );
+    return equal;
 }
 //////////////////////////////////////////////////////////////////////////
 static gp_bool_t __compound_point_in_triangle( const gp_vec2f_t * _point, const gp_vec2f_t * _a, const gp_vec2f_t * _b, const gp_vec2f_t * _c )
@@ -482,7 +487,12 @@ static gp_bool_t __compound_point_in_triangle( const gp_vec2f_t * _point, const 
     gp_bool_t negative = c0 < -0.00001f || c1 < -0.00001f || c2 < -0.00001f ? GP_TRUE : GP_FALSE;
     gp_bool_t positive = c0 > 0.00001f || c1 > 0.00001f || c2 > 0.00001f ? GP_TRUE : GP_FALSE;
 
-    return negative == GP_TRUE && positive == GP_TRUE ? GP_FALSE : GP_TRUE;
+    if( negative == GP_TRUE && positive == GP_TRUE )
+    {
+        return GP_FALSE;
+    }
+
+    return GP_TRUE;
 }
 //////////////////////////////////////////////////////////////////////////
 static float __compound_order_area( const gp_compound_data_t * _data, const gp_uint32_t * _order, gp_uint32_t _count )

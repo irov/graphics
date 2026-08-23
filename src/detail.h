@@ -20,6 +20,7 @@
 #define GP_EQUAL_F(f, eps) (((f) >= -(eps)) && ((f) <= (eps)))
 
 #define GP_GET_STATE(c) (c->state_cook + c->state_stack)
+#define GP_COPY_STATE(c) gp_canvas_copy_state(c)
 
 static const float gp_constant_pi = 3.1415926535897932384626433832795f;
 static const float gp_constant_half_pi = 1.5707963267948966192313216916398f;
@@ -42,6 +43,7 @@ gp_result_t gp_mesh_push_uv_map( const gp_state_t * _state, const gp_mesh_t * _m
 gp_result_t gp_mesh_get_position( const gp_mesh_t * _mesh, gp_uint32_t _iterator, gp_vec2f_t * const _pos );
 
 void * gp_canvas_recording_allocate( gp_canvas_t * _canvas, gp_size_t _size );
+const gp_state_t * gp_canvas_copy_state( gp_canvas_t * _canvas );
 void * gp_canvas_scratch_reallocate( gp_canvas_t * _canvas, void * _pointer, gp_size_t _size );
 void * gp_canvas_scratch_reallocate_array( gp_canvas_t * _canvas, void * _pointer, gp_size_t _element_size, gp_size_t _count );
 void gp_canvas_scratch_free( gp_canvas_t * _canvas, void * _pointer );

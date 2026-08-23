@@ -60,6 +60,13 @@ typedef enum gp_uv_mode_e
     GP_UV_MODE_PATH
 } gp_uv_mode_e;
 
+typedef enum gp_fill_spread_e
+{
+    GP_FILL_SPREAD_CLAMP,
+    GP_FILL_SPREAD_REPEAT,
+    GP_FILL_SPREAD_MIRROR
+} gp_fill_spread_e;
+
 typedef gp_line_cap_e gp_line_cap_t;
 typedef gp_line_join_e gp_line_join_t;
 typedef gp_fill_rule_e gp_fill_rule_t;
@@ -67,6 +74,7 @@ typedef gp_path_sample_unit_e gp_path_sample_unit_t;
 typedef gp_path_marker_type_e gp_path_marker_type_t;
 typedef gp_stroke_alignment_e gp_stroke_alignment_t;
 typedef gp_uv_mode_e gp_uv_mode_t;
+typedef gp_fill_spread_e gp_fill_spread_t;
 
 typedef struct gp_bounds_t
 {
@@ -237,9 +245,28 @@ gp_result_t gp_end_fill( gp_canvas_t * _canvas );
 gp_result_t gp_push_state( gp_canvas_t * _canvas );
 gp_result_t gp_pop_state( gp_canvas_t * _canvas );
 
+gp_result_t gp_set_fill_color( gp_canvas_t * _canvas, float _r, float _g, float _b, float _a );
+gp_result_t gp_set_fill_linear( gp_canvas_t * _canvas, float _from_x, float _from_y, float _to_x, float _to_y, gp_fill_spread_t _spread );
+gp_result_t gp_set_fill_radial( gp_canvas_t * _canvas, float _center_x, float _center_y, float _radius, gp_fill_spread_t _spread );
+gp_result_t gp_set_fill_conic( gp_canvas_t * _canvas, float _center_x, float _center_y, float _start_angle, gp_fill_spread_t _spread );
+gp_result_t gp_clear_fill_stops( gp_canvas_t * _canvas );
+gp_result_t gp_add_fill_stop( gp_canvas_t * _canvas, float _offset, float _r, float _g, float _b, float _a );
+gp_result_t gp_set_border( gp_canvas_t * _canvas, float _width, float _r, float _g, float _b, float _a );
+gp_result_t gp_set_feather( gp_canvas_t * _canvas, float _feather );
+gp_result_t gp_set_shadow( gp_canvas_t * _canvas, float _offset_x, float _offset_y, float _spread, float _blur, float _r, float _g, float _b, float _a );
+gp_result_t gp_set_uv( gp_canvas_t * _canvas, float _u, float _v );
+gp_result_t gp_get_uv( const gp_canvas_t * _canvas, float * _u, float * _v );
+
+gp_result_t gp_box( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height, float _radius_top_left, float _radius_top_right, float _radius_bottom_right, float _radius_bottom_left );
+gp_result_t gp_begin_rects( gp_canvas_t * _canvas, gp_size_t _rect_count );
+gp_result_t gp_add_rect( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height );
+gp_result_t gp_end_rects( gp_canvas_t * _canvas );
+gp_result_t gp_begin_quads( gp_canvas_t * _canvas, gp_size_t _quad_count );
+gp_result_t gp_add_quad_vertex( gp_canvas_t * _canvas, float _x, float _y );
+gp_result_t gp_end_quads( gp_canvas_t * _canvas );
+
 gp_result_t gp_inject_branch( gp_canvas_t * _canvas, gp_branch_callback_t _callback, const void * _payload, gp_size_t _payload_size );
-gp_result_t gp_inject_geometry( gp_canvas_t * _canvas, gp_uint32_t _vertex_count, gp_uint32_t _index_count,
-    gp_geometry_callback_t _callback, const void * _payload, gp_size_t _payload_size );
+gp_result_t gp_inject_geometry( gp_canvas_t * _canvas, gp_uint32_t _vertex_count, gp_uint32_t _index_count, gp_geometry_callback_t _callback, const void * _payload, gp_size_t _payload_size );
 
 /*************************************************************************
 *
@@ -269,6 +296,8 @@ gp_result_t gp_draw_path( gp_canvas_t * _canvas, const gp_path_t * _path );
 *************************************************************************/
 
 gp_result_t gp_rect( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height );
+gp_result_t gp_quadratic_bezier( gp_canvas_t * _canvas, float _x0, float _y0, float _control_x, float _control_y, float _x1, float _y1 );
+gp_result_t gp_cubic_bezier( gp_canvas_t * _canvas, float _x0, float _y0, float _control0_x, float _control0_y, float _control1_x, float _control1_y, float _x1, float _y1 );
 gp_result_t gp_rounded_rect( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height, float _radius );
 gp_result_t gp_rounded_rect_varying( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height, float _radius_top_left, float _radius_top_right, float _radius_bottom_right, float _radius_bottom_left );
 gp_result_t gp_polyline( gp_canvas_t * _canvas, const void * _points, gp_size_t _point_count, gp_size_t _point_stride, const gp_path_layout_t * _layout, gp_bool_t _closed );

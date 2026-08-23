@@ -80,6 +80,8 @@ set(GRAPHICS_SOURCES
     ${SOURCE_DIR}/struct.h
     ${SOURCE_DIR}/detail.h
     ${SOURCE_DIR}/detail.c
+    ${SOURCE_DIR}/effects.c
+    ${SOURCE_DIR}/effects.h
 )
 
 set(GRAPHICS_HEADERS
@@ -90,6 +92,11 @@ set(GRAPHICS_HEADERS
 include_directories(${PROJECT_NAME} ${INCLUDE_DIR})
 
 add_library(${PROJECT_NAME} STATIC ${GRAPHICS_SOURCES} ${GRAPHICS_HEADERS})
+target_include_directories(${PROJECT_NAME}
+    PUBLIC
+        $<BUILD_INTERFACE:${INCLUDE_DIR}>
+        $<INSTALL_INTERFACE:include>
+)
 
 if(GRAPHICS_INSTALL)
     install(DIRECTORY include

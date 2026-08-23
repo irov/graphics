@@ -1,6 +1,7 @@
 #include "graphics/graphics.h"
 
 #include "detail.h"
+#include "effects.h"
 #include "struct.h"
 
 #include <float.h>
@@ -16,7 +17,8 @@ static void __primitive_get_point( const void * _points, gp_size_t _point_stride
 //////////////////////////////////////////////////////////////////////////
 static float __primitive_length( float _x, float _y )
 {
-    return GP_MATH_SQRTF( _x * _x + _y * _y );
+    float length = GP_MATH_SQRTF( _x * _x + _y * _y );
+    return length;
 }
 //////////////////////////////////////////////////////////////////////////
 typedef struct gp_primitive_style_t
@@ -29,7 +31,12 @@ typedef struct gp_primitive_style_t
 #if defined(GP_DEBUG)
 static gp_bool_t __primitive_finite( float _value )
 {
-    return _value == _value && _value >= -FLT_MAX && _value <= FLT_MAX ? GP_TRUE : GP_FALSE;
+    if( _value != _value || _value < -FLT_MAX || _value > FLT_MAX )
+    {
+        return GP_FALSE;
+    }
+
+    return GP_TRUE;
 }
 #endif
 //////////////////////////////////////////////////////////////////////////
@@ -165,8 +172,8 @@ static void __primitive_lerp_style( gp_primitive_style_t * const _style, const g
 static gp_result_t __primitive_create_path( gp_canvas_t * _canvas, gp_path_t ** _path )
 {
     const gp_state_t * state = GP_GET_STATE( _canvas );
-    return gp_path_create( _path, gp_canvas_scratch_malloc_callback, gp_canvas_scratch_realloc_callback,
-        gp_canvas_scratch_free_callback, _canvas, state->curve_quality, state->ellipse_quality );
+    gp_result_t result = gp_path_create( _path, gp_canvas_scratch_malloc_callback, gp_canvas_scratch_realloc_callback, gp_canvas_scratch_free_callback, _canvas, state->curve_quality, state->ellipse_quality );
+    return result;
 }
 //////////////////////////////////////////////////////////////////////////
 static gp_result_t __primitive_draw_destroy_path( gp_canvas_t * _canvas, gp_path_t * _path )
@@ -174,6 +181,62 @@ static gp_result_t __primitive_draw_destroy_path( gp_canvas_t * _canvas, gp_path
     gp_result_t result = gp_draw_path( _canvas, _path );
     GP_CALL( gp_path_destroy, (_path) );
 
+    return result;
+}
+//////////////////////////////////////////////////////////////////////////
+static gp_result_t __primitive_finish_path( gp_canvas_t * _canvas, gp_path_t * _path, gp_result_t _result )
+{
+    if( _result == GP_SUCCESSFUL )
+    {
+        _result = gp_draw_path( _canvas, _path );
+    }
+
+    gp_result_t destroy_result = gp_path_destroy( _path );
+    if( destroy_result == GP_FAILURE )
+    {
+        return GP_FAILURE;
+    }
+
+    return _result;
+}
+//////////////////////////////////////////////////////////////////////////
+gp_result_t gp_quadratic_bezier( gp_canvas_t * _canvas, float _x0, float _y0, float _control_x, float _control_y, float _x1, float _y1 )
+{
+#if defined(GP_DEBUG)
+    if( _canvas == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
+#endif
+
+    gp_path_t * path;
+    GP_CALL( __primitive_create_path, (_canvas, &path) );
+    gp_result_t result = gp_path_move_to( path, _x0, _y0 );
+    if( result == GP_SUCCESSFUL )
+    {
+        result = gp_path_quadratic_curve_to( path, _control_x, _control_y, _x1, _y1 );
+    }
+    result = __primitive_finish_path( _canvas, path, result );
+    return result;
+}
+//////////////////////////////////////////////////////////////////////////
+gp_result_t gp_cubic_bezier( gp_canvas_t * _canvas, float _x0, float _y0, float _control0_x, float _control0_y, float _control1_x, float _control1_y, float _x1, float _y1 )
+{
+#if defined(GP_DEBUG)
+    if( _canvas == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
+#endif
+
+    gp_path_t * path;
+    GP_CALL( __primitive_create_path, (_canvas, &path) );
+    gp_result_t result = gp_path_move_to( path, _x0, _y0 );
+    if( result == GP_SUCCESSFUL )
+    {
+        result = gp_path_bezier_curve_to( path, _control0_x, _control0_y, _control1_x, _control1_y, _x1, _y1 );
+    }
+    result = __primitive_finish_path( _canvas, path, result );
     return result;
 }
 //////////////////////////////////////////////////////////////////////////
@@ -222,7 +285,8 @@ gp_result_t gp_polyline( gp_canvas_t * _canvas, const void * _points, gp_size_t 
     GP_CALL( __primitive_create_path, (_canvas, &path) );
     GP_CALL( gp_path_polyline, (path, _points, _point_count, _point_stride, _layout, _closed) );
 
-    return __primitive_draw_destroy_path( _canvas, path );
+    gp_result_t result = __primitive_draw_destroy_path( _canvas, path );
+    return result;
 }
 //////////////////////////////////////////////////////////////////////////
 gp_result_t gp_rounded_rect_varying( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height, float _radius_top_left, float _radius_top_right, float _radius_bottom_right, float _radius_bottom_left )
@@ -266,7 +330,8 @@ gp_result_t gp_rounded_rect_varying( gp_canvas_t * _canvas, float _x, float _y, 
     }
     GP_CALL( gp_path_close, (path) );
 
-    return __primitive_draw_destroy_path( _canvas, path );
+    gp_result_t result = __primitive_draw_destroy_path( _canvas, path );
+    return result;
 }
 //////////////////////////////////////////////////////////////////////////
 gp_result_t gp_capsule( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height )
@@ -293,10 +358,17 @@ gp_result_t gp_ring( gp_canvas_t * _canvas, float _x, float _y, float _inner_rad
     }
 #endif
 
+    const gp_state_t * current_state = GP_GET_STATE( _canvas );
+    if( current_state->fill.type != GP_FILL_TYPE_SOLID || current_state->feather > 0.f )
+    {
+        gp_result_t result = gp_effect_ring( _canvas, _x, _y, _inner_radius, _outer_radius, _angle_from, _angle_to );
+        return result;
+    }
+
     GP_CALL( gp_push_state, (_canvas) );
 
     gp_state_t * state = GP_GET_STATE( _canvas );
-    if( state->fill == GP_FALSE )
+    if( (state->flags & GP_STATE_FLAG_FILL) == 0 )
     {
         GP_CALL( gp_begin_fill, (_canvas) );
     }
@@ -371,7 +443,12 @@ static float __primitive_signed_power( float _value, float _power )
     float absolute = _value < 0.f ? -_value : _value;
     float result = GP_MATH_POWF( absolute, _power );
 
-    return _value < 0.f ? -result : result;
+    if( _value < 0.f )
+    {
+        result = -result;
+    }
+
+    return result;
 }
 //////////////////////////////////////////////////////////////////////////
 gp_result_t gp_superellipse( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height, float _exponent, float _rotation )
@@ -446,7 +523,8 @@ gp_result_t gp_rounded_polyline( gp_canvas_t * _canvas, const void * _points, gp
 
     if( _radius <= 0.0001f )
     {
-        return gp_polyline( _canvas, _points, _point_count, _point_stride, _layout, _closed );
+        gp_result_t result = gp_polyline( _canvas, _points, _point_count, _point_stride, _layout, _closed );
+        return result;
     }
 
     gp_path_t * path;
@@ -540,7 +618,8 @@ gp_result_t gp_rounded_polyline( gp_canvas_t * _canvas, const void * _points, gp
         GP_CALL( gp_path_line_to, (path, last_x, last_y) );
     }
 
-    return __primitive_draw_destroy_path( _canvas, path );
+    gp_result_t result = __primitive_draw_destroy_path( _canvas, path );
+    return result;
 }
 //////////////////////////////////////////////////////////////////////////
 typedef struct gp_offset_vertex_t
@@ -700,5 +779,6 @@ gp_result_t gp_polygon_offset( gp_canvas_t * _canvas, const void * _points, gp_s
 
     GP_CALL( gp_path_close, (path) );
 
-    return __primitive_draw_destroy_path( _canvas, path );
+    gp_result_t result = __primitive_draw_destroy_path( _canvas, path );
+    return result;
 }

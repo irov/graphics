@@ -25,7 +25,8 @@ static void __rounded_polygon_get_point( const void * _points, gp_size_t _point_
 //////////////////////////////////////////////////////////////////////////
 static float __rounded_polygon_cross( float _lhs_x, float _lhs_y, float _rhs_x, float _rhs_y )
 {
-    return _lhs_x * _rhs_y - _lhs_y * _rhs_x;
+    float cross = _lhs_x * _rhs_y - _lhs_y * _rhs_x;
+    return cross;
 }
 //////////////////////////////////////////////////////////////////////////
 static void __rounded_polygon_calculate_vertex( const void * _points, gp_size_t _point_count, gp_size_t _point_stride, gp_size_t _index, float _radius, float _signed_area, gp_rounded_polygon_vertex_t * const _vertex )

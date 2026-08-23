@@ -23,10 +23,8 @@ typedef struct gp_flat_path_t
 
 static gp_bool_t __path_same_point( const gp_vec2f_t * _a, const gp_vec2f_t * _b )
 {
-    return GP_EQUAL_F( _a->x - _b->x, 0.00001f ) == GP_TRUE &&
-        GP_EQUAL_F( _a->y - _b->y, 0.00001f ) == GP_TRUE
-        ? GP_TRUE
-        : GP_FALSE;
+    gp_bool_t equal = GP_EQUAL_F( _a->x - _b->x, 0.00001f ) == GP_TRUE && GP_EQUAL_F( _a->y - _b->y, 0.00001f ) == GP_TRUE;
+    return equal;
 }
 
 static float __path_distance( const gp_vec2f_t * _a, const gp_vec2f_t * _b )
@@ -34,7 +32,8 @@ static float __path_distance( const gp_vec2f_t * _a, const gp_vec2f_t * _b )
     float dx = _b->x - _a->x;
     float dy = _b->y - _a->y;
 
-    return GP_MATH_SQRTF( dx * dx + dy * dy );
+    float length = GP_MATH_SQRTF( dx * dx + dy * dy );
+    return length;
 }
 
 static void __path_destroy_contour( gp_path_t * _path, gp_path_contour_t * _contour )
@@ -391,7 +390,8 @@ gp_result_t gp_path_tangent_arc_to( gp_path_t * _path, float _x1, float _y1, flo
     float outgoing_length = GP_MATH_SQRTF( outgoing_x * outgoing_x + outgoing_y * outgoing_y );
     if( incoming_length <= 0.0001f || outgoing_length <= 0.0001f || _radius <= 0.0001f )
     {
-        return gp_path_line_to( _path, _x1, _y1 );
+        gp_result_t result = gp_path_line_to( _path, _x1, _y1 );
+        return result;
     }
 
     incoming_x /= incoming_length;
@@ -408,7 +408,8 @@ gp_result_t gp_path_tangent_arc_to( gp_path_t * _path, float _x1, float _y1, flo
     float tan_half_angle = sin_half_angle / cos_half_angle;
     if( sin_half_angle <= 0.0001f || tan_half_angle <= 0.0001f )
     {
-        return gp_path_line_to( _path, _x1, _y1 );
+        gp_result_t result = gp_path_line_to( _path, _x1, _y1 );
+        return result;
     }
 
     float tangent_distance = _radius / tan_half_angle;
@@ -424,7 +425,8 @@ gp_result_t gp_path_tangent_arc_to( gp_path_t * _path, float _x1, float _y1, flo
     float bisector_length = GP_MATH_SQRTF( bisector_x * bisector_x + bisector_y * bisector_y );
     if( bisector_length <= 0.0001f )
     {
-        return gp_path_line_to( _path, _x1, _y1 );
+        gp_result_t result = gp_path_line_to( _path, _x1, _y1 );
+        return result;
     }
 
     bisector_x /= bisector_length;
@@ -583,7 +585,8 @@ static float __path_knot( float _previous, const gp_vec2f_t * _a, const gp_vec2f
 {
     float distance = __path_distance( _a, _b );
 
-    return _previous + GP_MATH_SQRTF( distance );
+    float length = _previous + GP_MATH_SQRTF( distance );
+    return length;
 }
 
 static void __path_catmull_controls( const gp_vec2f_t * _p0, const gp_vec2f_t * _p1, const gp_vec2f_t * _p2, const gp_vec2f_t * _p3, gp_vec2f_t * _c0, gp_vec2f_t * _c1 )

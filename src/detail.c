@@ -18,7 +18,8 @@ static gp_size_t gp_align_size( gp_size_t _value )
         return SIZE_MAX;
     }
 
-    return (_value + alignment - 1U) & ~(alignment - 1U);
+    gp_size_t aligned_value = (_value + alignment - 1U) & ~(alignment - 1U);
+    return aligned_value;
 }
 //////////////////////////////////////////////////////////////////////////
 static void * gp_arena_allocate( gp_arena_t * _arena, gp_size_t _size )
@@ -41,7 +42,30 @@ static void * gp_arena_allocate( gp_arena_t * _arena, gp_size_t _size )
 //////////////////////////////////////////////////////////////////////////
 void * gp_canvas_recording_allocate( gp_canvas_t * _canvas, gp_size_t _size )
 {
-    return gp_arena_allocate( &_canvas->recording_arena, _size );
+    void * memory = gp_arena_allocate( &_canvas->recording_arena, _size );
+    return memory;
+}
+//////////////////////////////////////////////////////////////////////////
+const gp_state_t * gp_canvas_copy_state( gp_canvas_t * _canvas )
+{
+    if( _canvas->state_invalidate == GP_FALSE )
+    {
+        const gp_state_t * state = GP_LIST_BACK( _canvas->states );
+        return state;
+    }
+
+    gp_state_t * state = GP_NEW( _canvas, gp_state_t );
+    if( state == GP_NULLPTR )
+    {
+        return GP_NULLPTR;
+    }
+
+    *state = *GP_GET_STATE( _canvas );
+    state->next = GP_NULLPTR;
+    state->prev = GP_NULLPTR;
+    GP_LIST_PUSHBACK( gp_state_t, _canvas->states, state );
+    _canvas->state_invalidate = GP_FALSE;
+    return state;
 }
 //////////////////////////////////////////////////////////////////////////
 void * gp_canvas_scratch_reallocate( gp_canvas_t * _canvas, void * _pointer, gp_size_t _size )
@@ -77,7 +101,8 @@ void * gp_canvas_scratch_reallocate( gp_canvas_t * _canvas, void * _pointer, gp_
                     {
                         _canvas->scratch_arena.peak = _canvas->scratch_arena.offset;
                     }
-                    return previous + 1;
+                    void * memory = previous + 1;
+                    return memory;
                 }
             }
         }
@@ -127,12 +152,14 @@ void gp_canvas_scratch_free( gp_canvas_t * _canvas, void * _pointer )
 //////////////////////////////////////////////////////////////////////////
 void * gp_canvas_scratch_malloc_callback( gp_size_t _size, void * _ud )
 {
-    return gp_canvas_scratch_reallocate( (gp_canvas_t *)_ud, GP_NULLPTR, _size );
+    void * memory = gp_canvas_scratch_reallocate( (gp_canvas_t *)_ud, GP_NULLPTR, _size );
+    return memory;
 }
 //////////////////////////////////////////////////////////////////////////
 void * gp_canvas_scratch_realloc_callback( void * _pointer, gp_size_t _size, void * _ud )
 {
-    return gp_canvas_scratch_reallocate( (gp_canvas_t *)_ud, _pointer, _size );
+    void * memory = gp_canvas_scratch_reallocate( (gp_canvas_t *)_ud, _pointer, _size );
+    return memory;
 }
 //////////////////////////////////////////////////////////////////////////
 void gp_canvas_scratch_free_callback( void * _pointer, void * _ud )
@@ -142,7 +169,8 @@ void gp_canvas_scratch_free_callback( void * _pointer, void * _ud )
 //////////////////////////////////////////////////////////////////////////
 gp_size_t gp_canvas_scratch_mark( const gp_canvas_t * _canvas )
 {
-    return _canvas->scratch_arena.offset;
+    gp_size_t mark = _canvas->scratch_arena.offset;
+    return mark;
 }
 //////////////////////////////////////////////////////////////////////////
 void gp_canvas_scratch_reset( gp_canvas_t * _canvas, gp_size_t _mark )
@@ -187,7 +215,12 @@ gp_uint32_t gp_ellipse_arc_segment_count( float _angle_delta, gp_uint8_t _qualit
         ++segment_count;
     }
 
-    return segment_count == 0 ? 1 : segment_count;
+    if( segment_count == 0 )
+    {
+        return 1;
+    }
+
+    return segment_count;
 }
 //////////////////////////////////////////////////////////////////////////
 float gp_ellipse_arc_sample_t( float _angle_delta, gp_uint8_t _quality, gp_uint32_t _index )
@@ -199,7 +232,8 @@ float gp_ellipse_arc_sample_t( float _angle_delta, gp_uint8_t _quality, gp_uint3
         angle_offset = angle_delta_abs;
     }
 
-    return angle_offset / angle_delta_abs;
+    float sample = angle_offset / angle_delta_abs;
+    return sample;
 }
 //////////////////////////////////////////////////////////////////////////
 float gp_ellipse_arc_sample_angle( float _angle_from, float _angle_to, gp_uint8_t _quality, gp_uint32_t _index )
@@ -212,9 +246,14 @@ float gp_ellipse_arc_sample_angle( float _angle_from, float _angle_to, gp_uint8_
 
     float angle_offset = gp_constant_two_pi / (float)_quality * (float)_index;
 
-    return angle_delta < 0.f
-        ? _angle_from - angle_offset
-        : _angle_from + angle_offset;
+    if( angle_delta < 0.f )
+    {
+        float angle = _angle_from - angle_offset;
+        return angle;
+    }
+
+    float angle = _angle_from + angle_offset;
+    return angle;
 }
 //////////////////////////////////////////////////////////////////////////
 gp_result_t gp_mesh_push_index( const gp_mesh_t * _mesh, gp_uint32_t _iterator, gp_uint32_t _index )
@@ -345,7 +384,9 @@ void * gp_canvas_scratch_reallocate_array( gp_canvas_t * _canvas, void * _pointe
         return GP_NULLPTR;
     }
 
-    return gp_canvas_scratch_reallocate( _canvas, _pointer, _element_size * _count );
+    gp_size_t size = _element_size * _count;
+    void * memory = gp_canvas_scratch_reallocate( _canvas, _pointer, size );
+    return memory;
 }
 //////////////////////////////////////////////////////////////////////////
 gp_result_t gp_mesh_writer_position( gp_mesh_writer_t * _writer, gp_uint32_t _vertex, float _x, float _y )
@@ -355,7 +396,9 @@ gp_result_t gp_mesh_writer_position( gp_mesh_writer_t * _writer, gp_uint32_t _ve
         return GP_FAILURE;
     }
 
-    return gp_mesh_push_position( _writer->mesh, _writer->vertex_offset + _vertex, _x, _y );
+    gp_uint32_t vertex = _writer->vertex_offset + _vertex;
+    gp_result_t result = gp_mesh_push_position( _writer->mesh, vertex, _x, _y );
+    return result;
 }
 //////////////////////////////////////////////////////////////////////////
 gp_result_t gp_mesh_writer_color( gp_mesh_writer_t * _writer, gp_uint32_t _vertex, gp_argb_t _color )
@@ -365,7 +408,9 @@ gp_result_t gp_mesh_writer_color( gp_mesh_writer_t * _writer, gp_uint32_t _verte
         return GP_FAILURE;
     }
 
-    return gp_mesh_push_color( _writer->mesh, _writer->vertex_offset + _vertex, _color );
+    gp_uint32_t vertex = _writer->vertex_offset + _vertex;
+    gp_result_t result = gp_mesh_push_color( _writer->mesh, vertex, _color );
+    return result;
 }
 //////////////////////////////////////////////////////////////////////////
 gp_result_t gp_mesh_writer_uv( gp_mesh_writer_t * _writer, gp_uint32_t _vertex, float _u, float _v )
@@ -396,6 +441,9 @@ gp_result_t gp_mesh_writer_index( gp_mesh_writer_t * _writer, gp_uint32_t _index
         return GP_FAILURE;
     }
 
-    return gp_mesh_push_index( _writer->mesh, _writer->index_offset + _index, _writer->vertex_offset + _vertex );
+    gp_uint32_t index = _writer->index_offset + _index;
+    gp_uint32_t vertex = _writer->vertex_offset + _vertex;
+    gp_result_t result = gp_mesh_push_index( _writer->mesh, index, vertex );
+    return result;
 }
 //////////////////////////////////////////////////////////////////////////

@@ -25,8 +25,6 @@ typedef size_t gp_size_t;
 
 typedef gp_uint32_t gp_argb_t;
 
-#define GP_CANVAS_INJECTION_API 1
-
 typedef struct gp_color_t
 {
     float r;
@@ -118,6 +116,11 @@ typedef struct gp_color_t
 #ifndef GP_MATH_POWF
 #include <math.h>
 #define GP_MATH_POWF (powf)
+#endif
+
+#ifndef GP_MATH_ROUNDF
+#include <math.h>
+#define GP_MATH_ROUNDF (roundf)
 #endif
 
 #ifndef GP_MATH_ISFINITE

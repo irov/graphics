@@ -14,9 +14,12 @@ static gp_bool_t __ellipse_arc_has_rounded_caps( const gp_ellipse_arc_t * _arc )
     float angle_delta = _arc->angle_to - _arc->angle_from;
     float angle_delta_abs = angle_delta < 0.f ? -angle_delta : angle_delta;
 
-    return GP_EQUAL_F( angle_delta_abs - gp_constant_two_pi, 0.000001f ) == GP_TRUE
-        ? GP_FALSE
-        : GP_TRUE;
+    if( GP_EQUAL_F( angle_delta_abs - gp_constant_two_pi, 0.000001f ) == GP_TRUE )
+    {
+        return GP_FALSE;
+    }
+
+    return GP_TRUE;
 }
 //////////////////////////////////////////////////////////////////////////
 static gp_result_t __calculate_mesh_ellipse_size( const gp_canvas_t * _canvas, gp_uint32_t * _vertex_count, gp_uint32_t * _index_count )
@@ -28,7 +31,7 @@ static gp_result_t __calculate_mesh_ellipse_size( const gp_canvas_t * _canvas, g
     {
         uint8_t ellipse_quality = e->state->ellipse_quality;
 
-        if( e->state->fill == GP_TRUE )
+        if( (e->state->flags & GP_STATE_FLAG_FILL) != 0 )
         {
             if( e->state->penumbra > 0.f )
             {
@@ -144,7 +147,7 @@ gp_result_t gp_render_ellipse( const gp_ellipse_t * _ellipse, const gp_state_t *
 
     float dt = gp_constant_two_pi * ellipse_quality_inv;
 
-    if( e->state->fill == GP_FALSE )
+    if( (e->state->flags & GP_STATE_FLAG_FILL) == 0 )
     {
         if( line_penumbra > 0.f )
         {
