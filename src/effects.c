@@ -1078,3 +1078,102 @@ gp_result_t gp_end_quads( gp_canvas_t * _canvas )
     gp_result_t result = gp_inject_geometry( _canvas, payload->capacity * 4U, payload->capacity * 6U, __write_quads, payload, 0 );
     return result;
 }
+//////////////////////////////////////////////////////////////////////////
+static gp_result_t __multicolor_rect_vertex( gp_canvas_t * _canvas, float _x, float _y, float _u, float _v, float _r, float _g, float _b, float _a )
+{
+    gp_result_t color_result = gp_set_color( _canvas, _r, _g, _b, _a );
+    if( color_result != GP_SUCCESSFUL )
+    {
+        return GP_FAILURE;
+    }
+
+    gp_result_t uv_result = gp_set_uv( _canvas, _u, _v );
+    if( uv_result != GP_SUCCESSFUL )
+    {
+        return GP_FAILURE;
+    }
+
+    gp_result_t vertex_result = gp_add_quad_vertex( _canvas, _x, _y );
+    if( vertex_result != GP_SUCCESSFUL )
+    {
+        return GP_FAILURE;
+    }
+
+    return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
+gp_result_t gp_multicolor_rect( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height, float _top_left_r, float _top_left_g, float _top_left_b, float _top_left_a, float _top_right_r, float _top_right_g, float _top_right_b, float _top_right_a, float _bottom_right_r, float _bottom_right_g, float _bottom_right_b, float _bottom_right_a, float _bottom_left_r, float _bottom_left_g, float _bottom_left_b, float _bottom_left_a )
+{
+#if defined(GP_DEBUG)
+    if( _canvas == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
+
+    if( __float_valid( _x ) == GP_FALSE )
+    {
+        return GP_FAILURE;
+    }
+
+    if( __float_valid( _y ) == GP_FALSE )
+    {
+        return GP_FAILURE;
+    }
+
+    if( __float_valid( _width ) == GP_FALSE )
+    {
+        return GP_FAILURE;
+    }
+
+    if( __float_valid( _height ) == GP_FALSE )
+    {
+        return GP_FAILURE;
+    }
+#endif
+
+    gp_result_t push_result = gp_push_state( _canvas );
+    if( push_result != GP_SUCCESSFUL )
+    {
+        return GP_FAILURE;
+    }
+
+    gp_result_t begin_result = gp_begin_quads( _canvas, 1 );
+    if( begin_result != GP_SUCCESSFUL )
+    {
+        gp_result_t pop_result = gp_pop_state( _canvas );
+        GP_UNUSED( pop_result );
+
+        return GP_FAILURE;
+    }
+
+    gp_result_t result = __multicolor_rect_vertex( _canvas, _x, _y, 0.f, 0.f, _top_left_r, _top_left_g, _top_left_b, _top_left_a );
+
+    if( result == GP_SUCCESSFUL )
+    {
+        result = __multicolor_rect_vertex( _canvas, _x + _width, _y, 1.f, 0.f, _top_right_r, _top_right_g, _top_right_b, _top_right_a );
+    }
+
+    if( result == GP_SUCCESSFUL )
+    {
+        result = __multicolor_rect_vertex( _canvas, _x + _width, _y + _height, 1.f, 1.f, _bottom_right_r, _bottom_right_g, _bottom_right_b, _bottom_right_a );
+    }
+
+    if( result == GP_SUCCESSFUL )
+    {
+        result = __multicolor_rect_vertex( _canvas, _x, _y + _height, 0.f, 1.f, _bottom_left_r, _bottom_left_g, _bottom_left_b, _bottom_left_a );
+    }
+
+    gp_result_t end_result = gp_end_quads( _canvas );
+    if( end_result != GP_SUCCESSFUL )
+    {
+        result = GP_FAILURE;
+    }
+
+    gp_result_t pop_result = gp_pop_state( _canvas );
+    if( pop_result != GP_SUCCESSFUL )
+    {
+        result = GP_FAILURE;
+    }
+
+    return result;
+}

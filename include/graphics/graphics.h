@@ -269,6 +269,7 @@ gp_result_t gp_end_rects( gp_canvas_t * _canvas );
 gp_result_t gp_begin_quads( gp_canvas_t * _canvas, gp_size_t _quad_count );
 gp_result_t gp_add_quad_vertex( gp_canvas_t * _canvas, float _x, float _y );
 gp_result_t gp_end_quads( gp_canvas_t * _canvas );
+gp_result_t gp_multicolor_rect( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height, float _top_left_r, float _top_left_g, float _top_left_b, float _top_left_a, float _top_right_r, float _top_right_g, float _top_right_b, float _top_right_a, float _bottom_right_r, float _bottom_right_g, float _bottom_right_b, float _bottom_right_a, float _bottom_left_r, float _bottom_left_g, float _bottom_left_b, float _bottom_left_a );
 
 gp_result_t gp_inject_branch( gp_canvas_t * _canvas, gp_branch_callback_t _callback, const void * _payload, gp_size_t _payload_size );
 gp_result_t gp_inject_geometry( gp_canvas_t * _canvas, gp_uint32_t _vertex_count, gp_uint32_t _index_count, gp_geometry_callback_t _callback, const void * _payload, gp_size_t _payload_size );
