@@ -82,6 +82,8 @@ set(GRAPHICS_SOURCES
     ${SOURCE_DIR}/detail.c
     ${SOURCE_DIR}/effects.c
     ${SOURCE_DIR}/effects.h
+    ${SOURCE_DIR}/geometry.c
+    ${SOURCE_DIR}/geometry.h
 )
 
 set(GRAPHICS_HEADERS

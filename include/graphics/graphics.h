@@ -10,6 +10,7 @@
 typedef struct gp_canvas_t gp_canvas_t;
 typedef struct gp_path_t gp_path_t;
 typedef struct gp_mesh_t gp_mesh_t;
+typedef struct gp_geometry_t gp_geometry_t;
 
 typedef enum gp_line_cap_e
 {
@@ -170,6 +171,8 @@ gp_result_t gp_canvas_destroy( gp_canvas_t * _canvas );
 gp_result_t gp_canvas_clear( gp_canvas_t * _canvas );
 gp_result_t gp_canvas_get_memory_stats( const gp_canvas_t * _canvas, gp_canvas_memory_stats_t * _stats );
 
+gp_uint32_t gp_get_api_version( void );
+
 /*************************************************************************
 *
 *************************************************************************/
@@ -181,6 +184,8 @@ float gp_get_default_miter_limit( void );
 gp_uint8_t gp_get_default_curve_quality( void );
 gp_uint8_t gp_get_default_ellipse_quality( void );
 gp_uint8_t gp_get_default_rect_quality( void );
+gp_result_t gp_calculate_curve_segment_count( float _length, float _maximum_error, gp_uint8_t * _segments );
+gp_result_t gp_calculate_circle_segment_count( float _radius, float _maximum_error, gp_uint8_t * _segments );
 
 /*************************************************************************
 *
@@ -267,6 +272,22 @@ gp_result_t gp_end_quads( gp_canvas_t * _canvas );
 
 gp_result_t gp_inject_branch( gp_canvas_t * _canvas, gp_branch_callback_t _callback, const void * _payload, gp_size_t _payload_size );
 gp_result_t gp_inject_geometry( gp_canvas_t * _canvas, gp_uint32_t _vertex_count, gp_uint32_t _index_count, gp_geometry_callback_t _callback, const void * _payload, gp_size_t _payload_size );
+gp_result_t gp_begin_channel_group( gp_canvas_t * _canvas, gp_uint8_t _channel_count );
+gp_result_t gp_set_channel( gp_canvas_t * _canvas, gp_uint8_t _channel );
+gp_result_t gp_end_channel_group( gp_canvas_t * _canvas, const gp_uint8_t * _order, gp_size_t _order_count );
+
+/*************************************************************************
+*
+*************************************************************************/
+
+gp_result_t gp_geometry_create( gp_geometry_t ** _geometry, gp_malloc_t _malloc, gp_realloc_t _realloc, gp_free_t _free, void * _ud );
+gp_result_t gp_geometry_destroy( gp_geometry_t * _geometry );
+gp_result_t gp_geometry_clear( gp_geometry_t * _geometry );
+gp_result_t gp_geometry_begin_textured_rects( gp_geometry_t * _geometry, gp_size_t _rect_count );
+gp_result_t gp_geometry_add_textured_rect( gp_geometry_t * _geometry, float _x, float _y, float _width, float _height, float _u0, float _v0, float _u1, float _v1, float _r, float _g, float _b, float _a );
+gp_result_t gp_geometry_end( gp_geometry_t * _geometry );
+gp_result_t gp_geometry_get_memory_size( const gp_geometry_t * _geometry, gp_size_t * _size );
+gp_result_t gp_draw_geometry( gp_canvas_t * _canvas, const gp_geometry_t * _geometry, float _translation_x, float _translation_y, float _axis_x_x, float _axis_x_y, float _axis_y_x, float _axis_y_y, float _r, float _g, float _b, float _a );
 
 /*************************************************************************
 *

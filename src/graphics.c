@@ -6,6 +6,7 @@
 #include "ellipse.h"
 #include "compound.h"
 #include "path.h"
+#include "geometry.h"
 
 #include "struct.h"
 #include "detail.h"
@@ -15,6 +16,11 @@
 static gp_result_t __push_render_order( gp_canvas_t * _canvas, gp_render_order_type_e _type, void * _primitive );
 static gp_result_t __render_order( const gp_render_order_t * _order, const gp_mesh_t * _mesh, gp_uint32_t * _vertex_iterator, gp_uint32_t * _index_iterator );
 
+//////////////////////////////////////////////////////////////////////////
+gp_uint32_t gp_get_api_version( void )
+{
+    return GP_API_VERSION;
+}
 //////////////////////////////////////////////////////////////////////////
 float gp_get_default_thickness( void )
 {
@@ -49,6 +55,76 @@ gp_uint8_t gp_get_default_ellipse_quality( void )
 gp_uint8_t gp_get_default_rect_quality( void )
 {
     return 16;
+}
+//////////////////////////////////////////////////////////////////////////
+gp_result_t gp_calculate_curve_segment_count( float _length, float _maximum_error, gp_uint8_t * _segments )
+{
+#if defined(GP_DEBUG)
+    if( _length <= 0.f || _maximum_error <= 0.f || _segments == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
+#endif
+
+    float estimate = GP_MATH_SQRTF( _length / _maximum_error );
+    gp_uint32_t segment_count = (gp_uint32_t)estimate;
+    if( (float)segment_count < estimate )
+    {
+        ++segment_count;
+    }
+
+    if( segment_count < 1U )
+    {
+        segment_count = 1U;
+    }
+
+    if( segment_count > 255U )
+    {
+        segment_count = 255U;
+    }
+
+    *_segments = (gp_uint8_t)segment_count;
+
+    return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
+gp_result_t gp_calculate_circle_segment_count( float _radius, float _maximum_error, gp_uint8_t * _segments )
+{
+#if defined(GP_DEBUG)
+    if( _radius <= 0.f || _maximum_error <= 0.f || _segments == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
+#endif
+
+    float ratio = _maximum_error / _radius;
+    if( ratio > 1.f )
+    {
+        ratio = 1.f;
+    }
+
+    float angle = GP_MATH_ACOSF( 1.f - ratio );
+    float estimate = gp_constant_pi / angle;
+    gp_uint32_t segment_count = (gp_uint32_t)estimate;
+    if( (float)segment_count < estimate )
+    {
+        ++segment_count;
+    }
+
+    segment_count = (segment_count + 3U) / 4U * 4U;
+    if( segment_count < 4U )
+    {
+        segment_count = 4U;
+    }
+
+    if( segment_count > 252U )
+    {
+        segment_count = 252U;
+    }
+
+    *_segments = (gp_uint8_t)segment_count;
+
+    return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
 static void __canvas_default_state_setup( gp_canvas_t * _canvas )
@@ -136,16 +212,18 @@ gp_result_t gp_canvas_create( gp_canvas_t ** _canvas, gp_malloc_t _malloc, gp_re
     }
 
     const gp_size_t render_order_size = render_order_capacity * sizeof( gp_render_order_t );
+    const gp_size_t render_order_channel_size = render_order_capacity * sizeof( gp_uint8_t );
     const gp_size_t recording_capacity = GP_CANVAS_RECORDING_MEMORY_SIZE;
     const gp_size_t scratch_capacity = GP_CANVAS_SCRATCH_MEMORY_SIZE;
-    if( render_order_size > SIZE_MAX - recording_capacity ||
-        render_order_size + recording_capacity > SIZE_MAX - scratch_capacity ||
-        render_order_size + recording_capacity + scratch_capacity > SIZE_MAX - sizeof( gp_canvas_t ) - alignment + 1U )
+    if( render_order_size > SIZE_MAX - render_order_channel_size ||
+        render_order_size + render_order_channel_size > SIZE_MAX - recording_capacity ||
+        render_order_size + render_order_channel_size + recording_capacity > SIZE_MAX - scratch_capacity ||
+        render_order_size + render_order_channel_size + recording_capacity + scratch_capacity > SIZE_MAX - sizeof( gp_canvas_t ) - alignment + 1U )
     {
         return GP_FAILURE;
     }
 
-    const gp_size_t allocation_size = sizeof( gp_canvas_t ) + alignment - 1U + render_order_size + recording_capacity + scratch_capacity;
+    const gp_size_t allocation_size = sizeof( gp_canvas_t ) + alignment - 1U + render_order_size + render_order_channel_size + recording_capacity + scratch_capacity;
     gp_canvas_t * canvas = (gp_canvas_t *)(*_malloc)(allocation_size, _ud);
     if( canvas == GP_NULLPTR )
     {
@@ -157,9 +235,14 @@ gp_result_t gp_canvas_create( gp_canvas_t ** _canvas, gp_malloc_t _malloc, gp_re
     arena_memory += (alignment - arena_address % alignment) % alignment;
 
     canvas->render_orders = (gp_render_order_t *)arena_memory;
+    canvas->render_order_channels = arena_memory + render_order_size;
     canvas->render_order_count = 0;
+    canvas->channel_group_start = 0;
+    canvas->channel_group_count = 0;
+    canvas->current_channel = 0;
+    canvas->channel_group_active = GP_FALSE;
 
-    canvas->recording_arena.memory = arena_memory + render_order_size;
+    canvas->recording_arena.memory = arena_memory + render_order_size + render_order_channel_size;
     canvas->recording_arena.capacity = recording_capacity;
     canvas->recording_arena.offset = 0;
     canvas->recording_arena.peak = 0;
@@ -225,6 +308,10 @@ gp_result_t gp_canvas_clear( gp_canvas_t * _canvas )
     _canvas->ellipse_arcs = GP_NULLPTR;
     _canvas->compound_fills = GP_NULLPTR;
     _canvas->render_order_count = 0;
+    _canvas->channel_group_start = 0;
+    _canvas->channel_group_count = 0;
+    _canvas->current_channel = 0;
+    _canvas->channel_group_active = GP_FALSE;
 
     _canvas->state_stack = 0;
     _canvas->state_invalidate = GP_TRUE;
@@ -977,9 +1064,133 @@ static gp_result_t __push_render_order( gp_canvas_t * _canvas, gp_render_order_t
         return GP_FAILURE;
     }
 
-    gp_render_order_t * order = _canvas->render_orders + _canvas->render_order_count++;
+    gp_uint32_t index = _canvas->render_order_count++;
+    gp_render_order_t * order = _canvas->render_orders + index;
     order->type = _type;
     order->primitive = _primitive;
+    _canvas->render_order_channels[index] = _canvas->channel_group_active == GP_TRUE ? _canvas->current_channel : 0;
+
+    return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
+gp_result_t gp_begin_channel_group( gp_canvas_t * _canvas, gp_uint8_t _channel_count )
+{
+#if defined(GP_DEBUG)
+    if( _canvas == GP_NULLPTR || _channel_count == 0 || _channel_count > GP_CANVAS_CHANNEL_CAPACITY || _canvas->channel_group_active == GP_TRUE )
+    {
+        return GP_FAILURE;
+    }
+#endif
+
+    _canvas->channel_group_start = _canvas->render_order_count;
+    _canvas->channel_group_count = _channel_count;
+    _canvas->current_channel = 0;
+    _canvas->channel_group_active = GP_TRUE;
+
+    return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
+gp_result_t gp_set_channel( gp_canvas_t * _canvas, gp_uint8_t _channel )
+{
+#if defined(GP_DEBUG)
+    if( _canvas == GP_NULLPTR || _canvas->channel_group_active == GP_FALSE || _channel >= _canvas->channel_group_count )
+    {
+        return GP_FAILURE;
+    }
+#endif
+
+    _canvas->current_channel = _channel;
+
+    return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
+gp_result_t gp_end_channel_group( gp_canvas_t * _canvas, const gp_uint8_t * _order, gp_size_t _order_count )
+{
+#if defined(GP_DEBUG)
+    if( _canvas == GP_NULLPTR || _canvas->channel_group_active == GP_FALSE )
+    {
+        return GP_FAILURE;
+    }
+#endif
+
+    gp_uint8_t channel_count = _canvas->channel_group_count;
+    if( _order == GP_NULLPTR )
+    {
+        if( _order_count != 0 )
+        {
+            return GP_FAILURE;
+        }
+    }
+    else if( _order_count != channel_count )
+    {
+        return GP_FAILURE;
+    }
+
+    gp_bool_t visited[GP_CANVAS_CHANNEL_CAPACITY] = {GP_FALSE};
+    for( gp_uint8_t index = 0; index != channel_count; ++index )
+    {
+        gp_uint8_t channel = _order == GP_NULLPTR ? index : _order[index];
+        if( channel >= channel_count || visited[channel] == GP_TRUE )
+        {
+            return GP_FAILURE;
+        }
+
+        visited[channel] = GP_TRUE;
+    }
+
+    gp_uint32_t start = _canvas->channel_group_start;
+    gp_uint32_t count = _canvas->render_order_count - start;
+    if( count != 0 )
+    {
+        gp_size_t order_size = (gp_size_t)count * sizeof( gp_render_order_t );
+        gp_size_t channel_size = (gp_size_t)count * sizeof( gp_uint8_t );
+        if( order_size > SIZE_MAX - channel_size )
+        {
+            return GP_FAILURE;
+        }
+
+        gp_size_t mark = gp_canvas_scratch_mark( _canvas );
+        gp_uint8_t * memory = (gp_uint8_t *)gp_canvas_scratch_reallocate( _canvas, GP_NULLPTR, order_size + channel_size );
+        if( memory == GP_NULLPTR )
+        {
+            return GP_FAILURE;
+        }
+
+        gp_render_order_t * orders = (gp_render_order_t *)memory;
+        gp_uint8_t * channels = memory + order_size;
+        gp_uint32_t destination = 0;
+        for( gp_uint8_t order_index = 0; order_index != channel_count; ++order_index )
+        {
+            gp_uint8_t channel = _order == GP_NULLPTR ? order_index : _order[order_index];
+            for( gp_uint32_t source = 0; source != count; ++source )
+            {
+                if( _canvas->render_order_channels[start + source] != channel )
+                {
+                    continue;
+                }
+
+                orders[destination] = _canvas->render_orders[start + source];
+                channels[destination] = channel;
+                ++destination;
+            }
+        }
+
+        if( destination != count )
+        {
+            gp_canvas_scratch_reset( _canvas, mark );
+
+            return GP_FAILURE;
+        }
+
+        memcpy( _canvas->render_orders + start, orders, order_size );
+        memcpy( _canvas->render_order_channels + start, channels, channel_size );
+        gp_canvas_scratch_reset( _canvas, mark );
+    }
+
+    _canvas->channel_group_start = 0;
+    _canvas->channel_group_count = 0;
+    _canvas->current_channel = 0;
+    _canvas->channel_group_active = GP_FALSE;
 
     return GP_SUCCESSFUL;
 }
@@ -1050,6 +1261,72 @@ gp_result_t gp_inject_geometry( gp_canvas_t * _canvas, gp_uint32_t _vertex_count
     GP_CALL( __push_render_order, (_canvas, GP_RENDER_ORDER_GEOMETRY_INJECTION, injection) );
 
     return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
+gp_result_t gp_draw_geometry( gp_canvas_t * _canvas, const gp_geometry_t * _geometry, float _translation_x, float _translation_y, float _axis_x_x, float _axis_x_y, float _axis_y_x, float _axis_y_y, float _r, float _g, float _b, float _a )
+{
+#if defined(GP_DEBUG)
+    if( _canvas == GP_NULLPTR || _geometry == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
+
+    if( _geometry->complete == GP_FALSE || _geometry->building == GP_TRUE )
+    {
+        return GP_FAILURE;
+    }
+
+    if( GP_MATH_ISFINITE( _translation_x ) == 0 || GP_MATH_ISFINITE( _translation_y ) == 0 )
+    {
+        return GP_FAILURE;
+    }
+
+    if( GP_MATH_ISFINITE( _axis_x_x ) == 0 || GP_MATH_ISFINITE( _axis_x_y ) == 0 )
+    {
+        return GP_FAILURE;
+    }
+
+    if( GP_MATH_ISFINITE( _axis_y_x ) == 0 || GP_MATH_ISFINITE( _axis_y_y ) == 0 )
+    {
+        return GP_FAILURE;
+    }
+
+    if( GP_MATH_ISFINITE( _r ) == 0 || GP_MATH_ISFINITE( _g ) == 0 )
+    {
+        return GP_FAILURE;
+    }
+
+    if( GP_MATH_ISFINITE( _b ) == 0 || GP_MATH_ISFINITE( _a ) == 0 )
+    {
+        return GP_FAILURE;
+    }
+#endif
+
+    if( _geometry->vertex_count == 0 || _geometry->index_count == 0 )
+    {
+        return GP_FAILURE;
+    }
+
+    gp_geometry_draw_t * draw = GP_NEW( _canvas, gp_geometry_draw_t );
+    if( draw == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
+
+    draw->geometry = _geometry;
+    draw->translation_x = _translation_x;
+    draw->translation_y = _translation_y;
+    draw->axis_x_x = _axis_x_x;
+    draw->axis_x_y = _axis_x_y;
+    draw->axis_y_x = _axis_y_x;
+    draw->axis_y_y = _axis_y_y;
+    draw->tint.r = _r;
+    draw->tint.g = _g;
+    draw->tint.b = _b;
+    draw->tint.a = _a;
+    gp_result_t result = __push_render_order( _canvas, GP_RENDER_ORDER_CACHED_GEOMETRY, draw );
+
+    return result;
 }
 //////////////////////////////////////////////////////////////////////////
 static gp_state_t * __copy_path_state( gp_canvas_t * _canvas, const gp_path_t * _path, const gp_path_style_t * _style,
@@ -1548,6 +1825,12 @@ static gp_result_t __calculate_render_order_size( const gp_render_order_t * _ord
         _mesh->vertex_count = injection->vertex_count;
         _mesh->index_count = injection->index_count;
     } break;
+    case GP_RENDER_ORDER_CACHED_GEOMETRY:
+    {
+        const gp_geometry_draw_t * draw = (const gp_geometry_draw_t *)_order->primitive;
+        _mesh->vertex_count = draw->geometry->vertex_count;
+        _mesh->index_count = draw->geometry->index_count;
+    } break;
     default:
         return GP_FAILURE;
     }
@@ -1834,6 +2117,21 @@ static gp_result_t __render_order( const gp_render_order_t * _order, const gp_me
         GP_CALL( injection->callback, (&writer, injection->payload) );
         *_vertex_iterator += injection->vertex_count;
         *_index_iterator += injection->index_count;
+
+        return GP_SUCCESSFUL;
+    }
+    case GP_RENDER_ORDER_CACHED_GEOMETRY:
+    {
+        const gp_geometry_draw_t * draw = (const gp_geometry_draw_t *)_order->primitive;
+        gp_mesh_writer_t writer;
+        writer.mesh = _mesh;
+        writer.vertex_offset = *_vertex_iterator;
+        writer.vertex_count = draw->geometry->vertex_count;
+        writer.index_offset = *_index_iterator;
+        writer.index_count = draw->geometry->index_count;
+        GP_CALL( gp_geometry_write, (&writer, draw) );
+        *_vertex_iterator += draw->geometry->vertex_count;
+        *_index_iterator += draw->geometry->index_count;
 
         return GP_SUCCESSFUL;
     }

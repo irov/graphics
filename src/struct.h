@@ -220,7 +220,8 @@ typedef enum gp_render_order_type_e
     GP_RENDER_ORDER_ELLIPSE_ARC,
     GP_RENDER_ORDER_COMPOUND_FILL,
     GP_RENDER_ORDER_BRANCH_INJECTION,
-    GP_RENDER_ORDER_GEOMETRY_INJECTION
+    GP_RENDER_ORDER_GEOMETRY_INJECTION,
+    GP_RENDER_ORDER_CACHED_GEOMETRY
 } gp_render_order_type_e;
 //////////////////////////////////////////////////////////////////////////
 typedef struct gp_branch_injection_t
@@ -236,6 +237,45 @@ typedef struct gp_geometry_injection_t
     gp_geometry_callback_t callback;
     const void * payload;
 } gp_geometry_injection_t;
+//////////////////////////////////////////////////////////////////////////
+typedef struct gp_geometry_vertex_t
+{
+    float x;
+    float y;
+    gp_color_t color;
+    float u;
+    float v;
+} gp_geometry_vertex_t;
+//////////////////////////////////////////////////////////////////////////
+typedef struct gp_geometry_t
+{
+    gp_geometry_vertex_t * vertices;
+    gp_uint32_t * indices;
+    gp_uint32_t vertex_count;
+    gp_uint32_t index_count;
+    gp_uint32_t vertex_capacity;
+    gp_uint32_t index_capacity;
+    gp_uint32_t expected_rect_count;
+    gp_uint32_t rect_count;
+    gp_bool_t building;
+    gp_bool_t complete;
+    gp_malloc_t malloc;
+    gp_realloc_t realloc;
+    gp_free_t free;
+    void * ud;
+} gp_geometry_t;
+//////////////////////////////////////////////////////////////////////////
+typedef struct gp_geometry_draw_t
+{
+    const gp_geometry_t * geometry;
+    float translation_x;
+    float translation_y;
+    float axis_x_x;
+    float axis_x_y;
+    float axis_y_x;
+    float axis_y_y;
+    gp_color_t tint;
+} gp_geometry_draw_t;
 //////////////////////////////////////////////////////////////////////////
 typedef struct gp_render_order_t
 {
@@ -273,7 +313,12 @@ typedef struct gp_canvas_t
     gp_rects_payload_t * active_rects;
     gp_quads_payload_t * active_quads;
     gp_render_order_t * render_orders;
+    gp_uint8_t * render_order_channels;
     gp_uint32_t render_order_count;
+    gp_uint32_t channel_group_start;
+    gp_uint8_t channel_group_count;
+    gp_uint8_t current_channel;
+    gp_bool_t channel_group_active;
 
     gp_arena_t recording_arena;
     gp_arena_t scratch_arena;
