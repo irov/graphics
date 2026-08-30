@@ -756,7 +756,7 @@ gp_result_t gp_box( gp_canvas_t * _canvas, float _x, float _y, float _width, flo
     gp_uint32_t vertex_count;
     gp_uint32_t index_count;
     GP_CALL( __box_size, (&box, &vertex_count, &index_count) );
-    gp_result_t result = gp_inject_geometry( _canvas, vertex_count, index_count, __write_box, &box, sizeof( box ) );
+    gp_result_t result = gp_internal_geometry( _canvas, vertex_count, index_count, __write_box, &box, sizeof( box ) );
     return result;
 }
 //////////////////////////////////////////////////////////////////////////
@@ -859,7 +859,7 @@ gp_result_t gp_effect_ring( gp_canvas_t * _canvas, float _x, float _y, float _in
     gp_uint32_t band_count = payload.state->feather > 0.f ? 3U : 1U;
     gp_uint32_t vertex_count = band_count * ((gp_uint32_t)quality + 1U) * 2U;
     gp_uint32_t index_count = band_count * (gp_uint32_t)quality * 6U;
-    gp_result_t result = gp_inject_geometry( _canvas, vertex_count, index_count, __write_ring, &payload, sizeof( payload ) );
+    gp_result_t result = gp_internal_geometry( _canvas, vertex_count, index_count, __write_ring, &payload, sizeof( payload ) );
     return result;
 }
 //////////////////////////////////////////////////////////////////////////
@@ -965,7 +965,7 @@ gp_result_t gp_end_rects( gp_canvas_t * _canvas )
         return GP_FAILURE;
     }
 
-    gp_result_t result = gp_inject_geometry( _canvas, payload->count * 4U, payload->count * 6U, __write_rects, payload, 0 );
+    gp_result_t result = gp_internal_geometry( _canvas, payload->count * 4U, payload->count * 6U, __write_rects, payload, 0 );
     return result;
 }
 //////////////////////////////////////////////////////////////////////////
@@ -1075,7 +1075,7 @@ gp_result_t gp_end_quads( gp_canvas_t * _canvas )
         return GP_FAILURE;
     }
 
-    gp_result_t result = gp_inject_geometry( _canvas, payload->capacity * 4U, payload->capacity * 6U, __write_quads, payload, 0 );
+    gp_result_t result = gp_internal_geometry( _canvas, payload->capacity * 4U, payload->capacity * 6U, __write_quads, payload, 0 );
     return result;
 }
 //////////////////////////////////////////////////////////////////////////

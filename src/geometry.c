@@ -2,296 +2,107 @@
 
 #include "detail.h"
 
-#include <string.h>
-
 //////////////////////////////////////////////////////////////////////////
-static gp_result_t __geometry_reserve( gp_geometry_t * _geometry, gp_uint32_t _vertex_count, gp_uint32_t _index_count )
+static const void * __geometry_element( const void * _buffer, gp_size_t _offset, gp_size_t _stride, gp_uint32_t _index )
 {
-    if( _vertex_count > _geometry->vertex_capacity )
-    {
-        gp_size_t size = (gp_size_t)_vertex_count * sizeof( gp_geometry_vertex_t );
-        if( _vertex_count != 0 && size / sizeof( gp_geometry_vertex_t ) != _vertex_count )
-        {
-            return GP_FAILURE;
-        }
+    const gp_uint8_t * bytes = (const gp_uint8_t *)_buffer;
+    const void * element = bytes + _offset + _stride * _index;
 
-        gp_geometry_vertex_t * vertices = (gp_geometry_vertex_t *)(*_geometry->realloc)( _geometry->vertices, size, _geometry->ud );
-        if( vertices == GP_NULLPTR )
-        {
-            return GP_FAILURE;
-        }
-
-        _geometry->vertices = vertices;
-        _geometry->vertex_capacity = _vertex_count;
-    }
-
-    if( _index_count > _geometry->index_capacity )
-    {
-        gp_size_t size = (gp_size_t)_index_count * sizeof( gp_uint32_t );
-        if( _index_count != 0 && size / sizeof( gp_uint32_t ) != _index_count )
-        {
-            return GP_FAILURE;
-        }
-
-        gp_uint32_t * indices = (gp_uint32_t *)(*_geometry->realloc)( _geometry->indices, size, _geometry->ud );
-        if( indices == GP_NULLPTR )
-        {
-            return GP_FAILURE;
-        }
-
-        _geometry->indices = indices;
-        _geometry->index_capacity = _index_count;
-    }
-
-    return GP_SUCCESSFUL;
+    return element;
 }
 //////////////////////////////////////////////////////////////////////////
-gp_result_t gp_geometry_create( gp_geometry_t ** _geometry, gp_malloc_t _malloc, gp_realloc_t _realloc, gp_free_t _free, void * _ud )
+static gp_color_t __source_color_float( const gp_state_t * _state, const void * _buffer, gp_size_t _offset, gp_size_t _stride, gp_uint32_t _index )
 {
-#if defined(GP_DEBUG)
-    if( _geometry == GP_NULLPTR || _malloc == GP_NULLPTR || _realloc == GP_NULLPTR || _free == GP_NULLPTR )
-    {
-        return GP_FAILURE;
-    }
-#endif
+    gp_color_t color = _state->color;
 
-    gp_geometry_t * geometry = (gp_geometry_t *)(*_malloc)( sizeof( gp_geometry_t ), _ud );
-    if( geometry == GP_NULLPTR )
+    if( _buffer != GP_NULLPTR )
     {
-        return GP_FAILURE;
+        const float * source = (const float *)__geometry_element( _buffer, _offset, _stride, _index );
+        color.r *= source[0];
+        color.g *= source[1];
+        color.b *= source[2];
+        color.a *= source[3];
     }
 
-    memset( geometry, 0, sizeof( gp_geometry_t ) );
-    geometry->malloc = _malloc;
-    geometry->realloc = _realloc;
-    geometry->free = _free;
-    geometry->ud = _ud;
-    *_geometry = geometry;
-
-    return GP_SUCCESSFUL;
+    return color;
 }
 //////////////////////////////////////////////////////////////////////////
-gp_result_t gp_geometry_destroy( gp_geometry_t * _geometry )
+gp_result_t gp_geometry_write( gp_mesh_writer_t * _writer, const gp_geometry_t * _geometry )
 {
-#if defined(GP_DEBUG)
-    if( _geometry == GP_NULLPTR )
+    for( gp_uint32_t vertex = 0; vertex != _geometry->vertex_count; ++vertex )
     {
-        return GP_FAILURE;
-    }
-#endif
-
-    if( _geometry->vertices != GP_NULLPTR )
-    {
-        (*_geometry->free)( _geometry->vertices, _geometry->ud );
-    }
-
-    if( _geometry->indices != GP_NULLPTR )
-    {
-        (*_geometry->free)( _geometry->indices, _geometry->ud );
-    }
-
-    (*_geometry->free)( _geometry, _geometry->ud );
-
-    return GP_SUCCESSFUL;
-}
-//////////////////////////////////////////////////////////////////////////
-gp_result_t gp_geometry_clear( gp_geometry_t * _geometry )
-{
-#if defined(GP_DEBUG)
-    if( _geometry == GP_NULLPTR )
-    {
-        return GP_FAILURE;
-    }
-#endif
-
-    _geometry->vertex_count = 0;
-    _geometry->index_count = 0;
-    _geometry->expected_rect_count = 0;
-    _geometry->rect_count = 0;
-    _geometry->building = GP_FALSE;
-    _geometry->complete = GP_FALSE;
-
-    return GP_SUCCESSFUL;
-}
-//////////////////////////////////////////////////////////////////////////
-gp_result_t gp_geometry_begin_textured_rects( gp_geometry_t * _geometry, gp_size_t _rect_count )
-{
-#if defined(GP_DEBUG)
-    if( _geometry == GP_NULLPTR || _rect_count == 0 || _geometry->building == GP_TRUE )
-    {
-        return GP_FAILURE;
-    }
-#endif
-
-    if( _rect_count > UINT32_MAX / 6U )
-    {
-        return GP_FAILURE;
-    }
-
-    gp_uint32_t rect_count = (gp_uint32_t)_rect_count;
-    gp_uint32_t vertex_count = rect_count * 4U;
-    gp_uint32_t index_count = rect_count * 6U;
-    if( __geometry_reserve( _geometry, vertex_count, index_count ) == GP_FAILURE )
-    {
-        return GP_FAILURE;
-    }
-
-    _geometry->vertex_count = 0;
-    _geometry->index_count = 0;
-    _geometry->expected_rect_count = rect_count;
-    _geometry->rect_count = 0;
-    _geometry->building = GP_TRUE;
-    _geometry->complete = GP_FALSE;
-
-    return GP_SUCCESSFUL;
-}
-//////////////////////////////////////////////////////////////////////////
-gp_result_t gp_geometry_add_textured_rect( gp_geometry_t * _geometry, float _x, float _y, float _width, float _height, float _u0, float _v0, float _u1, float _v1, float _r, float _g, float _b, float _a )
-{
-#if defined(GP_DEBUG)
-    if( _geometry == GP_NULLPTR )
-    {
-        return GP_FAILURE;
-    }
-
-    if( _geometry->building == GP_FALSE )
-    {
-        return GP_FAILURE;
-    }
-
-    if( GP_MATH_ISFINITE( _x ) == 0 || GP_MATH_ISFINITE( _y ) == 0 )
-    {
-        return GP_FAILURE;
-    }
-
-    if( GP_MATH_ISFINITE( _width ) == 0 || GP_MATH_ISFINITE( _height ) == 0 )
-    {
-        return GP_FAILURE;
-    }
-
-    if( GP_MATH_ISFINITE( _u0 ) == 0 || GP_MATH_ISFINITE( _v0 ) == 0 )
-    {
-        return GP_FAILURE;
-    }
-
-    if( GP_MATH_ISFINITE( _u1 ) == 0 || GP_MATH_ISFINITE( _v1 ) == 0 )
-    {
-        return GP_FAILURE;
-    }
-
-    if( GP_MATH_ISFINITE( _r ) == 0 || GP_MATH_ISFINITE( _g ) == 0 )
-    {
-        return GP_FAILURE;
-    }
-
-    if( GP_MATH_ISFINITE( _b ) == 0 || GP_MATH_ISFINITE( _a ) == 0 )
-    {
-        return GP_FAILURE;
-    }
-#endif
-
-    if( _geometry->rect_count == _geometry->expected_rect_count )
-    {
-        return GP_FAILURE;
-    }
-
-    gp_uint32_t vertex = _geometry->rect_count * 4U;
-    gp_uint32_t index = _geometry->rect_count * 6U;
-    gp_color_t color;
-    color.r = _r;
-    color.g = _g;
-    color.b = _b;
-    color.a = _a;
-    gp_geometry_vertex_t * vertices = _geometry->vertices + vertex;
-    vertices[0].x = _x;
-    vertices[0].y = _y;
-    vertices[0].color = color;
-    vertices[0].u = _u0;
-    vertices[0].v = _v0;
-    vertices[1].x = _x + _width;
-    vertices[1].y = _y;
-    vertices[1].color = color;
-    vertices[1].u = _u1;
-    vertices[1].v = _v0;
-    vertices[2].x = _x + _width;
-    vertices[2].y = _y + _height;
-    vertices[2].color = color;
-    vertices[2].u = _u1;
-    vertices[2].v = _v1;
-    vertices[3].x = _x;
-    vertices[3].y = _y + _height;
-    vertices[3].color = color;
-    vertices[3].u = _u0;
-    vertices[3].v = _v1;
-    _geometry->indices[index + 0U] = vertex + 0U;
-    _geometry->indices[index + 1U] = vertex + 1U;
-    _geometry->indices[index + 2U] = vertex + 2U;
-    _geometry->indices[index + 3U] = vertex + 0U;
-    _geometry->indices[index + 4U] = vertex + 2U;
-    _geometry->indices[index + 5U] = vertex + 3U;
-    ++_geometry->rect_count;
-    _geometry->vertex_count += 4U;
-    _geometry->index_count += 6U;
-
-    return GP_SUCCESSFUL;
-}
-//////////////////////////////////////////////////////////////////////////
-gp_result_t gp_geometry_end( gp_geometry_t * _geometry )
-{
-#if defined(GP_DEBUG)
-    if( _geometry == GP_NULLPTR || _geometry->building == GP_FALSE )
-    {
-        return GP_FAILURE;
-    }
-#endif
-
-    if( _geometry->rect_count != _geometry->expected_rect_count )
-    {
-        return GP_FAILURE;
-    }
-
-    _geometry->building = GP_FALSE;
-    _geometry->complete = GP_TRUE;
-
-    return GP_SUCCESSFUL;
-}
-//////////////////////////////////////////////////////////////////////////
-gp_result_t gp_geometry_get_memory_size( const gp_geometry_t * _geometry, gp_size_t * _size )
-{
-#if defined(GP_DEBUG)
-    if( _geometry == GP_NULLPTR || _size == GP_NULLPTR )
-    {
-        return GP_FAILURE;
-    }
-#endif
-
-    gp_size_t vertex_size = (gp_size_t)_geometry->vertex_capacity * sizeof( gp_geometry_vertex_t );
-    gp_size_t index_size = (gp_size_t)_geometry->index_capacity * sizeof( gp_uint32_t );
-    *_size = sizeof( gp_geometry_t ) + vertex_size + index_size;
-
-    return GP_SUCCESSFUL;
-}
-//////////////////////////////////////////////////////////////////////////
-gp_result_t gp_geometry_write( gp_mesh_writer_t * _writer, const gp_geometry_draw_t * _draw )
-{
-    const gp_geometry_t * geometry = _draw->geometry;
-    for( gp_uint32_t vertex = 0; vertex != geometry->vertex_count; ++vertex )
-    {
-        const gp_geometry_vertex_t * source = geometry->vertices + vertex;
-        float x = _draw->translation_x + _draw->axis_x_x * source->x + _draw->axis_y_x * source->y;
-        float y = _draw->translation_y + _draw->axis_x_y * source->x + _draw->axis_y_y * source->y;
-        gp_color_t color;
-        gp_color_mul( &color, &source->color, &_draw->tint );
+        const float * position = (const float *)__geometry_element( _geometry->positions_buffer, _geometry->positions_offset, _geometry->positions_stride, vertex );
+        float x = _geometry->translation_x + _geometry->axis_x_x * position[0] + _geometry->axis_y_x * position[1];
+        float y = _geometry->translation_y + _geometry->axis_x_y * position[0] + _geometry->axis_y_y * position[1];
+        gp_color_t color = __source_color_float( _geometry->state, _geometry->colors_buffer, _geometry->colors_offset, _geometry->colors_stride, vertex );
         gp_color_mul( &color, &color, &_writer->mesh->color );
-        gp_uint32_t argb = gp_color_argb( &color );
+        gp_argb_t argb = gp_color_argb( &color );
         GP_CALL( gp_mesh_writer_position, (_writer, vertex, x, y) );
         GP_CALL( gp_mesh_writer_color, (_writer, vertex, argb) );
-        GP_CALL( gp_mesh_writer_uv, (_writer, vertex, source->u, source->v) );
+
+        if( _geometry->uv_buffer == GP_NULLPTR )
+        {
+            GP_CALL( gp_mesh_writer_uv, (_writer, vertex, _geometry->state->uv_u, _geometry->state->uv_v) );
+        }
+        else
+        {
+            const float * uv = (const float *)__geometry_element( _geometry->uv_buffer, _geometry->uv_offset, _geometry->uv_stride, vertex );
+            GP_CALL( gp_mesh_writer_uv, (_writer, vertex, uv[0], uv[1]) );
+        }
     }
 
-    for( gp_uint32_t index = 0; index != geometry->index_count; ++index )
+    for( gp_uint32_t index = 0; index != _geometry->index_count; ++index )
     {
-        GP_CALL( gp_mesh_writer_index, (_writer, index, geometry->indices[index]) );
+        const gp_uint32_t * source = (const gp_uint32_t *)__geometry_element( _geometry->indices_buffer, _geometry->indices_offset, _geometry->indices_stride, index );
+
+#if defined(GP_DEBUG)
+        if( *source >= _geometry->vertex_count )
+        {
+            return GP_FAILURE;
+        }
+#endif
+
+        GP_CALL( gp_mesh_writer_index, (_writer, index, *source) );
+    }
+
+    return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
+gp_result_t gp_textured_rects_write( gp_mesh_writer_t * _writer, const gp_textured_rects_t * _rects )
+{
+    for( gp_uint32_t rect = 0; rect != _rects->rect_count; ++rect )
+    {
+        const float * bounds = (const float *)__geometry_element( _rects->bounds_buffer, _rects->bounds_offset, _rects->bounds_stride, rect );
+        const float * uv = (const float *)__geometry_element( _rects->uv_buffer, _rects->uv_offset, _rects->uv_stride, rect );
+        float x0 = bounds[0];
+        float y0 = bounds[1];
+        float x1 = x0 + bounds[2];
+        float y1 = y0 + bounds[3];
+        float positions[8] = {x0, y0, x1, y0, x1, y1, x0, y1};
+        float coordinates[8] = {uv[0], uv[1], uv[0] + uv[2], uv[1], uv[0] + uv[2], uv[1] + uv[3], uv[0], uv[1] + uv[3]};
+        gp_color_t color = __source_color_float( _rects->state, _rects->colors_buffer, _rects->colors_offset, _rects->colors_stride, rect );
+        gp_color_mul( &color, &color, &_writer->mesh->color );
+        gp_argb_t argb = gp_color_argb( &color );
+        gp_uint32_t vertex_offset = rect * 4U;
+        gp_uint32_t index_offset = rect * 6U;
+
+        for( gp_uint32_t corner = 0; corner != 4U; ++corner )
+        {
+            float source_x = positions[corner * 2U];
+            float source_y = positions[corner * 2U + 1U];
+            float x = _rects->translation_x + _rects->axis_x_x * source_x + _rects->axis_y_x * source_y;
+            float y = _rects->translation_y + _rects->axis_x_y * source_x + _rects->axis_y_y * source_y;
+            GP_CALL( gp_mesh_writer_position, (_writer, vertex_offset + corner, x, y) );
+            GP_CALL( gp_mesh_writer_color, (_writer, vertex_offset + corner, argb) );
+            GP_CALL( gp_mesh_writer_uv, (_writer, vertex_offset + corner, coordinates[corner * 2U], coordinates[corner * 2U + 1U]) );
+        }
+
+        GP_CALL( gp_mesh_writer_index, (_writer, index_offset + 0U, vertex_offset + 0U) );
+        GP_CALL( gp_mesh_writer_index, (_writer, index_offset + 1U, vertex_offset + 1U) );
+        GP_CALL( gp_mesh_writer_index, (_writer, index_offset + 2U, vertex_offset + 2U) );
+        GP_CALL( gp_mesh_writer_index, (_writer, index_offset + 3U, vertex_offset + 0U) );
+        GP_CALL( gp_mesh_writer_index, (_writer, index_offset + 4U, vertex_offset + 2U) );
+        GP_CALL( gp_mesh_writer_index, (_writer, index_offset + 5U, vertex_offset + 3U) );
     }
 
     return GP_SUCCESSFUL;

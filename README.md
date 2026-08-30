@@ -4,10 +4,16 @@
 
 ## Mesh contract
 
-`gp_mesh_t::vertex_count` and `gp_mesh_t::index_count` are 32-bit counters. The
-index buffer still stores `gp_uint16_t` values: one mesh may contain at most
-65535 unique vertices, while `index_count` may be greater than 65535. The
-vertex limit and API preconditions are checked only in Debug builds.
+`gp_mesh_t::vertex_count`, `gp_mesh_t::index_count`, and
+`gp_mesh_t::batch_count` are 32-bit counters. An index buffer may store either
+`gp_uint16_t` or `gp_uint32_t` values, selected by `indices_stride`. Every
+physical batch uses local indices and is limited to 65,535 vertices; a mesh may
+contain any number of such batches within its 32-bit counters.
+
+Call `gp_calculate_mesh_size` first to obtain the required counts. Every output
+stream in `gp_mesh_t`, including batches, is optional: leave its buffer null
+when the caller does not need that result. A non-null buffer uses its own byte
+offset and stride.
 
 Bulk point APIs use `const void *`, point count, and byte stride. The first two
 values of every point must be `float x` and `float y`; no public vector type is
@@ -27,10 +33,24 @@ The defaults are 65,536 render-order entries, 16 MiB of recording memory, and
 usage and lifetime peaks so an application can size these blocks from real
 frames.
 
-`gp_inject_geometry` lets a caller write externally generated geometry directly
-into the mesh. `gp_inject_branch` starts a new render-order range and invokes a
-callback for every physical batch in that range; the callback payload can carry
-renderer-owned state such as clip, texture, blend mode, or a debug label.
+`gp_geometry` records borrowed vertex and index buffers without taking ownership
+or copying them. Positions and indices are required; color and UV streams are
+optional and may be null. Every borrowed buffer must remain valid until the
+matching `gp_render` or `gp_flush` call returns. A position begins with two
+floats, a color with four RGBA floats, a UV with two floats, and every index is
+`gp_uint32_t`; byte offsets and strides describe interleaved source records.
+Source colors are multiplied by the current canvas color.
+
+`gp_textured_rects` accepts the same borrowed strided layout for logical
+textured rectangles. Bounds and UV records each begin with four floats in
+`x, y, width, height` order; an optional color record begins with RGBA. Graphics
+expands these logical rectangles into vertices and indices during rendering.
+
+`gp_flush` writes the currently recorded canvas commands into caller-owned mesh
+buffers, then resets only the recording and tessellation arenas. The logical
+canvas state and state stack are preserved, so recording may continue after a
+renderer-state boundary without clearing or recreating the canvas. Output mesh
+memory remains entirely owned and lifetime-managed by the caller.
 
 ## Rounded polygons
 

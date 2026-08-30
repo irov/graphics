@@ -41,6 +41,10 @@ gp_result_t gp_mesh_push_uv( const gp_state_t * _state, const gp_mesh_t * _mesh,
 gp_result_t gp_mesh_push_uv_map( const gp_state_t * _state, const gp_mesh_t * _mesh, gp_uint32_t _iterator, float _x, float _y, float _ox, float _oy, float _w, float _h );
 
 gp_result_t gp_mesh_get_position( const gp_mesh_t * _mesh, gp_uint32_t _iterator, gp_vec2f_t * const _pos );
+gp_result_t gp_mesh_writer_position( gp_mesh_writer_t * _writer, gp_uint32_t _vertex, float _x, float _y );
+gp_result_t gp_mesh_writer_color( gp_mesh_writer_t * _writer, gp_uint32_t _vertex, gp_argb_t _color );
+gp_result_t gp_mesh_writer_uv( gp_mesh_writer_t * _writer, gp_uint32_t _vertex, float _u, float _v );
+gp_result_t gp_mesh_writer_index( gp_mesh_writer_t * _writer, gp_uint32_t _index, gp_uint32_t _vertex );
 
 void * gp_canvas_recording_allocate( gp_canvas_t * _canvas, gp_size_t _size );
 const gp_state_t * gp_canvas_copy_state( gp_canvas_t * _canvas );
@@ -52,5 +56,7 @@ void * gp_canvas_scratch_realloc_callback( void * _pointer, gp_size_t _size, voi
 void gp_canvas_scratch_free_callback( void * _pointer, void * _ud );
 gp_size_t gp_canvas_scratch_mark( const gp_canvas_t * _canvas );
 void gp_canvas_scratch_reset( gp_canvas_t * _canvas, gp_size_t _mark );
+
+gp_result_t gp_internal_geometry( gp_canvas_t * _canvas, gp_uint32_t _vertex_count, gp_uint32_t _index_count, gp_internal_geometry_callback_t _callback, const void * _payload, gp_size_t _payload_size );
 
 #endif

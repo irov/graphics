@@ -9,8 +9,6 @@
 
 typedef struct gp_canvas_t gp_canvas_t;
 typedef struct gp_path_t gp_path_t;
-typedef struct gp_mesh_t gp_mesh_t;
-typedef struct gp_geometry_t gp_geometry_t;
 
 typedef enum gp_line_cap_e
 {
@@ -133,18 +131,6 @@ typedef struct gp_render_batch_t
     gp_uint32_t index_count;
     gp_bounds_t bounds;
 } gp_render_batch_t;
-
-typedef struct gp_mesh_writer_t
-{
-    const gp_mesh_t * mesh;
-    gp_uint32_t vertex_offset;
-    gp_uint32_t vertex_count;
-    gp_uint32_t index_offset;
-    gp_uint32_t index_count;
-} gp_mesh_writer_t;
-
-typedef gp_result_t (*gp_branch_callback_t)(const gp_render_batch_t * _batch, void * _render_context, const void * _payload);
-typedef gp_result_t (*gp_geometry_callback_t)(gp_mesh_writer_t * _writer, const void * _payload);
 
 typedef struct gp_canvas_memory_stats_t
 {
@@ -271,24 +257,9 @@ gp_result_t gp_add_quad_vertex( gp_canvas_t * _canvas, float _x, float _y );
 gp_result_t gp_end_quads( gp_canvas_t * _canvas );
 gp_result_t gp_multicolor_rect( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height, float _top_left_r, float _top_left_g, float _top_left_b, float _top_left_a, float _top_right_r, float _top_right_g, float _top_right_b, float _top_right_a, float _bottom_right_r, float _bottom_right_g, float _bottom_right_b, float _bottom_right_a, float _bottom_left_r, float _bottom_left_g, float _bottom_left_b, float _bottom_left_a );
 
-gp_result_t gp_inject_branch( gp_canvas_t * _canvas, gp_branch_callback_t _callback, const void * _payload, gp_size_t _payload_size );
-gp_result_t gp_inject_geometry( gp_canvas_t * _canvas, gp_uint32_t _vertex_count, gp_uint32_t _index_count, gp_geometry_callback_t _callback, const void * _payload, gp_size_t _payload_size );
-gp_result_t gp_begin_channel_group( gp_canvas_t * _canvas, gp_uint8_t _channel_count );
-gp_result_t gp_set_channel( gp_canvas_t * _canvas, gp_uint8_t _channel );
-gp_result_t gp_end_channel_group( gp_canvas_t * _canvas, const gp_uint8_t * _order, gp_size_t _order_count );
-
-/*************************************************************************
-*
-*************************************************************************/
-
-gp_result_t gp_geometry_create( gp_geometry_t ** _geometry, gp_malloc_t _malloc, gp_realloc_t _realloc, gp_free_t _free, void * _ud );
-gp_result_t gp_geometry_destroy( gp_geometry_t * _geometry );
-gp_result_t gp_geometry_clear( gp_geometry_t * _geometry );
-gp_result_t gp_geometry_begin_textured_rects( gp_geometry_t * _geometry, gp_size_t _rect_count );
-gp_result_t gp_geometry_add_textured_rect( gp_geometry_t * _geometry, float _x, float _y, float _width, float _height, float _u0, float _v0, float _u1, float _v1, float _r, float _g, float _b, float _a );
-gp_result_t gp_geometry_end( gp_geometry_t * _geometry );
-gp_result_t gp_geometry_get_memory_size( const gp_geometry_t * _geometry, gp_size_t * _size );
-gp_result_t gp_draw_geometry( gp_canvas_t * _canvas, const gp_geometry_t * _geometry, float _translation_x, float _translation_y, float _axis_x_x, float _axis_x_y, float _axis_y_x, float _axis_y_y, float _r, float _g, float _b, float _a );
+/* Source buffers are borrowed and must remain valid until gp_render or gp_flush returns. */
+gp_result_t gp_geometry( gp_canvas_t * _canvas, gp_uint32_t _vertex_count, const void * _positions_buffer, gp_size_t _positions_offset, gp_size_t _positions_stride, const void * _colors_buffer, gp_size_t _colors_offset, gp_size_t _colors_stride, const void * _uv_buffer, gp_size_t _uv_offset, gp_size_t _uv_stride, gp_uint32_t _index_count, const void * _indices_buffer, gp_size_t _indices_offset, gp_size_t _indices_stride, float _translation_x, float _translation_y, float _axis_x_x, float _axis_x_y, float _axis_y_x, float _axis_y_y );
+gp_result_t gp_textured_rects( gp_canvas_t * _canvas, gp_uint32_t _rect_count, const void * _bounds_buffer, gp_size_t _bounds_offset, gp_size_t _bounds_stride, const void * _uv_buffer, gp_size_t _uv_offset, gp_size_t _uv_stride, const void * _colors_buffer, gp_size_t _colors_offset, gp_size_t _colors_stride, float _translation_x, float _translation_y, float _axis_x_x, float _axis_x_y, float _axis_y_x, float _axis_y_y );
 
 /*************************************************************************
 *
@@ -340,7 +311,7 @@ gp_result_t gp_star( gp_canvas_t * _canvas, float _x, float _y, float _inner_rad
 *
 *************************************************************************/
 
-struct gp_mesh_t
+typedef struct gp_mesh_t
 {
     gp_uint32_t vertex_count;
     gp_uint32_t index_count;
@@ -367,17 +338,12 @@ struct gp_mesh_t
     void * batches_buffer;
     gp_size_t batches_offset;
     gp_size_t batches_stride;
-
-    void * render_context;
-};
-
-gp_result_t gp_mesh_writer_position( gp_mesh_writer_t * _writer, gp_uint32_t _vertex, float _x, float _y );
-gp_result_t gp_mesh_writer_color( gp_mesh_writer_t * _writer, gp_uint32_t _vertex, gp_argb_t _color );
-gp_result_t gp_mesh_writer_uv( gp_mesh_writer_t * _writer, gp_uint32_t _vertex, float _u, float _v );
-gp_result_t gp_mesh_writer_index( gp_mesh_writer_t * _writer, gp_uint32_t _index, gp_uint32_t _vertex );
+} gp_mesh_t;
 
 gp_result_t gp_calculate_mesh_size( const gp_canvas_t * _canvas, gp_mesh_t * _mesh );
 gp_result_t gp_render( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh );
+/* Renders recorded commands and resets only command storage. Canvas state is preserved. */
+gp_result_t gp_flush( gp_canvas_t * _canvas, const gp_mesh_t * _mesh );
 gp_result_t gp_calculate_bounds( const gp_canvas_t * _canvas, gp_bounds_t * _bounds );
 
 #endif
