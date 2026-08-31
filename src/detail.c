@@ -61,11 +61,46 @@ const gp_state_t * gp_canvas_copy_state( gp_canvas_t * _canvas )
     }
 
     *state = *GP_GET_STATE( _canvas );
+    gp_state_apply_stroke_scale( state );
     state->next = GP_NULLPTR;
     state->prev = GP_NULLPTR;
     GP_LIST_PUSHBACK( gp_state_t, _canvas->states, state );
     _canvas->state_invalidate = GP_FALSE;
     return state;
+}
+//////////////////////////////////////////////////////////////////////////
+void gp_state_apply_stroke_scale( gp_state_t * _state )
+{
+    if( _state->stroke_scale == GP_STROKE_SCALE_WORLD )
+    {
+        return;
+    }
+
+    float axis_x_length = GP_MATH_SQRTF( _state->axis_x_x * _state->axis_x_x + _state->axis_x_y * _state->axis_x_y );
+    float axis_y_length = GP_MATH_SQRTF( _state->axis_y_x * _state->axis_y_x + _state->axis_y_y * _state->axis_y_y );
+    float scale = axis_x_length > axis_y_length ? axis_x_length : axis_y_length;
+
+    if( scale <= 0.f )
+    {
+        return;
+    }
+
+    float inverse_scale = 1.f / scale;
+    _state->thickness *= inverse_scale;
+    _state->outline_width *= inverse_scale;
+    _state->penumbra *= inverse_scale;
+    _state->border_width *= inverse_scale;
+    _state->feather *= inverse_scale;
+    _state->shadow.offset_x *= inverse_scale;
+    _state->shadow.offset_y *= inverse_scale;
+    _state->shadow.spread *= inverse_scale;
+    _state->shadow.blur *= inverse_scale;
+    _state->start_marker.length *= inverse_scale;
+    _state->start_marker.width *= inverse_scale;
+    _state->start_marker.inset *= inverse_scale;
+    _state->end_marker.length *= inverse_scale;
+    _state->end_marker.width *= inverse_scale;
+    _state->end_marker.inset *= inverse_scale;
 }
 //////////////////////////////////////////////////////////////////////////
 void * gp_canvas_scratch_reallocate( gp_canvas_t * _canvas, void * _pointer, gp_size_t _size )

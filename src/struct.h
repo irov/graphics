@@ -50,7 +50,8 @@ typedef struct gp_shadow_t
 //////////////////////////////////////////////////////////////////////////
 typedef enum gp_state_flag_e
 {
-    GP_STATE_FLAG_FILL = 1U << 0
+    GP_STATE_FLAG_FILL = 1U << 0,
+    GP_STATE_FLAG_TRANSFORM = 1U << 1
 } gp_state_flag_e;
 //////////////////////////////////////////////////////////////////////////
 typedef struct gp_linef_t
@@ -69,6 +70,14 @@ typedef struct gp_state_t
     gp_fill_rule_t fill_rule;
     gp_stroke_alignment_t stroke_alignment;
     gp_uv_mode_t uv_mode;
+    gp_stroke_scale_t stroke_scale;
+
+    float translation_x;
+    float translation_y;
+    float axis_x_x;
+    float axis_x_y;
+    float axis_y_x;
+    float axis_y_y;
 
     float thickness;
     float outline_width;
@@ -241,6 +250,7 @@ typedef struct gp_internal_geometry_t
     gp_uint32_t index_count;
     gp_internal_geometry_callback_t callback;
     const void * payload;
+    const gp_state_t * state;
 } gp_internal_geometry_t;
 //////////////////////////////////////////////////////////////////////////
 typedef struct gp_geometry_t
@@ -293,6 +303,7 @@ typedef struct gp_render_order_t
 {
     gp_render_order_type_e type;
     void * primitive;
+    const gp_state_t * state;
 } gp_render_order_t;
 //////////////////////////////////////////////////////////////////////////
 typedef struct gp_arena_t

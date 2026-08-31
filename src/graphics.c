@@ -13,7 +13,7 @@
 
 #include <string.h>
 
-static gp_result_t __push_render_order( gp_canvas_t * _canvas, gp_render_order_type_e _type, void * _primitive );
+static gp_result_t __push_render_order( gp_canvas_t * _canvas, gp_render_order_type_e _type, void * _primitive, const gp_state_t * _state );
 static gp_result_t __render_order( const gp_render_order_t * _order, const gp_mesh_t * _mesh, gp_uint32_t * _vertex_iterator, gp_uint32_t * _index_iterator );
 
 //////////////////////////////////////////////////////////////////////////
@@ -135,6 +135,13 @@ static void __canvas_default_state_setup( gp_canvas_t * _canvas )
     _canvas->state_cook[0].fill_rule = GP_FILL_RULE_NON_ZERO;
     _canvas->state_cook[0].stroke_alignment = GP_STROKE_ALIGNMENT_CENTER;
     _canvas->state_cook[0].uv_mode = GP_UV_MODE_BOUNDS;
+    _canvas->state_cook[0].stroke_scale = GP_STROKE_SCALE_WORLD;
+    _canvas->state_cook[0].translation_x = 0.f;
+    _canvas->state_cook[0].translation_y = 0.f;
+    _canvas->state_cook[0].axis_x_x = 1.f;
+    _canvas->state_cook[0].axis_x_y = 0.f;
+    _canvas->state_cook[0].axis_y_x = 0.f;
+    _canvas->state_cook[0].axis_y_y = 1.f;
     _canvas->state_cook[0].thickness = gp_get_default_thickness();
     _canvas->state_cook[0].outline_width = 0.f;
     _canvas->state_cook[0].penumbra = gp_get_default_penumbra();
@@ -1061,7 +1068,124 @@ gp_result_t gp_pop_state( gp_canvas_t * _canvas )
     return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
-static gp_result_t __push_render_order( gp_canvas_t * _canvas, gp_render_order_type_e _type, void * _primitive )
+gp_result_t gp_set_transform( gp_canvas_t * _canvas, float _translation_x, float _translation_y, float _axis_x_x, float _axis_x_y, float _axis_y_x, float _axis_y_y )
+{
+#if defined(GP_DEBUG)
+    if( _canvas == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
+
+    if( GP_MATH_ISFINITE( _translation_x ) == 0 || GP_MATH_ISFINITE( _translation_y ) == 0 )
+    {
+        return GP_FAILURE;
+    }
+
+    if( GP_MATH_ISFINITE( _axis_x_x ) == 0 || GP_MATH_ISFINITE( _axis_x_y ) == 0 || GP_MATH_ISFINITE( _axis_y_x ) == 0 || GP_MATH_ISFINITE( _axis_y_y ) == 0 )
+    {
+        return GP_FAILURE;
+    }
+
+    float determinant = _axis_x_x * _axis_y_y - _axis_x_y * _axis_y_x;
+
+    if( GP_EQUAL_F( determinant, 0.000001f ) == GP_TRUE )
+    {
+        return GP_FAILURE;
+    }
+#endif
+
+    gp_state_t * state = GP_GET_STATE( _canvas );
+    state->translation_x = _translation_x;
+    state->translation_y = _translation_y;
+    state->axis_x_x = _axis_x_x;
+    state->axis_x_y = _axis_x_y;
+    state->axis_y_x = _axis_y_x;
+    state->axis_y_y = _axis_y_y;
+
+    if( _translation_x == 0.f && _translation_y == 0.f && _axis_x_x == 1.f && _axis_x_y == 0.f && _axis_y_x == 0.f && _axis_y_y == 1.f )
+    {
+        state->flags &= ~GP_STATE_FLAG_TRANSFORM;
+    }
+    else
+    {
+        state->flags |= GP_STATE_FLAG_TRANSFORM;
+    }
+
+    _canvas->state_invalidate = GP_TRUE;
+
+    return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
+gp_result_t gp_get_transform( const gp_canvas_t * _canvas, float * _translation_x, float * _translation_y, float * _axis_x_x, float * _axis_x_y, float * _axis_y_x, float * _axis_y_y )
+{
+#if defined(GP_DEBUG)
+    if( _canvas == GP_NULLPTR || _translation_x == GP_NULLPTR || _translation_y == GP_NULLPTR || _axis_x_x == GP_NULLPTR || _axis_x_y == GP_NULLPTR || _axis_y_x == GP_NULLPTR || _axis_y_y == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
+#endif
+
+    const gp_state_t * state = GP_GET_STATE( _canvas );
+    *_translation_x = state->translation_x;
+    *_translation_y = state->translation_y;
+    *_axis_x_x = state->axis_x_x;
+    *_axis_x_y = state->axis_x_y;
+    *_axis_y_x = state->axis_y_x;
+    *_axis_y_y = state->axis_y_y;
+
+    return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
+gp_result_t gp_reset_transform( gp_canvas_t * _canvas )
+{
+    gp_result_t result = gp_set_transform( _canvas, 0.f, 0.f, 1.f, 0.f, 0.f, 1.f );
+
+    return result;
+}
+//////////////////////////////////////////////////////////////////////////
+gp_result_t gp_set_stroke_scale( gp_canvas_t * _canvas, gp_stroke_scale_t _scale )
+{
+#if defined(GP_DEBUG)
+    if( _canvas == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
+
+    if( _scale != GP_STROKE_SCALE_WORLD && _scale != GP_STROKE_SCALE_SCREEN )
+    {
+        return GP_FAILURE;
+    }
+#endif
+
+    gp_state_t * state = GP_GET_STATE( _canvas );
+
+    if( state->stroke_scale == _scale )
+    {
+        return GP_SUCCESSFUL;
+    }
+
+    state->stroke_scale = _scale;
+    _canvas->state_invalidate = GP_TRUE;
+
+    return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
+gp_result_t gp_get_stroke_scale( const gp_canvas_t * _canvas, gp_stroke_scale_t * _scale )
+{
+#if defined(GP_DEBUG)
+    if( _canvas == GP_NULLPTR || _scale == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
+#endif
+
+    const gp_state_t * state = GP_GET_STATE( _canvas );
+    *_scale = state->stroke_scale;
+
+    return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
+static gp_result_t __push_render_order( gp_canvas_t * _canvas, gp_render_order_type_e _type, void * _primitive, const gp_state_t * _state )
 {
     if( _canvas->render_order_count == GP_CANVAS_RENDER_ORDER_CAPACITY )
     {
@@ -1072,6 +1196,7 @@ static gp_result_t __push_render_order( gp_canvas_t * _canvas, gp_render_order_t
     gp_render_order_t * order = _canvas->render_orders + index;
     order->type = _type;
     order->primitive = _primitive;
+    order->state = _state;
 
     return GP_SUCCESSFUL;
 }
@@ -1139,7 +1264,14 @@ gp_result_t gp_internal_geometry( gp_canvas_t * _canvas, gp_uint32_t _vertex_cou
     geometry->index_count = _index_count;
     geometry->callback = _callback;
     GP_CALL( __record_payload, (_canvas, _payload, _payload_size, &geometry->payload) );
-    GP_CALL( __push_render_order, (_canvas, GP_RENDER_ORDER_INTERNAL_GEOMETRY, geometry) );
+    geometry->state = GP_COPY_STATE( _canvas );
+
+    if( geometry->state == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
+
+    GP_CALL( __push_render_order, (_canvas, GP_RENDER_ORDER_INTERNAL_GEOMETRY, geometry, geometry->state) );
 
     return GP_SUCCESSFUL;
 }
@@ -1268,7 +1400,7 @@ gp_result_t gp_geometry( gp_canvas_t * _canvas, gp_uint32_t _vertex_count, const
         return GP_FAILURE;
     }
 
-    gp_result_t result = __push_render_order( _canvas, GP_RENDER_ORDER_GEOMETRY, geometry );
+    gp_result_t result = __push_render_order( _canvas, GP_RENDER_ORDER_GEOMETRY, geometry, geometry->state );
 
     return result;
 }
@@ -1380,7 +1512,7 @@ gp_result_t gp_textured_rects( gp_canvas_t * _canvas, gp_uint32_t _rect_count, c
         return GP_FAILURE;
     }
 
-    gp_result_t result = __push_render_order( _canvas, GP_RENDER_ORDER_TEXTURED_RECTS, rects );
+    gp_result_t result = __push_render_order( _canvas, GP_RENDER_ORDER_TEXTURED_RECTS, rects, rects->state );
 
     return result;
 }
@@ -1425,6 +1557,8 @@ static gp_state_t * __copy_path_state( gp_canvas_t * _canvas, const gp_path_t * 
     {
         state->outline_color = _style->outline_color;
     }
+
+    gp_state_apply_stroke_scale( state );
 
     GP_LIST_PUSHBACK( gp_state_t, _canvas->states, state );
 
@@ -1583,7 +1717,7 @@ gp_result_t gp_draw_path( gp_canvas_t * _canvas, const gp_path_t * _path )
         GP_LIST_PUSHBACK( gp_line_t, _canvas->lines, line );
         if( compound == GP_NULLPTR )
         {
-            GP_CALL( __push_render_order, (_canvas, GP_RENDER_ORDER_LINE, line) );
+            GP_CALL( __push_render_order, (_canvas, GP_RENDER_ORDER_LINE, line, line->state) );
         }
         else
         {
@@ -1599,7 +1733,7 @@ gp_result_t gp_draw_path( gp_canvas_t * _canvas, const gp_path_t * _path )
 
     if( compound != GP_NULLPTR )
     {
-        GP_CALL( __push_render_order, (_canvas, GP_RENDER_ORDER_COMPOUND_FILL, compound) );
+        GP_CALL( __push_render_order, (_canvas, GP_RENDER_ORDER_COMPOUND_FILL, compound, compound->first_line->state) );
     }
 
     _canvas->state_invalidate = GP_TRUE;
@@ -1644,7 +1778,7 @@ gp_result_t gp_rect( gp_canvas_t * _canvas, float _x, float _y, float _width, fl
     }
 
     GP_LIST_PUSHBACK( gp_rect_t, _canvas->rects, r );
-    GP_CALL( __push_render_order, (_canvas, GP_RENDER_ORDER_RECT, r) );
+    GP_CALL( __push_render_order, (_canvas, GP_RENDER_ORDER_RECT, r, r->state) );
 
     return GP_SUCCESSFUL;
 }
@@ -1680,7 +1814,7 @@ gp_result_t gp_rounded_rect( gp_canvas_t * _canvas, float _x, float _y, float _w
     }
 
     GP_LIST_PUSHBACK( gp_rounded_rect_t, _canvas->rounded_rects, rr );
-    GP_CALL( __push_render_order, (_canvas, GP_RENDER_ORDER_ROUNDED_RECT, rr) );
+    GP_CALL( __push_render_order, (_canvas, GP_RENDER_ORDER_ROUNDED_RECT, rr, rr->state) );
 
     return GP_SUCCESSFUL;
 }
@@ -1722,7 +1856,7 @@ gp_result_t gp_ellipse( gp_canvas_t * _canvas, float _x, float _y, float _width,
     }
 
     GP_LIST_PUSHBACK( gp_ellipse_t, _canvas->ellipses, e );
-    GP_CALL( __push_render_order, (_canvas, GP_RENDER_ORDER_ELLIPSE, e) );
+    GP_CALL( __push_render_order, (_canvas, GP_RENDER_ORDER_ELLIPSE, e, e->state) );
 
     return GP_SUCCESSFUL;
 }
@@ -1776,7 +1910,7 @@ static gp_result_t gp_ellipse_arc_internal( gp_canvas_t * _canvas, float _x, flo
         }
 
         GP_LIST_PUSHBACK( gp_ellipse_arc_t, _canvas->ellipse_arcs, a );
-        GP_CALL( __push_render_order, (_canvas, GP_RENDER_ORDER_ELLIPSE_ARC, a) );
+        GP_CALL( __push_render_order, (_canvas, GP_RENDER_ORDER_ELLIPSE_ARC, a, a->state) );
 
         return GP_SUCCESSFUL;
     }
@@ -2063,6 +2197,66 @@ gp_result_t gp_calculate_mesh_size( const gp_canvas_t * _canvas, gp_mesh_t * _me
     return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
+gp_result_t gp_preflight( const gp_canvas_t * _canvas, gp_uint32_t * _vertex_count, gp_uint32_t * _index_count, gp_uint32_t * _batch_count, gp_size_t * _recording_size, gp_size_t * _scratch_size )
+{
+#if defined(GP_DEBUG)
+    if( _canvas == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
+
+    if( _vertex_count == GP_NULLPTR && _index_count == GP_NULLPTR && _batch_count == GP_NULLPTR && _recording_size == GP_NULLPTR && _scratch_size == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
+#endif
+
+    gp_canvas_t * canvas = (gp_canvas_t *)_canvas;
+    gp_size_t previous_scratch_peak = canvas->scratch_arena.peak;
+    canvas->scratch_arena.peak = canvas->scratch_arena.offset;
+
+    gp_mesh_t mesh;
+    gp_result_t result = gp_calculate_mesh_size( _canvas, &mesh );
+    gp_size_t required_scratch_size = canvas->scratch_arena.peak;
+
+    if( previous_scratch_peak > canvas->scratch_arena.peak )
+    {
+        canvas->scratch_arena.peak = previous_scratch_peak;
+    }
+
+    if( result == GP_FAILURE )
+    {
+        return GP_FAILURE;
+    }
+
+    if( _vertex_count != GP_NULLPTR )
+    {
+        *_vertex_count = mesh.vertex_count;
+    }
+
+    if( _index_count != GP_NULLPTR )
+    {
+        *_index_count = mesh.index_count;
+    }
+
+    if( _batch_count != GP_NULLPTR )
+    {
+        *_batch_count = mesh.batch_count;
+    }
+
+    if( _recording_size != GP_NULLPTR )
+    {
+        *_recording_size = canvas->recording_arena.offset;
+    }
+
+    if( _scratch_size != GP_NULLPTR )
+    {
+        *_scratch_size = required_scratch_size;
+    }
+
+    return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
 static gp_render_batch_t * __mesh_get_batch( const gp_mesh_t * _mesh, gp_uint32_t _index )
 {
     if( _mesh->batches_buffer == GP_NULLPTR )
@@ -2103,7 +2297,7 @@ static gp_result_t __finalize_batch( const gp_mesh_t * _mesh, gp_uint32_t _batch
     return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
-static gp_result_t __render_order( const gp_render_order_t * _order, const gp_mesh_t * _mesh, gp_uint32_t * _vertex_iterator, gp_uint32_t * _index_iterator )
+static gp_result_t __render_order_raw( const gp_render_order_t * _order, const gp_mesh_t * _mesh, gp_uint32_t * _vertex_iterator, gp_uint32_t * _index_iterator )
 {
     switch( _order->type )
     {
@@ -2192,6 +2386,41 @@ static gp_result_t __render_order( const gp_render_order_t * _order, const gp_me
     default:
         return GP_FAILURE;
     }
+}
+//////////////////////////////////////////////////////////////////////////
+static gp_result_t __render_order( const gp_render_order_t * _order, const gp_mesh_t * _mesh, gp_uint32_t * _vertex_iterator, gp_uint32_t * _index_iterator )
+{
+    gp_uint32_t first_vertex = *_vertex_iterator;
+    gp_result_t result = __render_order_raw( _order, _mesh, _vertex_iterator, _index_iterator );
+
+    if( result == GP_FAILURE )
+    {
+        return GP_FAILURE;
+    }
+
+    if( _mesh->positions_buffer == GP_NULLPTR || _order->state == GP_NULLPTR )
+    {
+        return GP_SUCCESSFUL;
+    }
+
+    const gp_state_t * state = _order->state;
+
+    if( (state->flags & GP_STATE_FLAG_TRANSFORM) == 0 )
+    {
+        return GP_SUCCESSFUL;
+    }
+
+    for( gp_uint32_t vertex = first_vertex; vertex != *_vertex_iterator; ++vertex )
+    {
+        gp_vec2f_t position;
+        GP_CALL( gp_mesh_get_position, (_mesh, vertex, &position) );
+
+        float x = state->translation_x + state->axis_x_x * position.x + state->axis_y_x * position.y;
+        float y = state->translation_y + state->axis_x_y * position.x + state->axis_y_y * position.y;
+        GP_CALL( gp_mesh_push_position, (_mesh, vertex, x, y) );
+    }
+
+    return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
 gp_result_t gp_render( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh )

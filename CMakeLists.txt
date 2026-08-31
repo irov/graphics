@@ -84,6 +84,7 @@ set(GRAPHICS_SOURCES
     ${SOURCE_DIR}/effects.h
     ${SOURCE_DIR}/geometry.c
     ${SOURCE_DIR}/geometry.h
+    ${SOURCE_DIR}/editor.c
 )
 
 set(GRAPHICS_HEADERS

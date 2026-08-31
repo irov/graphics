@@ -290,6 +290,74 @@ static gp_result_t test_state_restore( void )
     return gp_canvas_destroy( canvas );
 }
 //////////////////////////////////////////////////////////////////////////
+static gp_result_t test_transform_state( void )
+{
+    gp_canvas_t * canvas;
+    if( gp_canvas_create( &canvas, &test_malloc, &test_realloc, &test_free, GP_NULLPTR ) == GP_FAILURE )
+    {
+        return GP_FAILURE;
+    }
+
+    if( gp_set_penumbra( canvas, 0.f ) == GP_FAILURE ||
+        gp_begin_fill( canvas ) == GP_FAILURE ||
+        gp_set_transform( canvas, 10.f, 20.f, 2.f, 0.f, 0.f, 3.f ) == GP_FAILURE ||
+        gp_push_state( canvas ) == GP_FAILURE ||
+        gp_reset_transform( canvas ) == GP_FAILURE ||
+        gp_rect( canvas, 1.f, 2.f, 3.f, 4.f ) == GP_FAILURE ||
+        gp_pop_state( canvas ) == GP_FAILURE ||
+        gp_rect( canvas, 1.f, 2.f, 3.f, 4.f ) == GP_FAILURE ||
+        gp_reset_transform( canvas ) == GP_FAILURE ||
+        gp_rect( canvas, 1.f, 2.f, 3.f, 4.f ) == GP_FAILURE )
+    {
+        gp_canvas_destroy( canvas );
+        return GP_FAILURE;
+    }
+
+    float translation_x;
+    float translation_y;
+    float axis_x_x;
+    float axis_x_y;
+    float axis_y_x;
+    float axis_y_y;
+    if( gp_get_transform( canvas, &translation_x, &translation_y, &axis_x_x, &axis_x_y, &axis_y_x, &axis_y_y ) == GP_FAILURE ||
+        translation_x != 0.f || translation_y != 0.f ||
+        axis_x_x != 1.f || axis_x_y != 0.f || axis_y_x != 0.f || axis_y_y != 1.f )
+    {
+        gp_canvas_destroy( canvas );
+        return GP_FAILURE;
+    }
+
+    gp_mesh_t mesh;
+    test_vertex_t * vertices;
+    gp_uint16_t * indices;
+    if( test_render( canvas, &mesh, &vertices, &indices ) == GP_FAILURE )
+    {
+        gp_canvas_destroy( canvas );
+        return GP_FAILURE;
+    }
+
+    gp_bool_t valid = mesh.vertex_count == 12 ? GP_TRUE : GP_FALSE;
+    for( gp_uint32_t vertex = 0; valid == GP_TRUE && vertex != 4; ++vertex )
+    {
+        const test_vertex_t * identity = vertices + vertex;
+        const test_vertex_t * transformed = vertices + 4U + vertex;
+        const test_vertex_t * reset = vertices + 8U + vertex;
+
+        if( transformed->x != 10.f + 2.f * identity->x ||
+            transformed->y != 20.f + 3.f * identity->y ||
+            reset->x != identity->x || reset->y != identity->y )
+        {
+            valid = GP_FALSE;
+        }
+    }
+
+    free( vertices );
+    free( indices );
+    gp_canvas_destroy( canvas );
+
+    return valid == GP_TRUE ? GP_SUCCESSFUL : GP_FAILURE;
+}
+//////////////////////////////////////////////////////////////////////////
 static gp_result_t test_close_path( void )
 {
     gp_canvas_t * canvas;
@@ -1593,6 +1661,12 @@ int main( int argc, char ** argv )
     if( test_state_restore() == GP_FAILURE )
     {
         fprintf( stderr, "test_state_restore failed\n" );
+        return EXIT_FAILURE;
+    }
+
+    if( test_transform_state() == GP_FAILURE )
+    {
+        fprintf( stderr, "test_transform_state failed\n" );
         return EXIT_FAILURE;
     }
 

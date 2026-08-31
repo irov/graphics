@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <stddef.h>
 
-#define GP_API_VERSION 3U
+#define GP_API_VERSION 5U
 
 typedef enum gp_result_e
 {
@@ -74,7 +74,7 @@ typedef struct gp_color_t
 #endif
 
 #ifndef GP_CANVAS_RECORDING_MEMORY_SIZE
-#define GP_CANVAS_RECORDING_MEMORY_SIZE (16U * 1024U * 1024U)
+#define GP_CANVAS_RECORDING_MEMORY_SIZE (64U * 1024U * 1024U)
 #endif
 
 #ifndef GP_CANVAS_RENDER_ORDER_CAPACITY

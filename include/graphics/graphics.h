@@ -66,6 +66,18 @@ typedef enum gp_fill_spread_e
     GP_FILL_SPREAD_MIRROR
 } gp_fill_spread_e;
 
+typedef enum gp_stroke_scale_e
+{
+    GP_STROKE_SCALE_WORLD,
+    GP_STROKE_SCALE_SCREEN
+} gp_stroke_scale_e;
+
+typedef enum gp_nine_slice_mode_e
+{
+    GP_NINE_SLICE_STRETCH,
+    GP_NINE_SLICE_TILE
+} gp_nine_slice_mode_e;
+
 typedef gp_line_cap_e gp_line_cap_t;
 typedef gp_line_join_e gp_line_join_t;
 typedef gp_fill_rule_e gp_fill_rule_t;
@@ -74,6 +86,8 @@ typedef gp_path_marker_type_e gp_path_marker_type_t;
 typedef gp_stroke_alignment_e gp_stroke_alignment_t;
 typedef gp_uv_mode_e gp_uv_mode_t;
 typedef gp_fill_spread_e gp_fill_spread_t;
+typedef gp_stroke_scale_e gp_stroke_scale_t;
+typedef gp_nine_slice_mode_e gp_nine_slice_mode_t;
 
 typedef struct gp_bounds_t
 {
@@ -236,6 +250,12 @@ gp_result_t gp_end_fill( gp_canvas_t * _canvas );
 gp_result_t gp_push_state( gp_canvas_t * _canvas );
 gp_result_t gp_pop_state( gp_canvas_t * _canvas );
 
+gp_result_t gp_set_transform( gp_canvas_t * _canvas, float _translation_x, float _translation_y, float _axis_x_x, float _axis_x_y, float _axis_y_x, float _axis_y_y );
+gp_result_t gp_get_transform( const gp_canvas_t * _canvas, float * _translation_x, float * _translation_y, float * _axis_x_x, float * _axis_x_y, float * _axis_y_x, float * _axis_y_y );
+gp_result_t gp_reset_transform( gp_canvas_t * _canvas );
+gp_result_t gp_set_stroke_scale( gp_canvas_t * _canvas, gp_stroke_scale_t _scale );
+gp_result_t gp_get_stroke_scale( const gp_canvas_t * _canvas, gp_stroke_scale_t * _scale );
+
 gp_result_t gp_set_fill_color( gp_canvas_t * _canvas, float _r, float _g, float _b, float _a );
 gp_result_t gp_set_fill_linear( gp_canvas_t * _canvas, float _from_x, float _from_y, float _to_x, float _to_y, gp_fill_spread_t _spread );
 gp_result_t gp_set_fill_radial( gp_canvas_t * _canvas, float _center_x, float _center_y, float _radius, gp_fill_spread_t _spread );
@@ -260,6 +280,9 @@ gp_result_t gp_multicolor_rect( gp_canvas_t * _canvas, float _x, float _y, float
 /* Source buffers are borrowed and must remain valid until gp_render or gp_flush returns. */
 gp_result_t gp_geometry( gp_canvas_t * _canvas, gp_uint32_t _vertex_count, const void * _positions_buffer, gp_size_t _positions_offset, gp_size_t _positions_stride, const void * _colors_buffer, gp_size_t _colors_offset, gp_size_t _colors_stride, const void * _uv_buffer, gp_size_t _uv_offset, gp_size_t _uv_stride, gp_uint32_t _index_count, const void * _indices_buffer, gp_size_t _indices_offset, gp_size_t _indices_stride, float _translation_x, float _translation_y, float _axis_x_x, float _axis_x_y, float _axis_y_x, float _axis_y_y );
 gp_result_t gp_textured_rects( gp_canvas_t * _canvas, gp_uint32_t _rect_count, const void * _bounds_buffer, gp_size_t _bounds_offset, gp_size_t _bounds_stride, const void * _uv_buffer, gp_size_t _uv_offset, gp_size_t _uv_stride, const void * _colors_buffer, gp_size_t _colors_offset, gp_size_t _colors_stride, float _translation_x, float _translation_y, float _axis_x_x, float _axis_x_y, float _axis_y_x, float _axis_y_y );
+gp_result_t gp_nine_slice( gp_canvas_t * _canvas, float _destination_x, float _destination_y, float _destination_width, float _destination_height, float _source_width, float _source_height, float _uv_x, float _uv_y, float _uv_width, float _uv_height, float _inset_left, float _inset_top, float _inset_right, float _inset_bottom, gp_nine_slice_mode_t _edge_mode, gp_nine_slice_mode_t _center_mode );
+gp_result_t gp_grid( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height, float _origin_x, float _origin_y, float _axis_x_x, float _axis_x_y, float _axis_y_x, float _axis_y_y, float _minor_step, gp_uint32_t _major_interval, float _minor_thickness, float _major_thickness, float _minor_r, float _minor_g, float _minor_b, float _minor_a, float _major_r, float _major_g, float _major_b, float _major_a );
+gp_result_t gp_grid_bounded( gp_canvas_t * _canvas, float _viewport_x, float _viewport_y, float _viewport_width, float _viewport_height, float _range_x, float _range_y, float _range_width, float _range_height, float _origin_x, float _origin_y, float _axis_x_x, float _axis_x_y, float _axis_y_x, float _axis_y_y, float _minor_step, gp_uint32_t _major_interval, float _minor_thickness, float _major_thickness, float _minor_r, float _minor_g, float _minor_b, float _minor_a, float _major_r, float _major_g, float _major_b, float _major_a );
 
 /*************************************************************************
 *
@@ -341,6 +364,7 @@ typedef struct gp_mesh_t
 } gp_mesh_t;
 
 gp_result_t gp_calculate_mesh_size( const gp_canvas_t * _canvas, gp_mesh_t * _mesh );
+gp_result_t gp_preflight( const gp_canvas_t * _canvas, gp_uint32_t * _vertex_count, gp_uint32_t * _index_count, gp_uint32_t * _batch_count, gp_size_t * _recording_size, gp_size_t * _scratch_size );
 gp_result_t gp_render( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh );
 /* Renders recorded commands and resets only command storage. Canvas state is preserved. */
 gp_result_t gp_flush( gp_canvas_t * _canvas, const gp_mesh_t * _mesh );
