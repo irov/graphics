@@ -7,6 +7,7 @@
 *
 *************************************************************************/
 
+typedef struct gp_graphics_t gp_graphics_t;
 typedef struct gp_canvas_t gp_canvas_t;
 typedef struct gp_path_t gp_path_t;
 
@@ -162,11 +163,20 @@ typedef void * (*gp_malloc_t)(gp_size_t _size, void * _ud);
 typedef void * (*gp_realloc_t)(void * _ptr, gp_size_t _size, void * _ud);
 typedef void (*gp_free_t)(void * _ptr, void * _ud);
 
+#define GP_CAPACITY_DEFAULT ((gp_size_t)~0U)
+
 /*************************************************************************
 *
 *************************************************************************/
 
-gp_result_t gp_canvas_create( gp_canvas_t ** _canvas, gp_malloc_t _malloc, gp_realloc_t _realloc, gp_free_t _free, void * _ud );
+gp_result_t gp_graphics_create( gp_graphics_t ** _graphics, gp_malloc_t _malloc, gp_realloc_t _realloc, gp_free_t _free, void * _ud, gp_size_t _recording_memory_size, gp_size_t _render_order_capacity, gp_size_t _scratch_memory_size );
+gp_result_t gp_graphics_destroy( gp_graphics_t * _graphics );
+
+/*************************************************************************
+*
+*************************************************************************/
+
+gp_result_t gp_canvas_create( gp_graphics_t * _graphics, gp_canvas_t ** _canvas );
 gp_result_t gp_canvas_destroy( gp_canvas_t * _canvas );
 gp_result_t gp_canvas_clear( gp_canvas_t * _canvas );
 gp_result_t gp_canvas_get_memory_stats( const gp_canvas_t * _canvas, gp_canvas_memory_stats_t * _stats );

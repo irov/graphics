@@ -204,23 +204,78 @@ static void __canvas_default_state_setup( gp_canvas_t * _canvas )
     _canvas->state_cook[0].prev = GP_NULLPTR;
 }
 //////////////////////////////////////////////////////////////////////////
-gp_result_t gp_canvas_create( gp_canvas_t ** _canvas, gp_malloc_t _malloc, gp_realloc_t _realloc, gp_free_t _free, void * _ud )
+static gp_size_t __graphics_capacity( gp_size_t _capacity, gp_size_t _default )
 {
-    if( _canvas == GP_NULLPTR || _malloc == GP_NULLPTR || _realloc == GP_NULLPTR || _free == GP_NULLPTR )
+    gp_size_t capacity = _capacity == GP_CAPACITY_DEFAULT ? _default : _capacity;
+
+    return capacity;
+}
+//////////////////////////////////////////////////////////////////////////
+gp_result_t gp_graphics_create( gp_graphics_t ** _graphics, gp_malloc_t _malloc, gp_realloc_t _realloc, gp_free_t _free, void * _ud, gp_size_t _recording_memory_size, gp_size_t _render_order_capacity, gp_size_t _scratch_memory_size )
+{
+    if( _graphics == GP_NULLPTR || _malloc == GP_NULLPTR || _realloc == GP_NULLPTR || _free == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
+
+    const gp_size_t recording_memory_size = __graphics_capacity( _recording_memory_size, GP_CANVAS_RECORDING_MEMORY_SIZE );
+    const gp_size_t render_order_capacity = __graphics_capacity( _render_order_capacity, GP_CANVAS_RENDER_ORDER_CAPACITY );
+    const gp_size_t scratch_memory_size = __graphics_capacity( _scratch_memory_size, GP_CANVAS_SCRATCH_MEMORY_SIZE );
+
+    if( recording_memory_size == 0 || render_order_capacity == 0 || scratch_memory_size == 0 )
+    {
+        return GP_FAILURE;
+    }
+
+    gp_graphics_t * graphics = (gp_graphics_t *)(*_malloc)(sizeof( gp_graphics_t ), _ud);
+    if( graphics == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
+
+    graphics->recording_memory_size = recording_memory_size;
+    graphics->render_order_capacity = render_order_capacity;
+    graphics->scratch_memory_size = scratch_memory_size;
+
+    graphics->malloc = _malloc;
+    graphics->realloc = _realloc;
+    graphics->free = _free;
+    graphics->ud = _ud;
+
+    *_graphics = graphics;
+
+    return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
+gp_result_t gp_graphics_destroy( gp_graphics_t * _graphics )
+{
+    if( _graphics == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
+
+    (*_graphics->free)(_graphics, _graphics->ud);
+
+    return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
+gp_result_t gp_canvas_create( gp_graphics_t * _graphics, gp_canvas_t ** _canvas )
+{
+    if( _graphics == GP_NULLPTR || _canvas == GP_NULLPTR )
     {
         return GP_FAILURE;
     }
 
     const gp_size_t alignment = sizeof( void * );
-    const gp_size_t render_order_capacity = GP_CANVAS_RENDER_ORDER_CAPACITY;
+    const gp_size_t render_order_capacity = _graphics->render_order_capacity;
     if( render_order_capacity > SIZE_MAX / sizeof( gp_render_order_t ) )
     {
         return GP_FAILURE;
     }
 
     const gp_size_t render_order_size = render_order_capacity * sizeof( gp_render_order_t );
-    const gp_size_t recording_capacity = GP_CANVAS_RECORDING_MEMORY_SIZE;
-    const gp_size_t scratch_capacity = GP_CANVAS_SCRATCH_MEMORY_SIZE;
+    const gp_size_t recording_capacity = _graphics->recording_memory_size;
+    const gp_size_t scratch_capacity = _graphics->scratch_memory_size;
 
     if( render_order_size > SIZE_MAX - recording_capacity )
     {
@@ -242,7 +297,7 @@ gp_result_t gp_canvas_create( gp_canvas_t ** _canvas, gp_malloc_t _malloc, gp_re
     }
 
     const gp_size_t allocation_size = sizeof( gp_canvas_t ) + alignment - 1U + arena_size;
-    gp_canvas_t * canvas = (gp_canvas_t *)(*_malloc)(allocation_size, _ud);
+    gp_canvas_t * canvas = (gp_canvas_t *)(*_graphics->malloc)(allocation_size, _graphics->ud);
     if( canvas == GP_NULLPTR )
     {
         return GP_FAILURE;
@@ -254,6 +309,7 @@ gp_result_t gp_canvas_create( gp_canvas_t ** _canvas, gp_malloc_t _malloc, gp_re
 
     canvas->render_orders = (gp_render_order_t *)arena_memory;
     canvas->render_order_count = 0;
+    canvas->render_order_capacity = render_order_capacity;
 
     canvas->recording_arena.memory = arena_memory + render_order_size;
     canvas->recording_arena.capacity = recording_capacity;
@@ -281,10 +337,10 @@ gp_result_t gp_canvas_create( gp_canvas_t ** _canvas, gp_malloc_t _malloc, gp_re
 
     __canvas_default_state_setup( canvas );
 
-    canvas->malloc = _malloc;
-    canvas->realloc = _realloc;
-    canvas->free = _free;
-    canvas->ud = _ud;
+    canvas->malloc = _graphics->malloc;
+    canvas->realloc = _graphics->realloc;
+    canvas->free = _graphics->free;
+    canvas->ud = _graphics->ud;
 
     *_canvas = canvas;
 
@@ -344,7 +400,7 @@ gp_result_t gp_canvas_get_memory_stats( const gp_canvas_t * _canvas, gp_canvas_m
     }
 
     _stats->render_order_count = _canvas->render_order_count;
-    _stats->render_order_capacity = GP_CANVAS_RENDER_ORDER_CAPACITY;
+    _stats->render_order_capacity = _canvas->render_order_capacity;
     _stats->recording_used = _canvas->recording_arena.offset;
     _stats->recording_capacity = _canvas->recording_arena.capacity;
     _stats->recording_peak = _canvas->recording_arena.peak;
@@ -1187,7 +1243,7 @@ gp_result_t gp_get_stroke_scale( const gp_canvas_t * _canvas, gp_stroke_scale_t 
 //////////////////////////////////////////////////////////////////////////
 static gp_result_t __push_render_order( gp_canvas_t * _canvas, gp_render_order_type_e _type, void * _primitive, const gp_state_t * _state )
 {
-    if( _canvas->render_order_count == GP_CANVAS_RENDER_ORDER_CAPACITY )
+    if( _canvas->render_order_count == _canvas->render_order_capacity )
     {
         return GP_FAILURE;
     }

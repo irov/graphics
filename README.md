@@ -21,17 +21,19 @@ required.
 
 ## Canvas memory
 
-`gp_canvas_create` performs one allocation containing the canvas, a fixed
-render-order array, recording memory, and tessellation scratch memory. Recording
-and rendering do not fall back to the heap. If a fixed capacity is exhausted,
-the operation returns `GP_FAILURE`.
+`gp_graphics_create` owns the allocator and the canvas memory limits, and every
+canvas is created from it. `gp_canvas_create` performs one allocation containing
+the canvas, a fixed render-order array, recording memory, and tessellation
+scratch memory. Recording and rendering do not fall back to the heap. If a fixed
+capacity is exhausted, the operation returns `GP_FAILURE`.
 
-The defaults are 65,536 render-order entries, 16 MiB of recording memory, and
-64 MiB of reusable tessellation scratch memory. They can be configured with
-`GP_CANVAS_RENDER_ORDER_CAPACITY`, `GP_CANVAS_RECORDING_MEMORY_SIZE`, and
-`GP_CANVAS_SCRATCH_MEMORY_SIZE`. `gp_canvas_get_memory_stats` exposes current
-usage and lifetime peaks so an application can size these blocks from real
-frames.
+Every limit is passed to `gp_graphics_create`, where `GP_CAPACITY_DEFAULT`
+selects the compile-time default. The defaults are 65,536 render-order entries,
+64 MiB of recording memory, and 64 MiB of reusable tessellation scratch memory,
+configured with `GP_CANVAS_RENDER_ORDER_CAPACITY`,
+`GP_CANVAS_RECORDING_MEMORY_SIZE`, and `GP_CANVAS_SCRATCH_MEMORY_SIZE`.
+`gp_canvas_get_memory_stats` exposes current usage and lifetime peaks so an
+application can size these blocks from real frames.
 
 `gp_geometry` records borrowed vertex and index buffers without taking ownership
 or copying them. Positions and indices are required; color and UV streams are

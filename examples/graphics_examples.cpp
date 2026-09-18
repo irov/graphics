@@ -422,8 +422,12 @@ int main( int argc, char ** argv )
         return EXIT_FAILURE;
     }
 
+    gp_graphics_t * graphics;
+    gp_graphics_create( &graphics, &gp_malloc, &gp_realloc, &gp_free, GP_NULLPTR,
+        GP_CAPACITY_DEFAULT, GP_CAPACITY_DEFAULT, GP_CAPACITY_DEFAULT );
+
     gp_canvas_t * canvas;
-    gp_canvas_create( &canvas, &gp_malloc, &gp_realloc, &gp_free, GP_NULLPTR );
+    gp_canvas_create( graphics, &canvas );
 
     example_script_handle_t * script_handle;
     initialize_script( &script_handle, canvas );
@@ -745,6 +749,7 @@ int main( int argc, char ** argv )
     finalize_opengl( opengl_handle );
 
     gp_canvas_destroy( canvas );
+    gp_graphics_destroy( graphics );
 
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();

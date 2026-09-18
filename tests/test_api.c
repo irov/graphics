@@ -49,6 +49,8 @@ static void test_free( void * _ptr, void * _ud )
     free( _ptr );
 }
 //////////////////////////////////////////////////////////////////////////
+static gp_graphics_t * test_graphics;
+//////////////////////////////////////////////////////////////////////////
 static gp_result_t test_path_create_quality( gp_canvas_t * _canvas, gp_path_t ** _path, gp_uint8_t _curve_quality, gp_uint8_t _ellipse_quality )
 {
     gp_push_state( _canvas );
@@ -142,10 +144,61 @@ static gp_result_t test_render( gp_canvas_t * _canvas, gp_mesh_t * _mesh, test_v
     return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
+static gp_result_t test_graphics_capacity( void )
+{
+    gp_graphics_t * graphics;
+    if( gp_graphics_create( &graphics, &test_malloc, &test_realloc, &test_free, GP_NULLPTR,
+        1024U * 1024U, 64U, 512U * 1024U ) == GP_FAILURE )
+    {
+        return GP_FAILURE;
+    }
+
+    gp_canvas_t * canvas;
+    if( gp_canvas_create( graphics, &canvas ) == GP_FAILURE )
+    {
+        return GP_FAILURE;
+    }
+
+    gp_canvas_memory_stats_t stats;
+    if( gp_canvas_get_memory_stats( canvas, &stats ) == GP_FAILURE ||
+        stats.recording_capacity != 1024U * 1024U || stats.render_order_capacity != 64U ||
+        stats.scratch_capacity != 512U * 1024U )
+    {
+        return GP_FAILURE;
+    }
+
+    gp_canvas_destroy( canvas );
+    gp_graphics_destroy( graphics );
+
+    if( gp_canvas_create( test_graphics, &canvas ) == GP_FAILURE )
+    {
+        return GP_FAILURE;
+    }
+
+    if( gp_canvas_get_memory_stats( canvas, &stats ) == GP_FAILURE ||
+        stats.recording_capacity != GP_CANVAS_RECORDING_MEMORY_SIZE ||
+        stats.render_order_capacity != GP_CANVAS_RENDER_ORDER_CAPACITY ||
+        stats.scratch_capacity != GP_CANVAS_SCRATCH_MEMORY_SIZE )
+    {
+        return GP_FAILURE;
+    }
+
+    if( gp_graphics_create( &graphics, &test_malloc, &test_realloc, &test_free, GP_NULLPTR,
+        GP_CAPACITY_DEFAULT, 0U, GP_CAPACITY_DEFAULT ) != GP_FAILURE ||
+        gp_graphics_create( &graphics, GP_NULLPTR, &test_realloc, &test_free, GP_NULLPTR,
+        GP_CAPACITY_DEFAULT, GP_CAPACITY_DEFAULT, GP_CAPACITY_DEFAULT ) != GP_FAILURE ||
+        gp_canvas_create( GP_NULLPTR, &canvas ) != GP_FAILURE )
+    {
+        return GP_FAILURE;
+    }
+
+    return gp_canvas_destroy( canvas );
+}
+//////////////////////////////////////////////////////////////////////////
 static gp_result_t test_large_index_count( void )
 {
     gp_canvas_t * canvas;
-    if( gp_canvas_create( &canvas, &test_malloc, &test_realloc, &test_free, GP_NULLPTR ) == GP_FAILURE )
+    if( gp_canvas_create( test_graphics, &canvas ) == GP_FAILURE )
     {
         return GP_FAILURE;
     }
@@ -203,7 +256,7 @@ static gp_result_t test_large_line_index_count( void )
     }
 
     gp_canvas_t * canvas;
-    if( gp_canvas_create( &canvas, &test_malloc, &test_realloc, &test_free, GP_NULLPTR ) == GP_FAILURE )
+    if( gp_canvas_create( test_graphics, &canvas ) == GP_FAILURE )
     {
         return GP_FAILURE;
     }
@@ -231,7 +284,7 @@ static gp_result_t test_large_line_index_count( void )
 static gp_result_t test_unique_vertex_limit( void )
 {
     gp_canvas_t * canvas;
-    if( gp_canvas_create( &canvas, &test_malloc, &test_realloc, &test_free, GP_NULLPTR ) == GP_FAILURE )
+    if( gp_canvas_create( test_graphics, &canvas ) == GP_FAILURE )
     {
         return GP_FAILURE;
     }
@@ -258,7 +311,7 @@ static gp_result_t test_unique_vertex_limit( void )
 static gp_result_t test_state_restore( void )
 {
     gp_canvas_t * canvas;
-    if( gp_canvas_create( &canvas, &test_malloc, &test_realloc, &test_free, GP_NULLPTR ) == GP_FAILURE )
+    if( gp_canvas_create( test_graphics, &canvas ) == GP_FAILURE )
     {
         return GP_FAILURE;
     }
@@ -295,7 +348,7 @@ static gp_result_t test_state_restore( void )
 static gp_result_t test_transform_state( void )
 {
     gp_canvas_t * canvas;
-    if( gp_canvas_create( &canvas, &test_malloc, &test_realloc, &test_free, GP_NULLPTR ) == GP_FAILURE )
+    if( gp_canvas_create( test_graphics, &canvas ) == GP_FAILURE )
     {
         return GP_FAILURE;
     }
@@ -363,7 +416,7 @@ static gp_result_t test_transform_state( void )
 static gp_result_t test_close_path( void )
 {
     gp_canvas_t * canvas;
-    if( gp_canvas_create( &canvas, &test_malloc, &test_realloc, &test_free, GP_NULLPTR ) == GP_FAILURE )
+    if( gp_canvas_create( test_graphics, &canvas ) == GP_FAILURE )
     {
         return GP_FAILURE;
     }
@@ -402,7 +455,7 @@ static gp_result_t test_compound_fill( void )
     const float hole[][2] = {{30.f, 30.f}, {70.f, 30.f}, {70.f, 70.f}, {30.f, 70.f}};
 
     gp_canvas_t * canvas;
-    if( gp_canvas_create( &canvas, &test_malloc, &test_realloc, &test_free, GP_NULLPTR ) == GP_FAILURE )
+    if( gp_canvas_create( test_graphics, &canvas ) == GP_FAILURE )
     {
         return GP_FAILURE;
     }
@@ -491,7 +544,7 @@ static gp_result_t test_paths_and_primitives( void )
     const float dash[] = {5.f, 3.f};
 
     gp_canvas_t * canvas;
-    if( gp_canvas_create( &canvas, &test_malloc, &test_realloc, &test_free, GP_NULLPTR ) == GP_FAILURE )
+    if( gp_canvas_create( test_graphics, &canvas ) == GP_FAILURE )
     {
         return GP_FAILURE;
     }
@@ -562,7 +615,7 @@ static gp_result_t test_radial_indicators( void )
 {
     const float pi = 3.14159265358979323846f;
     gp_canvas_t * canvas;
-    if( gp_canvas_create( &canvas, &test_malloc, &test_realloc, &test_free, GP_NULLPTR ) == GP_FAILURE )
+    if( gp_canvas_create( test_graphics, &canvas ) == GP_FAILURE )
     {
         return GP_FAILURE;
     }
@@ -661,7 +714,7 @@ static gp_result_t test_arc_growth_stability( void )
     const float sweep_to = angle_step * 3.75f;
 
     gp_canvas_t * canvas;
-    gp_canvas_create( &canvas, &test_malloc, &test_realloc, &test_free, GP_NULLPTR );
+    gp_canvas_create( test_graphics, &canvas );
     gp_set_penumbra( canvas, 0.f );
     gp_set_ellipse_quality( canvas, quality );
 
@@ -749,7 +802,7 @@ static gp_result_t test_rounded_ring( void )
 {
     const float pi = 3.14159265358979323846f;
     gp_canvas_t * canvas;
-    gp_canvas_create( &canvas, &test_malloc, &test_realloc, &test_free, GP_NULLPTR );
+    gp_canvas_create( test_graphics, &canvas );
     gp_set_penumbra( canvas, 0.f );
     gp_set_ellipse_quality( canvas, 8 );
     gp_rounded_ring( canvas, 0.f, 0.f, 6.f, 10.f, 0.f, pi * 0.5f );
@@ -910,8 +963,8 @@ static gp_result_t test_dashed_paths( void )
     const float doubled_pattern[] = {5.f, 3.f, 2.f, 5.f, 3.f, 2.f};
     gp_canvas_t * odd_canvas;
     gp_canvas_t * doubled_canvas;
-    gp_canvas_create( &odd_canvas, &test_malloc, &test_realloc, &test_free, GP_NULLPTR );
-    gp_canvas_create( &doubled_canvas, &test_malloc, &test_realloc, &test_free, GP_NULLPTR );
+    gp_canvas_create( test_graphics, &odd_canvas );
+    gp_canvas_create( test_graphics, &doubled_canvas );
 
     gp_set_penumbra( odd_canvas, 0.f );
     gp_set_penumbra( doubled_canvas, 0.f );
@@ -955,7 +1008,7 @@ static gp_result_t test_dashed_paths( void )
     gp_canvas_destroy( doubled_canvas );
 
     gp_canvas_t * closed_canvas;
-    gp_canvas_create( &closed_canvas, &test_malloc, &test_realloc, &test_free, GP_NULLPTR );
+    gp_canvas_create( test_graphics, &closed_canvas );
     const float seam_pattern[] = {15.f, 5.f};
     gp_set_penumbra( closed_canvas, 0.f );
     gp_set_line_cap( closed_canvas, GP_LINE_CAP_ROUND );
@@ -982,7 +1035,7 @@ static gp_result_t test_dashed_paths( void )
     gp_canvas_destroy( closed_canvas );
 
     gp_canvas_t * fill_canvas;
-    gp_canvas_create( &fill_canvas, &test_malloc, &test_realloc, &test_free, GP_NULLPTR );
+    gp_canvas_create( test_graphics, &fill_canvas );
     const float square[][2] = {{0.f, 0.f}, {10.f, 0.f}, {10.f, 10.f}, {0.f, 10.f}};
     gp_set_penumbra( fill_canvas, 0.f );
     gp_set_line_dash( fill_canvas, seam_pattern, 2, 0.f );
@@ -1010,7 +1063,7 @@ static gp_result_t test_rich_paths( void )
     layout.outline_color_offset = GP_PATH_ATTRIBUTE_NONE;
 
     gp_canvas_t * canvas;
-    gp_canvas_create( &canvas, &test_malloc, &test_realloc, &test_free, GP_NULLPTR );
+    gp_canvas_create( test_graphics, &canvas );
     gp_set_penumbra( canvas, 0.f );
     gp_set_line_join( canvas, GP_LINE_JOIN_BEVEL );
     gp_set_curve_quality( canvas, 4 );
@@ -1109,7 +1162,7 @@ static gp_result_t test_soft_round_geometry( void )
 {
     const float points[][2] = {{0.f, 0.f}, {10.f, 0.f}};
     gp_canvas_t * canvas;
-    gp_canvas_create( &canvas, &test_malloc, &test_realloc, &test_free, GP_NULLPTR );
+    gp_canvas_create( test_graphics, &canvas );
     gp_set_thickness( canvas, 10.f );
     gp_set_penumbra( canvas, 2.f );
     gp_set_line_cap( canvas, GP_LINE_CAP_ROUND );
@@ -1196,7 +1249,7 @@ static gp_result_t test_soft_round_geometry( void )
 static gp_result_t test_smooth_round_curve_geometry( void )
 {
     gp_canvas_t * canvas;
-    gp_canvas_create( &canvas, &test_malloc, &test_realloc, &test_free, GP_NULLPTR );
+    gp_canvas_create( test_graphics, &canvas );
     gp_set_thickness( canvas, 4.f );
     gp_set_penumbra( canvas, 0.f );
     gp_set_line_cap( canvas, GP_LINE_CAP_BUTT );
@@ -1227,7 +1280,7 @@ static gp_result_t test_smooth_round_curve_geometry( void )
 static gp_result_t test_reusable_path_queries_and_snapshot( void )
 {
     gp_canvas_t * canvas;
-    gp_canvas_create( &canvas, &test_malloc, &test_realloc, &test_free, GP_NULLPTR );
+    gp_canvas_create( test_graphics, &canvas );
 
     gp_path_t * path;
     if( test_path_create_quality( canvas, &path, 8, 16 ) == GP_FAILURE )
@@ -1297,8 +1350,8 @@ static gp_result_t test_stable_path_trim( void )
     const float points[][2] = {{0.f, 0.f}, {10.f, 0.f}, {20.f, 0.f}, {30.f, 0.f}};
     gp_canvas_t * first_canvas;
     gp_canvas_t * second_canvas;
-    gp_canvas_create( &first_canvas, &test_malloc, &test_realloc, &test_free, GP_NULLPTR );
-    gp_canvas_create( &second_canvas, &test_malloc, &test_realloc, &test_free, GP_NULLPTR );
+    gp_canvas_create( test_graphics, &first_canvas );
+    gp_canvas_create( test_graphics, &second_canvas );
 
     gp_path_t * path;
     test_path_create_quality( first_canvas, &path, 8, 16 );
@@ -1343,7 +1396,7 @@ static gp_result_t test_stable_path_trim( void )
 static gp_result_t test_path_ellipse_arc( void )
 {
     gp_canvas_t * canvas;
-    gp_canvas_create( &canvas, &test_malloc, &test_realloc, &test_free, GP_NULLPTR );
+    gp_canvas_create( test_graphics, &canvas );
 
     gp_path_t * path;
     test_path_create_quality( canvas, &path, 8, 16 );
@@ -1371,7 +1424,7 @@ static gp_result_t test_path_ellipse_arc( void )
 static gp_result_t test_batches_and_uv( void )
 {
     gp_canvas_t * canvas;
-    gp_canvas_create( &canvas, &test_malloc, &test_realloc, &test_free, GP_NULLPTR );
+    gp_canvas_create( test_graphics, &canvas );
     gp_set_penumbra( canvas, 0.f );
     gp_begin_fill( canvas );
     gp_rect( canvas, 0.f, 0.f, 10.f, 10.f );
@@ -1406,7 +1459,7 @@ static gp_result_t test_batches_and_uv( void )
     free( indices );
     gp_canvas_destroy( canvas );
 
-    gp_canvas_create( &canvas, &test_malloc, &test_realloc, &test_free, GP_NULLPTR );
+    gp_canvas_create( test_graphics, &canvas );
     gp_set_penumbra( canvas, 0.f );
     gp_begin_fill( canvas );
     const float outer[][2] = {{0.f, 0.f}, {20.f, 0.f}, {20.f, 20.f}, {0.f, 20.f}};
@@ -1444,7 +1497,7 @@ static gp_result_t test_batches_and_uv( void )
     free( indices );
     gp_canvas_destroy( canvas );
 
-    gp_canvas_create( &canvas, &test_malloc, &test_realloc, &test_free, GP_NULLPTR );
+    gp_canvas_create( test_graphics, &canvas );
     gp_set_penumbra( canvas, 0.f );
     gp_set_thickness( canvas, 4.f );
     gp_set_line_cap( canvas, GP_LINE_CAP_ROUND );
@@ -1477,7 +1530,7 @@ static gp_result_t test_catmull_rom_and_superellipse( void )
 {
     const float anchors[][2] = {{0.f, 0.f}, {10.f, 10.f}, {20.f, -5.f}, {30.f, 0.f}};
     gp_canvas_t * canvas;
-    gp_canvas_create( &canvas, &test_malloc, &test_realloc, &test_free, GP_NULLPTR );
+    gp_canvas_create( test_graphics, &canvas );
 
     gp_path_t * path;
     test_path_create_quality( canvas, &path, 8, 16 );
@@ -1520,7 +1573,7 @@ static gp_result_t test_trim_markers( void )
     for( gp_uint32_t type = GP_PATH_MARKER_FILLED_ARROW; type <= GP_PATH_MARKER_DIAMOND; ++type )
     {
         gp_canvas_t * canvas;
-        gp_canvas_create( &canvas, &test_malloc, &test_realloc, &test_free, GP_NULLPTR );
+        gp_canvas_create( test_graphics, &canvas );
         gp_set_thickness( canvas, 2.f );
         gp_set_penumbra( canvas, 1.f );
         gp_set_path_trim( canvas, 0.25f, 0.75f );
@@ -1552,7 +1605,7 @@ static gp_result_t test_trim_markers( void )
     }
 
     gp_canvas_t * canvas;
-    gp_canvas_create( &canvas, &test_malloc, &test_realloc, &test_free, GP_NULLPTR );
+    gp_canvas_create( test_graphics, &canvas );
     gp_set_penumbra( canvas, 0.f );
     gp_set_outline_width( canvas, 2.f );
     gp_set_outline_color( canvas, 0.f, 1.f, 0.f, 1.f );
@@ -1588,7 +1641,7 @@ static gp_result_t test_invalid_path_layout( void )
         {10.f, 0.f, 2.f, {1.f, 1.f, 1.f, 1.f}}
     };
     gp_canvas_t * canvas;
-    gp_canvas_create( &canvas, &test_malloc, &test_realloc, &test_free, GP_NULLPTR );
+    gp_canvas_create( test_graphics, &canvas );
 
     gp_path_layout_t bad_width_offset = {0, GP_PATH_ATTRIBUTE_NONE, GP_PATH_ATTRIBUTE_NONE};
     gp_path_layout_t bad_color_offset = {GP_PATH_ATTRIBUTE_NONE, sizeof( points[0] ), GP_PATH_ATTRIBUTE_NONE};
@@ -1647,6 +1700,19 @@ int main( int argc, char ** argv )
 {
     GP_UNUSED( argc );
     GP_UNUSED( argv );
+
+    if( gp_graphics_create( &test_graphics, &test_malloc, &test_realloc, &test_free, GP_NULLPTR,
+        GP_CAPACITY_DEFAULT, GP_CAPACITY_DEFAULT, GP_CAPACITY_DEFAULT ) == GP_FAILURE )
+    {
+        fprintf( stderr, "gp_graphics_create failed\n" );
+        return EXIT_FAILURE;
+    }
+
+    if( test_graphics_capacity() == GP_FAILURE )
+    {
+        fprintf( stderr, "test_graphics_capacity failed\n" );
+        return EXIT_FAILURE;
+    }
 
     if( test_large_index_count() == GP_FAILURE )
     {
@@ -1783,6 +1849,12 @@ int main( int argc, char ** argv )
         return EXIT_FAILURE;
     }
 #endif
+
+    if( gp_graphics_destroy( test_graphics ) == GP_FAILURE )
+    {
+        fprintf( stderr, "gp_graphics_destroy failed\n" );
+        return EXIT_FAILURE;
+    }
 
     return EXIT_SUCCESS;
 }

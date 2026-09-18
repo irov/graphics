@@ -317,6 +317,19 @@ typedef struct gp_arena_t
 typedef struct gp_rects_payload_t gp_rects_payload_t;
 typedef struct gp_quads_payload_t gp_quads_payload_t;
 //////////////////////////////////////////////////////////////////////////
+typedef struct gp_graphics_t
+{
+    gp_size_t recording_memory_size;
+    gp_size_t render_order_capacity;
+    gp_size_t scratch_memory_size;
+
+    gp_malloc_t malloc;
+    gp_realloc_t realloc;
+    gp_free_t free;
+
+    void * ud;
+} gp_graphics_t;
+//////////////////////////////////////////////////////////////////////////
 typedef struct gp_canvas_t
 {
     gp_state_t state_cook[GP_STATE_STACK_MAX];
@@ -337,6 +350,7 @@ typedef struct gp_canvas_t
     gp_quads_payload_t * active_quads;
     gp_render_order_t * render_orders;
     gp_uint32_t render_order_count;
+    gp_size_t render_order_capacity;
 
     gp_arena_t recording_arena;
     gp_arena_t scratch_arena;

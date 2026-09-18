@@ -140,8 +140,15 @@ int main( int argc, char ** argv )
 
     gp_size_t msz = 0;
 
+    gp_graphics_t * graphics;
+    if( gp_graphics_create( &graphics, &gp_malloc, &gp_realloc, &gp_free, &msz,
+        GP_CAPACITY_DEFAULT, GP_CAPACITY_DEFAULT, GP_CAPACITY_DEFAULT ) == GP_FAILURE )
+    {
+        return EXIT_FAILURE;
+    }
+
     gp_canvas_t * canvas;
-    if( gp_canvas_create( &canvas, &gp_malloc, &gp_realloc, &gp_free, &msz ) == GP_FAILURE )
+    if( gp_canvas_create( graphics, &canvas ) == GP_FAILURE )
     {
         return EXIT_FAILURE;
     }
@@ -201,6 +208,11 @@ int main( int argc, char ** argv )
     free( indices );
 
     if( gp_canvas_destroy( canvas ) == GP_FAILURE )
+    {
+        return EXIT_FAILURE;
+    }
+
+    if( gp_graphics_destroy( graphics ) == GP_FAILURE )
     {
         return EXIT_FAILURE;
     }
