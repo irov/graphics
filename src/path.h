@@ -48,6 +48,7 @@ struct gp_path_t
     void * ud;
 };
 
+gp_result_t gp_path_create_scratch_internal( gp_canvas_t * _canvas, gp_path_t ** _path );
 float gp_path_contour_get_length_internal( const gp_path_t * _path, const gp_path_contour_t * _contour );
 
 #endif

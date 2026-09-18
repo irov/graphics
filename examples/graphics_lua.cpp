@@ -1,24 +1,6 @@
 #include "graphics_lua.h"
 
 //////////////////////////////////////////////////////////////////////////
-static void * __path_malloc( gp_size_t _size, void * _ud )
-{
-    GP_UNUSED( _ud );
-    return malloc( _size );
-}
-//////////////////////////////////////////////////////////////////////////
-static void * __path_realloc( void * _ptr, gp_size_t _size, void * _ud )
-{
-    GP_UNUSED( _ud );
-    return realloc( _ptr, _size );
-}
-//////////////////////////////////////////////////////////////////////////
-static void __path_free( void * _ptr, void * _ud )
-{
-    GP_UNUSED( _ud );
-    free( _ptr );
-}
-//////////////////////////////////////////////////////////////////////////
 static gp_result_t __flush_path( example_script_handle_t * _handle )
 {
     if( _handle->path == GP_NULLPTR )
@@ -37,8 +19,7 @@ static gp_result_t __sync_path_style( example_script_handle_t * _handle )
 {
     if( _handle->path == GP_NULLPTR )
     {
-        if( gp_path_create( &_handle->path, &__path_malloc, &__path_realloc, &__path_free, GP_NULLPTR,
-            gp_get_default_curve_quality(), gp_get_default_ellipse_quality() ) == GP_FAILURE )
+        if( gp_path_create( _handle->canvas, &_handle->path ) == GP_FAILURE )
         {
             return GP_FAILURE;
         }

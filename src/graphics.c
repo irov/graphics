@@ -1918,7 +1918,7 @@ static gp_result_t gp_ellipse_arc_internal( gp_canvas_t * _canvas, float _x, flo
     GP_UNUSED( _move_to );
     GP_UNUSED( _rounded_caps );
     gp_path_t * path;
-    GP_CALL( gp_path_create, (&path, gp_canvas_scratch_malloc_callback, gp_canvas_scratch_realloc_callback, gp_canvas_scratch_free_callback, _canvas, state->curve_quality, state->ellipse_quality) );
+    GP_CALL( gp_path_create_scratch_internal, (_canvas, &path) );
     GP_CALL( gp_path_ellipse_arc, (path, _x, _y, _width, _height, _angle_from, _angle_to) );
     gp_result_t result = gp_draw_path( _canvas, path );
     GP_CALL( gp_path_destroy, (path) );

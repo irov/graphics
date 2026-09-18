@@ -1,5 +1,6 @@
 #include "graphics/graphics.h"
 
+#include "path.h"
 #include "detail.h"
 #include "effects.h"
 #include "struct.h"
@@ -169,13 +170,6 @@ static void __primitive_lerp_style( gp_primitive_style_t * const _style, const g
     _style->outline_color.a = _from->outline_color.a * inverse_t + _to->outline_color.a * _t;
 }
 //////////////////////////////////////////////////////////////////////////
-static gp_result_t __primitive_create_path( gp_canvas_t * _canvas, gp_path_t ** _path )
-{
-    const gp_state_t * state = GP_GET_STATE( _canvas );
-    gp_result_t result = gp_path_create( _path, gp_canvas_scratch_malloc_callback, gp_canvas_scratch_realloc_callback, gp_canvas_scratch_free_callback, _canvas, state->curve_quality, state->ellipse_quality );
-    return result;
-}
-//////////////////////////////////////////////////////////////////////////
 static gp_result_t __primitive_draw_destroy_path( gp_canvas_t * _canvas, gp_path_t * _path )
 {
     gp_result_t result = gp_draw_path( _canvas, _path );
@@ -210,7 +204,7 @@ gp_result_t gp_quadratic_bezier( gp_canvas_t * _canvas, float _x0, float _y0, fl
 #endif
 
     gp_path_t * path;
-    GP_CALL( __primitive_create_path, (_canvas, &path) );
+    GP_CALL( gp_path_create_scratch_internal, (_canvas, &path) );
     gp_result_t result = gp_path_move_to( path, _x0, _y0 );
     if( result == GP_SUCCESSFUL )
     {
@@ -230,7 +224,7 @@ gp_result_t gp_cubic_bezier( gp_canvas_t * _canvas, float _x0, float _y0, float 
 #endif
 
     gp_path_t * path;
-    GP_CALL( __primitive_create_path, (_canvas, &path) );
+    GP_CALL( gp_path_create_scratch_internal, (_canvas, &path) );
     gp_result_t result = gp_path_move_to( path, _x0, _y0 );
     if( result == GP_SUCCESSFUL )
     {
@@ -282,7 +276,7 @@ gp_result_t gp_polyline( gp_canvas_t * _canvas, const void * _points, gp_size_t 
 #endif
 
     gp_path_t * path;
-    GP_CALL( __primitive_create_path, (_canvas, &path) );
+    GP_CALL( gp_path_create_scratch_internal, (_canvas, &path) );
     GP_CALL( gp_path_polyline, (path, _points, _point_count, _point_stride, _layout, _closed) );
 
     gp_result_t result = __primitive_draw_destroy_path( _canvas, path );
@@ -307,7 +301,7 @@ gp_result_t gp_rounded_rect_varying( gp_canvas_t * _canvas, float _x, float _y, 
     float rbl = _radius_bottom_left > maximum_radius ? maximum_radius : _radius_bottom_left;
 
     gp_path_t * path;
-    GP_CALL( __primitive_create_path, (_canvas, &path) );
+    GP_CALL( gp_path_create_scratch_internal, (_canvas, &path) );
     GP_CALL( gp_path_move_to, (path, _x, _y + rtl) );
     if( rtl > 0.f )
     {
@@ -528,7 +522,7 @@ gp_result_t gp_rounded_polyline( gp_canvas_t * _canvas, const void * _points, gp
     }
 
     gp_path_t * path;
-    GP_CALL( __primitive_create_path, (_canvas, &path) );
+    GP_CALL( gp_path_create_scratch_internal, (_canvas, &path) );
 
     gp_size_t first_index = _closed == GP_TRUE ? 0 : 1;
     float first_x;
@@ -748,7 +742,7 @@ gp_result_t gp_polygon_offset( gp_canvas_t * _canvas, const void * _points, gp_s
     float orientation = area >= 0.f ? 1.f : -1.f;
     float miter_limit = GP_GET_STATE( _canvas )->miter_limit;
     gp_path_t * path;
-    GP_CALL( __primitive_create_path, (_canvas, &path) );
+    GP_CALL( gp_path_create_scratch_internal, (_canvas, &path) );
     gp_offset_vertex_t vertex;
     GP_CALL( __primitive_offset_vertex, (_points, _point_count, _point_stride, 0, _offset, orientation, _join, miter_limit, &vertex) );
     GP_CALL( gp_path_move_to, (path, vertex.entry_x, vertex.entry_y) );

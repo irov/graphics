@@ -35,24 +35,6 @@ static void gp_free( void * _ptr, void * _ud )
     free( p );
 }
 //////////////////////////////////////////////////////////////////////////
-static void * path_malloc( gp_size_t _size, void * _ud )
-{
-    GP_UNUSED( _ud );
-    return malloc( _size );
-}
-//////////////////////////////////////////////////////////////////////////
-static void * path_realloc( void * _ptr, gp_size_t _size, void * _ud )
-{
-    GP_UNUSED( _ud );
-    return realloc( _ptr, _size );
-}
-//////////////////////////////////////////////////////////////////////////
-static void path_free( void * _ptr, void * _ud )
-{
-    GP_UNUSED( _ud );
-    free( _ptr );
-}
-//////////////////////////////////////////////////////////////////////////
 typedef struct gl_vertex_t
 {
     float x;
@@ -77,7 +59,7 @@ static gp_result_t __draw_figure( gp_canvas_t * _canvas, float _dx, float _dy )
     };
 
     gp_path_t * path;
-    GP_CALL( gp_path_create, (&path, &path_malloc, &path_realloc, &path_free, GP_NULLPTR, gp_get_default_curve_quality(), gp_get_default_ellipse_quality()) );
+    GP_CALL( gp_path_create, (_canvas, &path) );
     gp_path_style_t style = {GP_PATH_STYLE_COLOR, 0.f, {1.f, 0.5f, 0.25f, 1.f}, {0.f, 0.f, 0.f, 0.f}};
     GP_CALL( gp_path_set_style, (path, &style) );
     GP_CALL( gp_path_move_to, (path, _dx + 0.f, _dy + 0.f) );

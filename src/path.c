@@ -103,16 +103,8 @@ static gp_result_t __path_push_edge( gp_path_t * _path, gp_uint32_t _controls, c
     return GP_SUCCESSFUL;
 }
 
-gp_result_t gp_path_create( gp_path_t ** _path, gp_malloc_t _malloc, gp_realloc_t _realloc, gp_free_t _free, void * _ud, gp_uint8_t _curve_quality, gp_uint8_t _ellipse_quality )
+static gp_result_t __path_create( gp_path_t ** _path, gp_malloc_t _malloc, gp_realloc_t _realloc, gp_free_t _free, void * _ud, gp_uint8_t _curve_quality, gp_uint8_t _ellipse_quality )
 {
-#if defined(GP_DEBUG)
-    if( _path == GP_NULLPTR || _malloc == GP_NULLPTR || _realloc == GP_NULLPTR || _free == GP_NULLPTR ||
-        _curve_quality == 0 || _ellipse_quality == 0 )
-    {
-        return GP_FAILURE;
-    }
-#endif
-
     gp_path_t * path = (gp_path_t *)(*_malloc)(sizeof( gp_path_t ), _ud);
     if( path == GP_NULLPTR )
     {
@@ -132,6 +124,31 @@ gp_result_t gp_path_create( gp_path_t ** _path, gp_malloc_t _malloc, gp_realloc_
     *_path = path;
 
     return GP_SUCCESSFUL;
+}
+
+gp_result_t gp_path_create( gp_canvas_t * _canvas, gp_path_t ** _path )
+{
+#if defined(GP_DEBUG)
+    if( _canvas == GP_NULLPTR || _path == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
+#endif
+
+    const gp_state_t * state = GP_GET_STATE( _canvas );
+
+    gp_result_t result = __path_create( _path, _canvas->malloc, _canvas->realloc, _canvas->free, _canvas->ud, state->curve_quality, state->ellipse_quality );
+
+    return result;
+}
+
+gp_result_t gp_path_create_scratch_internal( gp_canvas_t * _canvas, gp_path_t ** _path )
+{
+    const gp_state_t * state = GP_GET_STATE( _canvas );
+
+    gp_result_t result = __path_create( _path, gp_canvas_scratch_malloc_callback, gp_canvas_scratch_realloc_callback, gp_canvas_scratch_free_callback, _canvas, state->curve_quality, state->ellipse_quality );
+
+    return result;
 }
 
 gp_result_t gp_path_destroy( gp_path_t * _path )

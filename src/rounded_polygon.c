@@ -1,5 +1,6 @@
 #include "graphics/graphics.h"
 
+#include "path.h"
 #include "detail.h"
 
 //////////////////////////////////////////////////////////////////////////
@@ -146,9 +147,8 @@ gp_result_t gp_rounded_polygon( gp_canvas_t * _canvas, const void * _points, gp_
     gp_rounded_polygon_vertex_t vertex;
     __rounded_polygon_calculate_vertex( _points, _point_count, _point_stride, 0, radius, signed_area, &vertex );
 
-    const gp_state_t * state = GP_GET_STATE( _canvas );
     gp_path_t * path;
-    GP_CALL( gp_path_create, (&path, gp_canvas_scratch_malloc_callback, gp_canvas_scratch_realloc_callback, gp_canvas_scratch_free_callback, _canvas, state->curve_quality, state->ellipse_quality) );
+    GP_CALL( gp_path_create_scratch_internal, (_canvas, &path) );
 
     GP_CALL( gp_path_move_to, (path, vertex.entry_x, vertex.entry_y) );
     if( vertex.rounded == GP_TRUE )

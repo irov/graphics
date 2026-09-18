@@ -49,15 +49,17 @@ static void test_free( void * _ptr, void * _ud )
     free( _ptr );
 }
 //////////////////////////////////////////////////////////////////////////
-static gp_result_t test_path_create( gp_path_t ** _path )
+static gp_result_t test_path_create_quality( gp_canvas_t * _canvas, gp_path_t ** _path, gp_uint8_t _curve_quality, gp_uint8_t _ellipse_quality )
 {
-    return gp_path_create( _path, &test_malloc, &test_realloc, &test_free, GP_NULLPTR,
-        gp_get_default_curve_quality(), gp_get_default_ellipse_quality() );
-}
-//////////////////////////////////////////////////////////////////////////
-static gp_result_t test_path_create_quality( gp_path_t ** _path, gp_uint8_t _curve_quality, gp_uint8_t _ellipse_quality )
-{
-    return gp_path_create( _path, &test_malloc, &test_realloc, &test_free, GP_NULLPTR, _curve_quality, _ellipse_quality );
+    gp_push_state( _canvas );
+    gp_set_curve_quality( _canvas, _curve_quality );
+    gp_set_ellipse_quality( _canvas, _ellipse_quality );
+
+    gp_result_t result = gp_path_create( _canvas, _path );
+
+    gp_pop_state( _canvas );
+
+    return result;
 }
 //////////////////////////////////////////////////////////////////////////
 static gp_result_t test_draw_destroy_path( gp_canvas_t * _canvas, gp_path_t * _path )
@@ -368,7 +370,7 @@ static gp_result_t test_close_path( void )
 
     gp_set_penumbra( canvas, 0.f );
     gp_path_t * path;
-    test_path_create( &path );
+    gp_path_create( canvas, &path );
     gp_path_move_to( path, 0.f, 0.f );
     gp_path_line_to( path, 10.f, 0.f );
     gp_path_line_to( path, 0.f, 10.f );
@@ -409,7 +411,7 @@ static gp_result_t test_compound_fill( void )
     gp_begin_fill( canvas );
     gp_set_fill_rule( canvas, GP_FILL_RULE_EVEN_ODD );
     gp_path_t * path;
-    test_path_create( &path );
+    gp_path_create( canvas, &path );
     gp_path_polyline( path, outer, 4, sizeof( outer[0] ), GP_NULLPTR, GP_TRUE );
     gp_path_polyline( path, hole, 4, sizeof( hole[0] ), GP_NULLPTR, GP_TRUE );
     test_draw_destroy_path( canvas, path );
@@ -451,7 +453,7 @@ static gp_result_t test_compound_fill( void )
     gp_set_penumbra( canvas, 0.f );
     gp_begin_fill( canvas );
     gp_set_fill_rule( canvas, GP_FILL_RULE_NON_ZERO );
-    test_path_create( &path );
+    gp_path_create( canvas, &path );
     gp_path_polyline( path, outer, 4, sizeof( outer[0] ), GP_NULLPTR, GP_TRUE );
     gp_path_polyline( path, hole, 4, sizeof( hole[0] ), GP_NULLPTR, GP_TRUE );
     test_draw_destroy_path( canvas, path );
@@ -523,7 +525,7 @@ static gp_result_t test_paths_and_primitives( void )
     gp_polyline( canvas, points, 4, sizeof( points[0] ), GP_NULLPTR, GP_FALSE );
     gp_set_path_markers( canvas, GP_NULLPTR, GP_NULLPTR );
     gp_path_t * tangent_path;
-    test_path_create( &tangent_path );
+    gp_path_create( canvas, &tangent_path );
     gp_path_move_to( tangent_path, 330.f, 0.f );
     gp_path_tangent_arc_to( tangent_path, 350.f, 0.f, 350.f, 20.f, 5.f );
     test_draw_destroy_path( canvas, tangent_path );
@@ -960,7 +962,7 @@ static gp_result_t test_dashed_paths( void )
     gp_set_line_dash( closed_canvas, seam_pattern, 2, 2.f );
     gp_arc( closed_canvas, 0.f, 0.f, 10.f, 0.f, pi * 2.f );
     gp_path_t * path;
-    test_path_create( &path );
+    gp_path_create( closed_canvas, &path );
     gp_path_move_to( path, 30.f, 0.f );
     gp_path_quadratic_curve_to( path, 40.f, 20.f, 50.f, 0.f );
     gp_path_bezier_curve_to( path, 55.f, -10.f, 65.f, -10.f, 70.f, 0.f );
@@ -1024,7 +1026,7 @@ static gp_result_t test_rich_paths( void )
     }
 
     gp_path_t * path;
-    test_path_create_quality( &path, 4, gp_get_default_ellipse_quality() );
+    test_path_create_quality( canvas, &path, 4, gp_get_default_ellipse_quality() );
     gp_path_style_t style = {GP_PATH_STYLE_WIDTH | GP_PATH_STYLE_COLOR, 2.f, {1.f, 0.f, 0.f, 1.f}, {0.f, 0.f, 0.f, 0.f}};
     gp_path_set_style( path, &style );
     gp_path_move_to( path, 20.f, 0.f );
@@ -1201,7 +1203,7 @@ static gp_result_t test_smooth_round_curve_geometry( void )
     gp_set_line_join( canvas, GP_LINE_JOIN_ROUND );
     gp_set_curve_quality( canvas, 4 );
     gp_path_t * path;
-    test_path_create_quality( &path, 4, gp_get_default_ellipse_quality() );
+    test_path_create_quality( canvas, &path, 4, gp_get_default_ellipse_quality() );
     gp_path_move_to( path, 0.f, 0.f );
     gp_path_line_to( path, 10.f, 0.f );
     gp_path_quadratic_curve_to( path, 15.f, 0.f, 20.f, 5.f );
@@ -1224,8 +1226,11 @@ static gp_result_t test_smooth_round_curve_geometry( void )
 //////////////////////////////////////////////////////////////////////////
 static gp_result_t test_reusable_path_queries_and_snapshot( void )
 {
+    gp_canvas_t * canvas;
+    gp_canvas_create( &canvas, &test_malloc, &test_realloc, &test_free, GP_NULLPTR );
+
     gp_path_t * path;
-    if( gp_path_create( &path, &test_malloc, &test_realloc, &test_free, GP_NULLPTR, 8, 16 ) == GP_FAILURE )
+    if( test_path_create_quality( canvas, &path, 8, 16 ) == GP_FAILURE )
     {
         return GP_FAILURE;
     }
@@ -1252,8 +1257,6 @@ static gp_result_t test_reusable_path_queries_and_snapshot( void )
         return GP_FAILURE;
     }
 
-    gp_canvas_t * canvas;
-    gp_canvas_create( &canvas, &test_malloc, &test_realloc, &test_free, GP_NULLPTR );
     gp_set_penumbra( canvas, 0.f );
     gp_set_line_cap( canvas, GP_LINE_CAP_BUTT );
     gp_set_path_trim( canvas, 0.6f, 0.8f );
@@ -1292,14 +1295,15 @@ static gp_result_t test_reusable_path_queries_and_snapshot( void )
 static gp_result_t test_stable_path_trim( void )
 {
     const float points[][2] = {{0.f, 0.f}, {10.f, 0.f}, {20.f, 0.f}, {30.f, 0.f}};
-    gp_path_t * path;
-    gp_path_create( &path, &test_malloc, &test_realloc, &test_free, GP_NULLPTR, 8, 16 );
-    gp_path_polyline( path, points, 4, sizeof( points[0] ), GP_NULLPTR, GP_FALSE );
-
     gp_canvas_t * first_canvas;
     gp_canvas_t * second_canvas;
     gp_canvas_create( &first_canvas, &test_malloc, &test_realloc, &test_free, GP_NULLPTR );
     gp_canvas_create( &second_canvas, &test_malloc, &test_realloc, &test_free, GP_NULLPTR );
+
+    gp_path_t * path;
+    test_path_create_quality( first_canvas, &path, 8, 16 );
+    gp_path_polyline( path, points, 4, sizeof( points[0] ), GP_NULLPTR, GP_FALSE );
+
     gp_set_penumbra( first_canvas, 0.f );
     gp_set_penumbra( second_canvas, 0.f );
     gp_set_line_cap( first_canvas, GP_LINE_CAP_BUTT );
@@ -1338,8 +1342,11 @@ static gp_result_t test_stable_path_trim( void )
 //////////////////////////////////////////////////////////////////////////
 static gp_result_t test_path_ellipse_arc( void )
 {
+    gp_canvas_t * canvas;
+    gp_canvas_create( &canvas, &test_malloc, &test_realloc, &test_free, GP_NULLPTR );
+
     gp_path_t * path;
-    gp_path_create( &path, &test_malloc, &test_realloc, &test_free, GP_NULLPTR, 8, 16 );
+    test_path_create_quality( canvas, &path, 8, 16 );
     gp_path_ellipse_arc( path, 10.f, 20.f, 8.f, 3.f, 0.f, 3.14159265358979323846f );
 
     gp_bounds_t bounds;
@@ -1355,6 +1362,8 @@ static gp_result_t test_path_ellipse_arc( void )
     {
         return GP_FAILURE;
     }
+
+    gp_canvas_destroy( canvas );
 
     return gp_path_destroy( path );
 }
@@ -1403,7 +1412,7 @@ static gp_result_t test_batches_and_uv( void )
     const float outer[][2] = {{0.f, 0.f}, {20.f, 0.f}, {20.f, 20.f}, {0.f, 20.f}};
     const float hole[][2] = {{5.f, 5.f}, {5.f, 15.f}, {15.f, 15.f}, {15.f, 5.f}};
     gp_path_t * compound_path;
-    test_path_create( &compound_path );
+    gp_path_create( canvas, &compound_path );
     gp_path_polyline( compound_path, outer, 4, sizeof( outer[0] ), GP_NULLPTR, GP_TRUE );
     gp_path_polyline( compound_path, hole, 4, sizeof( hole[0] ), GP_NULLPTR, GP_TRUE );
     test_draw_destroy_path( canvas, compound_path );
@@ -1467,8 +1476,11 @@ static gp_result_t test_batches_and_uv( void )
 static gp_result_t test_catmull_rom_and_superellipse( void )
 {
     const float anchors[][2] = {{0.f, 0.f}, {10.f, 10.f}, {20.f, -5.f}, {30.f, 0.f}};
+    gp_canvas_t * canvas;
+    gp_canvas_create( &canvas, &test_malloc, &test_realloc, &test_free, GP_NULLPTR );
+
     gp_path_t * path;
-    gp_path_create( &path, &test_malloc, &test_realloc, &test_free, GP_NULLPTR, 8, 16 );
+    test_path_create_quality( canvas, &path, 8, 16 );
     if( gp_path_catmull_rom( path, anchors, 4, sizeof( anchors[0] ), GP_NULLPTR, GP_FALSE ) == GP_FAILURE )
     {
         return GP_FAILURE;
@@ -1484,8 +1496,6 @@ static gp_result_t test_catmull_rom_and_superellipse( void )
         return GP_FAILURE;
     }
 
-    gp_canvas_t * canvas;
-    gp_canvas_create( &canvas, &test_malloc, &test_realloc, &test_free, GP_NULLPTR );
     gp_set_penumbra( canvas, 0.f );
     gp_draw_path( canvas, path );
     gp_path_destroy( path );
@@ -1615,7 +1625,7 @@ static gp_result_t test_invalid_path_layout( void )
     }
 
     gp_path_t * path;
-    test_path_create( &path );
+    gp_path_create( canvas, &path );
     if( gp_path_polyline( path, points, 2, sizeof( float ) * 2, &bad_color_offset, GP_FALSE ) != GP_FAILURE )
     {
         return GP_FAILURE;

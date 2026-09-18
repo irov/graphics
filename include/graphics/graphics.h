@@ -288,7 +288,7 @@ gp_result_t gp_grid_bounded( gp_canvas_t * _canvas, float _viewport_x, float _vi
 *
 *************************************************************************/
 
-gp_result_t gp_path_create( gp_path_t ** _path, gp_malloc_t _malloc, gp_realloc_t _realloc, gp_free_t _free, void * _ud, gp_uint8_t _curve_quality, gp_uint8_t _ellipse_quality );
+gp_result_t gp_path_create( gp_canvas_t * _canvas, gp_path_t ** _path );
 gp_result_t gp_path_destroy( gp_path_t * _path );
 gp_result_t gp_path_clear( gp_path_t * _path );
 gp_result_t gp_path_set_style( gp_path_t * _path, const gp_path_style_t * _style );

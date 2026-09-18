@@ -255,7 +255,7 @@ static void __draw_rich_paths( gp_canvas_t * _canvas, float _progress, float _ti
     gp_set_line_cap( _canvas, GP_LINE_CAP_ROUND );
     gp_set_line_join( _canvas, GP_LINE_JOIN_ROUND );
     gp_path_t * stable_path;
-    gp_path_create( &stable_path, &gp_malloc, &gp_realloc, &gp_free, GP_NULLPTR, gp_get_default_curve_quality(), gp_get_default_ellipse_quality() );
+    gp_path_create( _canvas, &stable_path );
     gp_path_catmull_rom( stable_path, trail, sizeof( trail ) / sizeof( trail[0] ), sizeof( trail[0] ), &layout, GP_FALSE );
     gp_set_path_trim( _canvas, 0.f, _progress );
     gp_draw_path( _canvas, stable_path );
@@ -285,7 +285,7 @@ static void __draw_rich_paths( gp_canvas_t * _canvas, float _progress, float _ti
     const float dash[] = {28.f, 12.f, 5.f};
     gp_set_line_dash( _canvas, dash, 3, _time * 16.f );
     gp_path_t * route_path;
-    gp_path_create( &route_path, &gp_malloc, &gp_realloc, &gp_free, GP_NULLPTR, gp_get_default_curve_quality(), gp_get_default_ellipse_quality() );
+    gp_path_create( _canvas, &route_path );
     gp_path_catmull_rom( route_path, route + 1, sizeof( route ) / sizeof( route[0] ) - 1, sizeof( route[0] ), &layout, GP_FALSE );
     gp_draw_path( _canvas, route_path );
     gp_path_destroy( route_path );
@@ -307,7 +307,7 @@ static void __draw_rich_paths( gp_canvas_t * _canvas, float _progress, float _ti
     gp_set_thickness( _canvas, 5.f );
     gp_set_line_cap( _canvas, GP_LINE_CAP_ROUND );
     gp_path_t * path;
-    gp_path_create( &path, &gp_malloc, &gp_realloc, &gp_free, GP_NULLPTR, gp_get_default_curve_quality(), gp_get_default_ellipse_quality() );
+    gp_path_create( _canvas, &path );
     gp_path_move_to( path, 757.f, 687.f );
     gp_path_tangent_arc_to( path, 812.f, 644.f, 882.f, 682.f, 28.f );
     gp_path_line_to( path, 901.f, 668.f );
