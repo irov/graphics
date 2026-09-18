@@ -144,6 +144,20 @@ static gp_result_t test_render( gp_canvas_t * _canvas, gp_mesh_t * _mesh, test_v
     return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
+static float test_maximum_x( const test_vertex_t * _vertices, gp_uint32_t _vertex_count )
+{
+    float maximum_x = _vertices[0].x;
+    for( gp_uint32_t index = 1; index != _vertex_count; ++index )
+    {
+        if( maximum_x < _vertices[index].x )
+        {
+            maximum_x = _vertices[index].x;
+        }
+    }
+
+    return maximum_x;
+}
+//////////////////////////////////////////////////////////////////////////
 static gp_result_t test_graphics_capacity( void )
 {
     gp_graphics_t * graphics;
@@ -193,6 +207,100 @@ static gp_result_t test_graphics_capacity( void )
     }
 
     return gp_canvas_destroy( canvas );
+}
+//////////////////////////////////////////////////////////////////////////
+static gp_result_t test_multi_canvas( void )
+{
+    gp_canvas_t * first;
+    gp_canvas_t * second;
+    if( gp_canvas_create( test_graphics, &first ) == GP_FAILURE ||
+        gp_canvas_create( test_graphics, &second ) == GP_FAILURE )
+    {
+        return GP_FAILURE;
+    }
+
+    gp_set_penumbra( first, 0.f );
+    gp_set_penumbra( second, 0.f );
+
+    gp_set_thickness( first, 7.f );
+
+    float second_thickness;
+    if( gp_get_thickness( second, &second_thickness ) == GP_FAILURE ||
+        second_thickness != gp_get_default_thickness() )
+    {
+        return GP_FAILURE;
+    }
+
+    gp_begin_fill( first );
+    gp_set_color( first, 1.f, 0.f, 0.f, 1.f );
+    gp_rect( first, 0.f, 0.f, 10.f, 10.f );
+    gp_begin_fill( second );
+    gp_set_color( second, 0.f, 1.f, 0.f, 1.f );
+    gp_rect( second, 0.f, 0.f, 10.f, 10.f );
+    gp_rect( second, 20.f, 0.f, 10.f, 10.f );
+    gp_rect( first, 40.f, 0.f, 10.f, 10.f );
+    gp_rect( second, 25.f, 0.f, 5.f, 10.f );
+    gp_end_fill( first );
+    gp_end_fill( second );
+
+    gp_mesh_t first_mesh;
+    test_vertex_t * first_vertices;
+    gp_uint16_t * first_indices;
+    gp_mesh_t second_mesh;
+    test_vertex_t * second_vertices;
+    gp_uint16_t * second_indices;
+    if( test_render( first, &first_mesh, &first_vertices, &first_indices ) == GP_FAILURE ||
+        test_render( second, &second_mesh, &second_vertices, &second_indices ) == GP_FAILURE ||
+        first_mesh.vertex_count != 8 || first_mesh.index_count != 12 ||
+        second_mesh.vertex_count != 12 || second_mesh.index_count != 18 ||
+        first_vertices[0].color == second_vertices[0].color ||
+        test_near( test_maximum_x( first_vertices, first_mesh.vertex_count ), 53.5f, 0.0001f ) == GP_FALSE ||
+        test_near( test_maximum_x( second_vertices, second_mesh.vertex_count ), 31.5f, 0.0001f ) == GP_FALSE )
+    {
+        return GP_FAILURE;
+    }
+
+    gp_canvas_memory_stats_t first_stats;
+    gp_canvas_memory_stats_t second_stats;
+    if( gp_canvas_get_memory_stats( first, &first_stats ) == GP_FAILURE ||
+        gp_canvas_get_memory_stats( second, &second_stats ) == GP_FAILURE ||
+        first_stats.render_order_count != 2 || second_stats.render_order_count != 3 ||
+        first_stats.recording_used == 0 || first_stats.recording_used >= second_stats.recording_used )
+    {
+        return GP_FAILURE;
+    }
+
+    gp_canvas_clear( first );
+
+    if( gp_canvas_get_memory_stats( first, &first_stats ) == GP_FAILURE ||
+        gp_canvas_get_memory_stats( second, &second_stats ) == GP_FAILURE ||
+        first_stats.render_order_count != 0 || first_stats.recording_used != 0 ||
+        second_stats.render_order_count != 3 || second_stats.recording_used == 0 )
+    {
+        return GP_FAILURE;
+    }
+
+    free( first_vertices );
+    free( first_indices );
+    free( second_vertices );
+    free( second_indices );
+
+    if( gp_canvas_destroy( first ) == GP_FAILURE )
+    {
+        return GP_FAILURE;
+    }
+
+    if( test_render( second, &second_mesh, &second_vertices, &second_indices ) == GP_FAILURE ||
+        second_mesh.vertex_count != 12 || second_mesh.index_count != 18 ||
+        test_near( test_maximum_x( second_vertices, second_mesh.vertex_count ), 31.5f, 0.0001f ) == GP_FALSE )
+    {
+        return GP_FAILURE;
+    }
+
+    free( second_vertices );
+    free( second_indices );
+
+    return gp_canvas_destroy( second );
 }
 //////////////////////////////////////////////////////////////////////////
 static gp_result_t test_large_index_count( void )
@@ -1711,6 +1819,12 @@ int main( int argc, char ** argv )
     if( test_graphics_capacity() == GP_FAILURE )
     {
         fprintf( stderr, "test_graphics_capacity failed\n" );
+        return EXIT_FAILURE;
+    }
+
+    if( test_multi_canvas() == GP_FAILURE )
+    {
+        fprintf( stderr, "test_multi_canvas failed\n" );
         return EXIT_FAILURE;
     }
 
