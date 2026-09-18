@@ -18,7 +18,7 @@ macro(ADD_GRAPHICS_TEST testname)
         FOLDER tests
     )
 
-    ADD_TEST(NAME ${testname} COMMAND ${ROOT_DIR}/bin/${CMAKE_GENERATOR}/test_${testname} ${ROOT_DIR}/bin/${CMAKE_GENERATOR})
+    ADD_TEST(NAME ${testname} COMMAND $<TARGET_FILE:test_${testname}> $<TARGET_FILE_DIR:test_${testname}>)
 endmacro()
 
 ADD_GRAPHICS_TEST(memory_leak)
