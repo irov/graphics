@@ -112,7 +112,7 @@ static void __rounded_polygon_calculate_vertex( const void * _points, gp_size_t 
     }
 }
 //////////////////////////////////////////////////////////////////////////
-gp_result_t gp_rounded_polygon( gp_canvas_t * _canvas, const void * _points, gp_size_t _point_count, gp_size_t _point_stride, float _radius )
+static gp_result_t __rounded_polygon( gp_canvas_t * _canvas, const void * _points, gp_size_t _point_count, gp_size_t _point_stride, float _radius )
 {
     if( _point_count < 3 )
     {
@@ -171,6 +171,20 @@ gp_result_t gp_rounded_polygon( gp_canvas_t * _canvas, const void * _points, gp_
     GP_CALL( gp_path_close, (path) );
     gp_result_t result = gp_draw_path( _canvas, path );
     GP_CALL( gp_path_destroy, (path) );
+
+    return result;
+}
+//////////////////////////////////////////////////////////////////////////
+gp_result_t gp_rounded_polygon( gp_canvas_t * _canvas, const void * _points, gp_size_t _point_count, gp_size_t _point_stride, float _radius )
+{
+    if( _canvas == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
+
+    gp_size_t scratch_mark = gp_canvas_scratch_mark( _canvas );
+    gp_result_t result = __rounded_polygon( _canvas, _points, _point_count, _point_stride, _radius );
+    gp_canvas_scratch_reset( _canvas, scratch_mark );
 
     return result;
 }

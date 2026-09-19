@@ -175,8 +175,8 @@ static gp_result_t test_graphics_capacity( void )
 
     gp_canvas_memory_stats_t stats;
     if( gp_canvas_get_memory_stats( canvas, &stats ) == GP_FAILURE ||
-        stats.recording_capacity != 1024U * 1024U || stats.render_order_capacity != 64U ||
-        stats.scratch_capacity != 512U * 1024U )
+        stats.recording_capacity != 0 || stats.render_order_capacity != 0 ||
+        stats.scratch_capacity != 0 )
     {
         return GP_FAILURE;
     }
@@ -190,9 +190,8 @@ static gp_result_t test_graphics_capacity( void )
     }
 
     if( gp_canvas_get_memory_stats( canvas, &stats ) == GP_FAILURE ||
-        stats.recording_capacity != GP_CANVAS_RECORDING_MEMORY_SIZE ||
-        stats.render_order_capacity != GP_CANVAS_RENDER_ORDER_CAPACITY ||
-        stats.scratch_capacity != GP_CANVAS_SCRATCH_MEMORY_SIZE )
+        stats.recording_capacity != 0 || stats.render_order_capacity != 0 ||
+        stats.scratch_capacity != 0 )
     {
         return GP_FAILURE;
     }

@@ -194,7 +194,7 @@ static gp_result_t __primitive_finish_path( gp_canvas_t * _canvas, gp_path_t * _
     return _result;
 }
 //////////////////////////////////////////////////////////////////////////
-gp_result_t gp_quadratic_bezier( gp_canvas_t * _canvas, float _x0, float _y0, float _control_x, float _control_y, float _x1, float _y1 )
+static gp_result_t __quadratic_bezier( gp_canvas_t * _canvas, float _x0, float _y0, float _control_x, float _control_y, float _x1, float _y1 )
 {
 #if defined(GP_DEBUG)
     if( _canvas == GP_NULLPTR )
@@ -214,7 +214,21 @@ gp_result_t gp_quadratic_bezier( gp_canvas_t * _canvas, float _x0, float _y0, fl
     return result;
 }
 //////////////////////////////////////////////////////////////////////////
-gp_result_t gp_cubic_bezier( gp_canvas_t * _canvas, float _x0, float _y0, float _control0_x, float _control0_y, float _control1_x, float _control1_y, float _x1, float _y1 )
+gp_result_t gp_quadratic_bezier( gp_canvas_t * _canvas, float _x0, float _y0, float _control_x, float _control_y, float _x1, float _y1 )
+{
+    if( _canvas == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
+
+    gp_size_t scratch_mark = gp_canvas_scratch_mark( _canvas );
+    gp_result_t result = __quadratic_bezier( _canvas, _x0, _y0, _control_x, _control_y, _x1, _y1 );
+    gp_canvas_scratch_reset( _canvas, scratch_mark );
+
+    return result;
+}
+//////////////////////////////////////////////////////////////////////////
+static gp_result_t __cubic_bezier( gp_canvas_t * _canvas, float _x0, float _y0, float _control0_x, float _control0_y, float _control1_x, float _control1_y, float _x1, float _y1 )
 {
 #if defined(GP_DEBUG)
     if( _canvas == GP_NULLPTR )
@@ -234,7 +248,21 @@ gp_result_t gp_cubic_bezier( gp_canvas_t * _canvas, float _x0, float _y0, float 
     return result;
 }
 //////////////////////////////////////////////////////////////////////////
-gp_result_t gp_polyline( gp_canvas_t * _canvas, const void * _points, gp_size_t _point_count, gp_size_t _point_stride, const gp_path_layout_t * _layout, gp_bool_t _closed )
+gp_result_t gp_cubic_bezier( gp_canvas_t * _canvas, float _x0, float _y0, float _control0_x, float _control0_y, float _control1_x, float _control1_y, float _x1, float _y1 )
+{
+    if( _canvas == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
+
+    gp_size_t scratch_mark = gp_canvas_scratch_mark( _canvas );
+    gp_result_t result = __cubic_bezier( _canvas, _x0, _y0, _control0_x, _control0_y, _control1_x, _control1_y, _x1, _y1 );
+    gp_canvas_scratch_reset( _canvas, scratch_mark );
+
+    return result;
+}
+//////////////////////////////////////////////////////////////////////////
+static gp_result_t __polyline( gp_canvas_t * _canvas, const void * _points, gp_size_t _point_count, gp_size_t _point_stride, const gp_path_layout_t * _layout, gp_bool_t _closed )
 {
     if( _point_count == 0 )
     {
@@ -283,7 +311,21 @@ gp_result_t gp_polyline( gp_canvas_t * _canvas, const void * _points, gp_size_t 
     return result;
 }
 //////////////////////////////////////////////////////////////////////////
-gp_result_t gp_rounded_rect_varying( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height, float _radius_top_left, float _radius_top_right, float _radius_bottom_right, float _radius_bottom_left )
+gp_result_t gp_polyline( gp_canvas_t * _canvas, const void * _points, gp_size_t _point_count, gp_size_t _point_stride, const gp_path_layout_t * _layout, gp_bool_t _closed )
+{
+    if( _canvas == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
+
+    gp_size_t scratch_mark = gp_canvas_scratch_mark( _canvas );
+    gp_result_t result = __polyline( _canvas, _points, _point_count, _point_stride, _layout, _closed );
+    gp_canvas_scratch_reset( _canvas, scratch_mark );
+
+    return result;
+}
+//////////////////////////////////////////////////////////////////////////
+static gp_result_t __rounded_rect_varying( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height, float _radius_top_left, float _radius_top_right, float _radius_bottom_right, float _radius_bottom_left )
 {
 #if defined(GP_DEBUG)
     if( _width < 0.f || _height < 0.f ||
@@ -325,6 +367,20 @@ gp_result_t gp_rounded_rect_varying( gp_canvas_t * _canvas, float _x, float _y, 
     GP_CALL( gp_path_close, (path) );
 
     gp_result_t result = __primitive_draw_destroy_path( _canvas, path );
+    return result;
+}
+//////////////////////////////////////////////////////////////////////////
+gp_result_t gp_rounded_rect_varying( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height, float _radius_top_left, float _radius_top_right, float _radius_bottom_right, float _radius_bottom_left )
+{
+    if( _canvas == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
+
+    gp_size_t scratch_mark = gp_canvas_scratch_mark( _canvas );
+    gp_result_t result = __rounded_rect_varying( _canvas, _x, _y, _width, _height, _radius_top_left, _radius_top_right, _radius_bottom_right, _radius_bottom_left );
+    gp_canvas_scratch_reset( _canvas, scratch_mark );
+
     return result;
 }
 //////////////////////////////////////////////////////////////////////////
@@ -480,7 +536,7 @@ gp_result_t gp_superellipse( gp_canvas_t * _canvas, float _x, float _y, float _w
     return result;
 }
 //////////////////////////////////////////////////////////////////////////
-gp_result_t gp_rounded_polyline( gp_canvas_t * _canvas, const void * _points, gp_size_t _point_count, gp_size_t _point_stride, const gp_path_layout_t * _layout, float _radius, gp_bool_t _closed )
+static gp_result_t __rounded_polyline( gp_canvas_t * _canvas, const void * _points, gp_size_t _point_count, gp_size_t _point_stride, const gp_path_layout_t * _layout, float _radius, gp_bool_t _closed )
 {
 #if defined(GP_DEBUG)
     if( _points == GP_NULLPTR || _point_count < (_closed == GP_TRUE ? 3U : 2U) || _point_stride < sizeof( float ) * 2 || _radius < 0.f )
@@ -616,6 +672,20 @@ gp_result_t gp_rounded_polyline( gp_canvas_t * _canvas, const void * _points, gp
     return result;
 }
 //////////////////////////////////////////////////////////////////////////
+gp_result_t gp_rounded_polyline( gp_canvas_t * _canvas, const void * _points, gp_size_t _point_count, gp_size_t _point_stride, const gp_path_layout_t * _layout, float _radius, gp_bool_t _closed )
+{
+    if( _canvas == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
+
+    gp_size_t scratch_mark = gp_canvas_scratch_mark( _canvas );
+    gp_result_t result = __rounded_polyline( _canvas, _points, _point_count, _point_stride, _layout, _radius, _closed );
+    gp_canvas_scratch_reset( _canvas, scratch_mark );
+
+    return result;
+}
+//////////////////////////////////////////////////////////////////////////
 typedef struct gp_offset_vertex_t
 {
     float entry_x;
@@ -717,7 +787,7 @@ static gp_result_t __primitive_offset_vertex( const void * _points, gp_size_t _p
     return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
-gp_result_t gp_polygon_offset( gp_canvas_t * _canvas, const void * _points, gp_size_t _point_count, gp_size_t _point_stride, float _offset, gp_line_join_t _join )
+static gp_result_t __polygon_offset( gp_canvas_t * _canvas, const void * _points, gp_size_t _point_count, gp_size_t _point_stride, float _offset, gp_line_join_t _join )
 {
 #if defined(GP_DEBUG)
     if( _points == GP_NULLPTR || _point_count < 3 || _point_stride < sizeof( float ) * 2 ||
@@ -774,5 +844,19 @@ gp_result_t gp_polygon_offset( gp_canvas_t * _canvas, const void * _points, gp_s
     GP_CALL( gp_path_close, (path) );
 
     gp_result_t result = __primitive_draw_destroy_path( _canvas, path );
+    return result;
+}
+//////////////////////////////////////////////////////////////////////////
+gp_result_t gp_polygon_offset( gp_canvas_t * _canvas, const void * _points, gp_size_t _point_count, gp_size_t _point_stride, float _offset, gp_line_join_t _join )
+{
+    if( _canvas == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
+
+    gp_size_t scratch_mark = gp_canvas_scratch_mark( _canvas );
+    gp_result_t result = __polygon_offset( _canvas, _points, _point_count, _point_stride, _offset, _join );
+    gp_canvas_scratch_reset( _canvas, scratch_mark );
+
     return result;
 }

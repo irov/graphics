@@ -21,19 +21,34 @@ required.
 
 ## Canvas memory
 
-`gp_graphics_create` owns the allocator and the canvas memory limits, and every
-canvas is created from it. `gp_canvas_create` performs one allocation containing
-the canvas, a fixed render-order array, recording memory, and tessellation
-scratch memory. Recording and rendering do not fall back to the heap. If a fixed
-capacity is exhausted, the operation returns `GP_FAILURE`.
+`gp_canvas_create` allocates only the canvas header and its state stack.
+Recording memory is allocated on demand in linked blocks, so recorded pointers
+remain stable as the canvas grows. The recording size passed to
+`gp_graphics_create` is now the block size, not a total recording limit. The
+default block size is 4 KiB; larger individual payloads get a larger block.
+Render orders use a contiguous array allocated on the first command, starting
+with up to 16 entries and growing up to the configured render-order limit.
 
-Every limit is passed to `gp_graphics_create`, where `GP_CAPACITY_DEFAULT`
-selects the compile-time default. The defaults are 65,536 render-order entries,
-64 MiB of recording memory, and 64 MiB of reusable tessellation scratch memory,
-configured with `GP_CANVAS_RENDER_ORDER_CAPACITY`,
-`GP_CANVAS_RECORDING_MEMORY_SIZE`, and `GP_CANVAS_SCRATCH_MEMORY_SIZE`.
-`gp_canvas_get_memory_stats` exposes current usage and lifetime peaks so an
-application can size these blocks from real frames.
+Each canvas keeps a pointer to its `gp_graphics_t`, which must remain alive until
+all canvases created from it have been destroyed.
+
+Scratch memory belongs to `gp_graphics_t` and is shared by all its canvases.
+It grows in blocks on demand and is reused after each temporary path or mesh
+operation, including failures. Clearing or destroying a canvas does not reset
+another operation's scratch memory. Operations using scratch on the same
+graphics object must be serialized across threads. Separate graphics objects
+have independent scratch memory.
+
+`GP_CAPACITY_DEFAULT` selects the compile-time defaults:
+`GP_CANVAS_RECORDING_MEMORY_SIZE` (4 KiB blocks),
+`GP_CANVAS_RENDER_ORDER_CAPACITY` (65,536 orders per canvas), and
+`GP_CANVAS_SCRATCH_MEMORY_SIZE` (64 MiB maximum shared scratch capacity).
+These capacities are not reserved in advance. Allocation failures and exhausted
+render-order or scratch limits return `GP_FAILURE`.
+`gp_canvas_get_memory_stats` reports allocated capacities and lifetime peaks;
+scratch statistics describe the shared graphics object and must not be summed
+across its canvases. Arena usage includes alignment and unused block tails;
+allocator metadata, block headers, and the canvas header are not included.
 
 `gp_geometry` records borrowed vertex and index buffers without taking ownership
 or copying them. Positions and indices are required; color and UV streams are
@@ -49,10 +64,13 @@ textured rectangles. Bounds and UV records each begin with four floats in
 expands these logical rectangles into vertices and indices during rendering.
 
 `gp_flush` writes the currently recorded canvas commands into caller-owned mesh
-buffers, then resets only the recording and tessellation arenas. The logical
+buffers, then frees recording blocks and the render-order array. The logical
 canvas state and state stack are preserved, so recording may continue after a
 renderer-state boundary without clearing or recreating the canvas. Output mesh
 memory remains entirely owned and lifetime-managed by the caller.
+`gp_canvas_clear` also frees recording blocks and render orders, and restores
+the default canvas state. Shared scratch blocks remain cached until
+`gp_graphics_destroy`.
 
 ## Rounded polygons
 

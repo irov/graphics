@@ -23,3 +23,4 @@ endmacro()
 
 ADD_GRAPHICS_TEST(memory_leak)
 ADD_GRAPHICS_TEST(api)
+ADD_GRAPHICS_TEST(memory)

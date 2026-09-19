@@ -154,6 +154,7 @@ typedef struct gp_canvas_memory_stats_t
     gp_size_t recording_used;
     gp_size_t recording_capacity;
     gp_size_t recording_peak;
+    /* Scratch statistics are shared by all canvases of the same graphics object. */
     gp_size_t scratch_used;
     gp_size_t scratch_capacity;
     gp_size_t scratch_peak;
@@ -169,6 +170,8 @@ typedef void (*gp_free_t)(void * _ptr, void * _ud);
 *
 *************************************************************************/
 
+/* Recording size is a block size; render-order and shared scratch sizes are limits.
+ * Buffers are allocated on demand. Destroy all canvases before their graphics object. */
 gp_result_t gp_graphics_create( gp_graphics_t ** _graphics, gp_malloc_t _malloc, gp_realloc_t _realloc, gp_free_t _free, void * _ud, gp_size_t _recording_memory_size, gp_size_t _render_order_capacity, gp_size_t _scratch_memory_size );
 gp_result_t gp_graphics_destroy( gp_graphics_t * _graphics );
 

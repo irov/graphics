@@ -7,6 +7,7 @@
 //////////////////////////////////////////////////////////////////////////
 typedef struct gp_scratch_allocation_t
 {
+    gp_arena_block_t * block;
     gp_size_t size;
 } gp_scratch_allocation_t;
 //////////////////////////////////////////////////////////////////////////
@@ -22,27 +23,119 @@ static gp_size_t gp_align_size( gp_size_t _value )
     return aligned_value;
 }
 //////////////////////////////////////////////////////////////////////////
-static void * gp_arena_allocate( gp_arena_t * _arena, gp_size_t _size )
+static void * gp_arena_allocate( gp_arena_t * _arena, const gp_graphics_t * _graphics, gp_size_t _size, gp_size_t _block_size, gp_size_t _limit )
 {
     gp_size_t aligned_size = gp_align_size( _size );
-    if( _arena->offset > _arena->capacity || aligned_size > _arena->capacity - _arena->offset )
+    if( aligned_size == SIZE_MAX )
     {
         return GP_NULLPTR;
     }
 
-    void * memory = _arena->memory + _arena->offset;
-    _arena->offset += aligned_size;
+    gp_arena_block_t * block = _arena->current;
+    gp_size_t offset = block == GP_NULLPTR ? 0 : _arena->offset - block->begin;
+    while( block != GP_NULLPTR && aligned_size > block->capacity - offset )
+    {
+        if( block->next == GP_NULLPTR )
+        {
+            break;
+        }
+
+        block = block->next;
+        offset = 0;
+    }
+
+    if( block == GP_NULLPTR || aligned_size > block->capacity - offset )
+    {
+        gp_arena_block_t * unused = _arena->current;
+        if( unused != GP_NULLPTR && _arena->offset != unused->begin )
+        {
+            unused = unused->next;
+        }
+
+        gp_size_t begin = unused == GP_NULLPTR ? _arena->capacity : unused->begin;
+        gp_size_t capacity = gp_align_size( _block_size );
+        if( capacity < aligned_size )
+        {
+            capacity = aligned_size;
+        }
+
+        gp_size_t available = _limit - begin;
+        if( capacity > available )
+        {
+            capacity = available;
+        }
+
+        if( capacity < aligned_size || capacity > SIZE_MAX - sizeof( gp_arena_block_t ) )
+        {
+            return GP_NULLPTR;
+        }
+
+        gp_arena_block_t * next = (gp_arena_block_t *)(*_graphics->malloc)(sizeof( gp_arena_block_t ) + capacity, _graphics->ud);
+        if( next == GP_NULLPTR )
+        {
+            return GP_NULLPTR;
+        }
+
+        if( unused != GP_NULLPTR )
+        {
+            block = unused->prev;
+            while( unused != GP_NULLPTR )
+            {
+                gp_arena_block_t * following = unused->next;
+                (*_graphics->free)(unused, _graphics->ud);
+                unused = following;
+            }
+        }
+
+        next->next = GP_NULLPTR;
+        next->prev = block;
+        next->begin = begin;
+        next->capacity = capacity;
+        if( block == GP_NULLPTR )
+        {
+            _arena->blocks = next;
+        }
+        else
+        {
+            block->next = next;
+        }
+
+        _arena->capacity = begin + capacity;
+        block = next;
+        offset = 0;
+    }
+
+    _arena->current = block;
+    _arena->offset = block->begin + offset + aligned_size;
     if( _arena->peak < _arena->offset )
     {
         _arena->peak = _arena->offset;
     }
 
+    void * memory = (gp_uint8_t *)(block + 1) + offset;
     return memory;
+}
+//////////////////////////////////////////////////////////////////////////
+void gp_arena_clear( gp_arena_t * _arena, const gp_graphics_t * _graphics )
+{
+    gp_arena_block_t * block = _arena->blocks;
+    while( block != GP_NULLPTR )
+    {
+        gp_arena_block_t * next = block->next;
+        (*_graphics->free)(block, _graphics->ud);
+        block = next;
+    }
+
+    _arena->blocks = GP_NULLPTR;
+    _arena->current = GP_NULLPTR;
+    _arena->capacity = 0;
+    _arena->offset = 0;
 }
 //////////////////////////////////////////////////////////////////////////
 void * gp_canvas_recording_allocate( gp_canvas_t * _canvas, gp_size_t _size )
 {
-    void * memory = gp_arena_allocate( &_canvas->recording_arena, _size );
+    const gp_graphics_t * graphics = _canvas->graphics;
+    void * memory = gp_arena_allocate( &_canvas->recording_arena, graphics, _size, graphics->recording_memory_size, SIZE_MAX );
     return memory;
 }
 //////////////////////////////////////////////////////////////////////////
@@ -105,50 +198,46 @@ void gp_state_apply_stroke_scale( gp_state_t * _state )
 //////////////////////////////////////////////////////////////////////////
 void * gp_canvas_scratch_reallocate( gp_canvas_t * _canvas, void * _pointer, gp_size_t _size )
 {
-    if( _size == 0 )
+    if( _size == 0 || _size > SIZE_MAX - sizeof( gp_scratch_allocation_t ) )
     {
         return GP_NULLPTR;
     }
 
-    if( _size > SIZE_MAX - sizeof( gp_scratch_allocation_t ) )
+    gp_graphics_t * graphics = _canvas->graphics;
+    gp_arena_t * arena = &graphics->scratch_arena;
+    gp_size_t allocation_size = gp_align_size( sizeof( gp_scratch_allocation_t ) + _size );
+    if( allocation_size == SIZE_MAX )
     {
         return GP_NULLPTR;
     }
 
-    gp_size_t allocation_size = sizeof( gp_scratch_allocation_t ) + _size;
     if( _pointer != GP_NULLPTR )
     {
         gp_scratch_allocation_t * previous = (gp_scratch_allocation_t *)_pointer - 1;
-        if( previous->size <= SIZE_MAX - sizeof( gp_scratch_allocation_t ) )
+        gp_arena_block_t * block = previous->block;
+        gp_size_t previous_offset = (gp_uint8_t *)previous - (gp_uint8_t *)(block + 1);
+        gp_size_t previous_size = gp_align_size( sizeof( gp_scratch_allocation_t ) + previous->size );
+        if( block == arena->current && block->begin + previous_offset + previous_size == arena->offset &&
+            allocation_size <= block->capacity - previous_offset )
         {
-            const gp_size_t previous_allocation_size = gp_align_size( sizeof( gp_scratch_allocation_t ) + previous->size );
-            const gp_size_t previous_offset = (gp_uint8_t *)previous - _canvas->scratch_arena.memory;
-            if( previous_offset <= _canvas->scratch_arena.offset &&
-                previous_allocation_size <= _canvas->scratch_arena.offset - previous_offset &&
-                previous_offset + previous_allocation_size == _canvas->scratch_arena.offset )
+            previous->size = _size;
+            arena->offset = block->begin + previous_offset + allocation_size;
+            if( arena->peak < arena->offset )
             {
-                const gp_size_t resized_allocation_size = gp_align_size( allocation_size );
-                if( resized_allocation_size <= _canvas->scratch_arena.capacity - previous_offset )
-                {
-                    previous->size = _size;
-                    _canvas->scratch_arena.offset = previous_offset + resized_allocation_size;
-                    if( _canvas->scratch_arena.peak < _canvas->scratch_arena.offset )
-                    {
-                        _canvas->scratch_arena.peak = _canvas->scratch_arena.offset;
-                    }
-                    void * memory = previous + 1;
-                    return memory;
-                }
+                arena->peak = arena->offset;
             }
+
+            return _pointer;
         }
     }
 
-    gp_scratch_allocation_t * allocation = (gp_scratch_allocation_t *)gp_arena_allocate( &_canvas->scratch_arena, allocation_size );
+    gp_scratch_allocation_t * allocation = (gp_scratch_allocation_t *)gp_arena_allocate( arena, graphics, allocation_size, 4096U, graphics->scratch_memory_size );
     if( allocation == GP_NULLPTR )
     {
         return GP_NULLPTR;
     }
 
+    allocation->block = arena->current;
     allocation->size = _size;
     void * memory = allocation + 1;
     if( _pointer != GP_NULLPTR )
@@ -168,20 +257,14 @@ void gp_canvas_scratch_free( gp_canvas_t * _canvas, void * _pointer )
         return;
     }
 
+    gp_arena_t * arena = &_canvas->graphics->scratch_arena;
     gp_scratch_allocation_t * allocation = (gp_scratch_allocation_t *)_pointer - 1;
-    if( (gp_uint8_t *)allocation < _canvas->scratch_arena.memory ||
-        (gp_uint8_t *)allocation >= _canvas->scratch_arena.memory + _canvas->scratch_arena.offset ||
-        allocation->size > SIZE_MAX - sizeof( gp_scratch_allocation_t ) )
+    gp_arena_block_t * block = allocation->block;
+    gp_size_t offset = (gp_uint8_t *)allocation - (gp_uint8_t *)(block + 1);
+    gp_size_t allocation_size = gp_align_size( sizeof( gp_scratch_allocation_t ) + allocation->size );
+    if( block == arena->current && block->begin + offset + allocation_size == arena->offset )
     {
-        return;
-    }
-
-    const gp_size_t allocation_offset = (gp_uint8_t *)allocation - _canvas->scratch_arena.memory;
-    const gp_size_t allocation_size = gp_align_size( sizeof( gp_scratch_allocation_t ) + allocation->size );
-    if( allocation_size <= _canvas->scratch_arena.offset - allocation_offset &&
-        allocation_offset + allocation_size == _canvas->scratch_arena.offset )
-    {
-        _canvas->scratch_arena.offset = allocation_offset;
+        gp_canvas_scratch_reset( _canvas, block->begin + offset );
     }
 }
 //////////////////////////////////////////////////////////////////////////
@@ -204,16 +287,24 @@ void gp_canvas_scratch_free_callback( void * _pointer, void * _ud )
 //////////////////////////////////////////////////////////////////////////
 gp_size_t gp_canvas_scratch_mark( const gp_canvas_t * _canvas )
 {
-    gp_size_t mark = _canvas->scratch_arena.offset;
+    gp_size_t mark = _canvas->graphics->scratch_arena.offset;
     return mark;
 }
 //////////////////////////////////////////////////////////////////////////
 void gp_canvas_scratch_reset( gp_canvas_t * _canvas, gp_size_t _mark )
 {
-    if( _mark <= _canvas->scratch_arena.offset )
+    gp_arena_t * arena = &_canvas->graphics->scratch_arena;
+    if( _mark > arena->offset )
     {
-        _canvas->scratch_arena.offset = _mark;
+        return;
     }
+
+    while( arena->current != GP_NULLPTR && arena->current->prev != GP_NULLPTR && arena->current->begin >= _mark )
+    {
+        arena->current = arena->current->prev;
+    }
+
+    arena->offset = _mark;
 }
 
 //////////////////////////////////////////////////////////////////////////

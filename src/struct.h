@@ -306,9 +306,18 @@ typedef struct gp_render_order_t
     const gp_state_t * state;
 } gp_render_order_t;
 //////////////////////////////////////////////////////////////////////////
+typedef struct gp_arena_block_t
+{
+    struct gp_arena_block_t * next;
+    struct gp_arena_block_t * prev;
+    gp_size_t begin;
+    gp_size_t capacity;
+} gp_arena_block_t;
+//////////////////////////////////////////////////////////////////////////
 typedef struct gp_arena_t
 {
-    gp_uint8_t * memory;
+    gp_arena_block_t * blocks;
+    gp_arena_block_t * current;
     gp_size_t capacity;
     gp_size_t offset;
     gp_size_t peak;
@@ -323,6 +332,8 @@ typedef struct gp_graphics_t
     gp_size_t render_order_capacity;
     gp_size_t scratch_memory_size;
 
+    gp_arena_t scratch_arena;
+
     gp_malloc_t malloc;
     gp_realloc_t realloc;
     gp_free_t free;
@@ -332,6 +343,8 @@ typedef struct gp_graphics_t
 //////////////////////////////////////////////////////////////////////////
 typedef struct gp_canvas_t
 {
+    gp_graphics_t * graphics;
+
     gp_state_t state_cook[GP_STATE_STACK_MAX];
     gp_uint32_t state_stack;
     gp_bool_t state_invalidate;
@@ -353,13 +366,6 @@ typedef struct gp_canvas_t
     gp_size_t render_order_capacity;
 
     gp_arena_t recording_arena;
-    gp_arena_t scratch_arena;
-
-    gp_malloc_t malloc;
-    gp_realloc_t realloc;
-    gp_free_t free;
-
-    void * ud;
 } gp_canvas_t;
 
 #endif

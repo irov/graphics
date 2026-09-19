@@ -236,6 +236,7 @@ gp_result_t gp_graphics_create( gp_graphics_t ** _graphics, gp_malloc_t _malloc,
     graphics->recording_memory_size = recording_memory_size;
     graphics->render_order_capacity = render_order_capacity;
     graphics->scratch_memory_size = scratch_memory_size;
+    memset( &graphics->scratch_arena, 0, sizeof( graphics->scratch_arena ) );
 
     graphics->malloc = _malloc;
     graphics->realloc = _realloc;
@@ -254,6 +255,7 @@ gp_result_t gp_graphics_destroy( gp_graphics_t * _graphics )
         return GP_FAILURE;
     }
 
+    gp_arena_clear( &_graphics->scratch_arena, _graphics );
     (*_graphics->free)(_graphics, _graphics->ud);
 
     return GP_SUCCESSFUL;
@@ -266,59 +268,17 @@ gp_result_t gp_canvas_create( gp_graphics_t * _graphics, gp_canvas_t ** _canvas 
         return GP_FAILURE;
     }
 
-    const gp_size_t alignment = sizeof( void * );
-    const gp_size_t render_order_capacity = _graphics->render_order_capacity;
-    if( render_order_capacity > SIZE_MAX / sizeof( gp_render_order_t ) )
-    {
-        return GP_FAILURE;
-    }
-
-    const gp_size_t render_order_size = render_order_capacity * sizeof( gp_render_order_t );
-    const gp_size_t recording_capacity = _graphics->recording_memory_size;
-    const gp_size_t scratch_capacity = _graphics->scratch_memory_size;
-
-    if( render_order_size > SIZE_MAX - recording_capacity )
-    {
-        return GP_FAILURE;
-    }
-
-    gp_size_t arena_size = render_order_size + recording_capacity;
-
-    if( arena_size > SIZE_MAX - scratch_capacity )
-    {
-        return GP_FAILURE;
-    }
-
-    arena_size += scratch_capacity;
-
-    if( arena_size > SIZE_MAX - sizeof( gp_canvas_t ) - alignment + 1U )
-    {
-        return GP_FAILURE;
-    }
-
-    const gp_size_t allocation_size = sizeof( gp_canvas_t ) + alignment - 1U + arena_size;
-    gp_canvas_t * canvas = (gp_canvas_t *)(*_graphics->malloc)(allocation_size, _graphics->ud);
+    gp_canvas_t * canvas = (gp_canvas_t *)(*_graphics->malloc)(sizeof( gp_canvas_t ), _graphics->ud);
     if( canvas == GP_NULLPTR )
     {
         return GP_FAILURE;
     }
 
-    gp_uint8_t * arena_memory = (gp_uint8_t *)(canvas + 1);
-    gp_size_t arena_address = (gp_size_t)arena_memory;
-    arena_memory += (alignment - arena_address % alignment) % alignment;
-
-    canvas->render_orders = (gp_render_order_t *)arena_memory;
+    canvas->graphics = _graphics;
+    canvas->render_orders = GP_NULLPTR;
     canvas->render_order_count = 0;
-    canvas->render_order_capacity = render_order_capacity;
-
-    canvas->recording_arena.memory = arena_memory + render_order_size;
-    canvas->recording_arena.capacity = recording_capacity;
-    canvas->recording_arena.offset = 0;
-    canvas->recording_arena.peak = 0;
-    canvas->scratch_arena.memory = canvas->recording_arena.memory + recording_capacity;
-    canvas->scratch_arena.capacity = scratch_capacity;
-    canvas->scratch_arena.offset = 0;
-    canvas->scratch_arena.peak = 0;
+    canvas->render_order_capacity = 0;
+    memset( &canvas->recording_arena, 0, sizeof( canvas->recording_arena ) );
 
     canvas->state_stack = 0;
     canvas->state_invalidate = GP_TRUE;
@@ -337,11 +297,6 @@ gp_result_t gp_canvas_create( gp_graphics_t * _graphics, gp_canvas_t ** _canvas 
 
     __canvas_default_state_setup( canvas );
 
-    canvas->malloc = _graphics->malloc;
-    canvas->realloc = _graphics->realloc;
-    canvas->free = _graphics->free;
-    canvas->ud = _graphics->ud;
-
     *_canvas = canvas;
 
     return GP_SUCCESSFUL;
@@ -354,15 +309,27 @@ gp_result_t gp_canvas_destroy( gp_canvas_t * _canvas )
         return GP_FAILURE;
     }
 
-    (*_canvas->free)( _canvas, _canvas->ud );
+    const gp_graphics_t * graphics = _canvas->graphics;
+    gp_arena_clear( &_canvas->recording_arena, graphics );
+    if( _canvas->render_orders != GP_NULLPTR )
+    {
+        (*graphics->free)(_canvas->render_orders, graphics->ud);
+    }
+    (*graphics->free)( _canvas, graphics->ud );
 
     return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
 static void __canvas_reset_recording( gp_canvas_t * _canvas )
 {
-    _canvas->recording_arena.offset = 0;
-    _canvas->scratch_arena.offset = 0;
+    const gp_graphics_t * graphics = _canvas->graphics;
+    gp_arena_clear( &_canvas->recording_arena, graphics );
+    if( _canvas->render_orders != GP_NULLPTR )
+    {
+        (*graphics->free)(_canvas->render_orders, graphics->ud);
+        _canvas->render_orders = GP_NULLPTR;
+    }
+    _canvas->render_order_capacity = 0;
     _canvas->states = GP_NULLPTR;
     _canvas->lines = GP_NULLPTR;
     _canvas->rects = GP_NULLPTR;
@@ -404,9 +371,9 @@ gp_result_t gp_canvas_get_memory_stats( const gp_canvas_t * _canvas, gp_canvas_m
     _stats->recording_used = _canvas->recording_arena.offset;
     _stats->recording_capacity = _canvas->recording_arena.capacity;
     _stats->recording_peak = _canvas->recording_arena.peak;
-    _stats->scratch_used = _canvas->scratch_arena.offset;
-    _stats->scratch_capacity = _canvas->scratch_arena.capacity;
-    _stats->scratch_peak = _canvas->scratch_arena.peak;
+    _stats->scratch_used = _canvas->graphics->scratch_arena.offset;
+    _stats->scratch_capacity = _canvas->graphics->scratch_arena.capacity;
+    _stats->scratch_peak = _canvas->graphics->scratch_arena.peak;
 
     return GP_SUCCESSFUL;
 }
@@ -1245,7 +1212,39 @@ static gp_result_t __push_render_order( gp_canvas_t * _canvas, gp_render_order_t
 {
     if( _canvas->render_order_count == _canvas->render_order_capacity )
     {
-        return GP_FAILURE;
+        const gp_graphics_t * graphics = _canvas->graphics;
+        gp_size_t limit = graphics->render_order_capacity;
+        if( limit > UINT32_MAX )
+        {
+            limit = UINT32_MAX;
+        }
+        if( limit > SIZE_MAX / sizeof( gp_render_order_t ) )
+        {
+            limit = SIZE_MAX / sizeof( gp_render_order_t );
+        }
+        if( _canvas->render_order_capacity >= limit )
+        {
+            return GP_FAILURE;
+        }
+
+        gp_size_t capacity = _canvas->render_order_capacity == 0 ? 16U : _canvas->render_order_capacity;
+        if( _canvas->render_order_capacity != 0 && capacity <= limit / 2U )
+        {
+            capacity *= 2U;
+        }
+        else if( _canvas->render_order_capacity != 0 || capacity > limit )
+        {
+            capacity = limit;
+        }
+
+        gp_render_order_t * orders = (gp_render_order_t *)(*graphics->realloc)(_canvas->render_orders, capacity * sizeof( gp_render_order_t ), graphics->ud);
+        if( orders == GP_NULLPTR )
+        {
+            return GP_FAILURE;
+        }
+
+        _canvas->render_orders = orders;
+        _canvas->render_order_capacity = capacity;
     }
 
     gp_uint32_t index = _canvas->render_order_count++;
@@ -1924,7 +1923,7 @@ gp_result_t gp_arc( gp_canvas_t * _canvas, float _x, float _y, float _radius, fl
     return result;
 }
 //////////////////////////////////////////////////////////////////////////
-static gp_result_t gp_ellipse_arc_internal( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height, float _angle_from, float _angle_to, gp_bool_t _move_to, gp_bool_t _rounded_caps )
+static gp_result_t __ellipse_arc_internal( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height, float _angle_from, float _angle_to, gp_bool_t _move_to, gp_bool_t _rounded_caps )
 {
 #if defined(GP_DEBUG)
     if( _width <= 0.f || _height <= 0.f )
@@ -1978,6 +1977,20 @@ static gp_result_t gp_ellipse_arc_internal( gp_canvas_t * _canvas, float _x, flo
     GP_CALL( gp_path_ellipse_arc, (path, _x, _y, _width, _height, _angle_from, _angle_to) );
     gp_result_t result = gp_draw_path( _canvas, path );
     GP_CALL( gp_path_destroy, (path) );
+
+    return result;
+}
+//////////////////////////////////////////////////////////////////////////
+static gp_result_t gp_ellipse_arc_internal( gp_canvas_t * _canvas, float _x, float _y, float _width, float _height, float _angle_from, float _angle_to, gp_bool_t _move_to, gp_bool_t _rounded_caps )
+{
+    if( _canvas == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
+
+    gp_size_t scratch_mark = gp_canvas_scratch_mark( _canvas );
+    gp_result_t result = __ellipse_arc_internal( _canvas, _x, _y, _width, _height, _angle_from, _angle_to, _move_to, _rounded_caps );
+    gp_canvas_scratch_reset( _canvas, scratch_mark );
 
     return result;
 }
@@ -2124,10 +2137,9 @@ static gp_result_t __render_order_indices32( const gp_canvas_t * _canvas, const 
     return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
-gp_result_t gp_calculate_mesh_size( const gp_canvas_t * _canvas, gp_mesh_t * _mesh )
+static gp_result_t __calculate_mesh_size( const gp_canvas_t * _canvas, gp_mesh_t * _mesh )
 {
     gp_canvas_t * canvas = (gp_canvas_t *)_canvas;
-    gp_canvas_scratch_reset( canvas, 0 );
 
     _mesh->vertex_count = 0;
     _mesh->index_count = 0;
@@ -2248,9 +2260,21 @@ gp_result_t gp_calculate_mesh_size( const gp_canvas_t * _canvas, gp_mesh_t * _me
     _mesh->batches_offset = ~0U;
     _mesh->batches_stride = ~0U;
 
-    gp_canvas_scratch_reset( canvas, 0 );
-
     return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
+gp_result_t gp_calculate_mesh_size( const gp_canvas_t * _canvas, gp_mesh_t * _mesh )
+{
+    if( _canvas == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
+
+    gp_size_t scratch_mark = gp_canvas_scratch_mark( _canvas );
+    gp_result_t result = __calculate_mesh_size( _canvas, _mesh );
+    gp_canvas_scratch_reset( (gp_canvas_t *)_canvas, scratch_mark );
+
+    return result;
 }
 //////////////////////////////////////////////////////////////////////////
 gp_result_t gp_preflight( const gp_canvas_t * _canvas, gp_uint32_t * _vertex_count, gp_uint32_t * _index_count, gp_uint32_t * _batch_count, gp_size_t * _recording_size, gp_size_t * _scratch_size )
@@ -2268,16 +2292,16 @@ gp_result_t gp_preflight( const gp_canvas_t * _canvas, gp_uint32_t * _vertex_cou
 #endif
 
     gp_canvas_t * canvas = (gp_canvas_t *)_canvas;
-    gp_size_t previous_scratch_peak = canvas->scratch_arena.peak;
-    canvas->scratch_arena.peak = canvas->scratch_arena.offset;
+    gp_size_t previous_scratch_peak = canvas->graphics->scratch_arena.peak;
+    canvas->graphics->scratch_arena.peak = canvas->graphics->scratch_arena.offset;
 
     gp_mesh_t mesh;
     gp_result_t result = gp_calculate_mesh_size( _canvas, &mesh );
-    gp_size_t required_scratch_size = canvas->scratch_arena.peak;
+    gp_size_t required_scratch_size = canvas->graphics->scratch_arena.peak;
 
-    if( previous_scratch_peak > canvas->scratch_arena.peak )
+    if( previous_scratch_peak > canvas->graphics->scratch_arena.peak )
     {
-        canvas->scratch_arena.peak = previous_scratch_peak;
+        canvas->graphics->scratch_arena.peak = previous_scratch_peak;
     }
 
     if( result == GP_FAILURE )
@@ -2479,7 +2503,7 @@ static gp_result_t __render_order( const gp_render_order_t * _order, const gp_me
     return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
-gp_result_t gp_render( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh )
+static gp_result_t __render( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh )
 {
 #if defined(GP_DEBUG)
     if( _mesh->positions_buffer != GP_NULLPTR && (_mesh->positions_offset == ~0U || _mesh->positions_stride == ~0U) )
@@ -2510,7 +2534,6 @@ gp_result_t gp_render( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh )
 #endif
 
     gp_canvas_t * canvas = (gp_canvas_t *)_canvas;
-    const gp_size_t scratch_mark = gp_canvas_scratch_mark( canvas );
 
     gp_uint32_t batch_index = 0;
     gp_uint32_t global_vertex_iterator = 0;
@@ -2554,7 +2577,6 @@ gp_result_t gp_render( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh )
                 (_mesh->colors_buffer != GP_NULLPTR && colors == GP_NULLPTR) ||
                 (_mesh->uv_buffer != GP_NULLPTR && uv0 == GP_NULLPTR) || indices == GP_NULLPTR )
             {
-                gp_canvas_scratch_reset( canvas, scratch_mark );
                 return GP_FAILURE;
             }
 
@@ -2590,7 +2612,6 @@ gp_result_t gp_render( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh )
             gp_uint32_t * vertex_map = GP_REALLOC( canvas, GP_NULLPTR, gp_uint32_t, primitive_size.vertex_count );
             if( vertex_map == GP_NULLPTR )
             {
-                gp_canvas_scratch_reset( canvas, scratch_mark );
                 return GP_FAILURE;
             }
 
@@ -2725,9 +2746,21 @@ gp_result_t gp_render( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh )
     }
 #endif
 
-    gp_canvas_scratch_reset( canvas, scratch_mark );
-
     return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
+gp_result_t gp_render( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh )
+{
+    if( _canvas == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
+
+    gp_size_t scratch_mark = gp_canvas_scratch_mark( _canvas );
+    gp_result_t result = __render( _canvas, _mesh );
+    gp_canvas_scratch_reset( (gp_canvas_t *)_canvas, scratch_mark );
+
+    return result;
 }
 //////////////////////////////////////////////////////////////////////////
 gp_result_t gp_flush( gp_canvas_t * _canvas, const gp_mesh_t * _mesh )

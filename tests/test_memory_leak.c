@@ -17,13 +17,19 @@ static void * gp_malloc( gp_size_t _size, void * _ud )
 //////////////////////////////////////////////////////////////////////////
 static void * gp_realloc( void * _ptr, gp_size_t _size, void * _ud )
 {
-    void * p = realloc( _ptr, _size + sizeof( gp_size_t ) );
+    gp_size_t * previous = _ptr == GP_NULLPTR ? GP_NULLPTR : (gp_size_t *)_ptr - 1;
+    gp_size_t previous_size = previous == GP_NULLPTR ? 0 : *previous;
+    gp_size_t * p = (gp_size_t *)realloc( previous, _size + sizeof( gp_size_t ) );
+    if( p == GP_NULLPTR )
+    {
+        return GP_NULLPTR;
+    }
 
-    *(gp_size_t *)p = _size;
-
+    *p = _size;
     *(gp_size_t *)_ud += _size;
+    *(gp_size_t *)_ud -= previous_size;
 
-    return (gp_size_t *)p + 1;
+    return p + 1;
 }
 //////////////////////////////////////////////////////////////////////////
 static void gp_free( void * _ptr, void * _ud )

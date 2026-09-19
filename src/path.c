@@ -135,9 +135,10 @@ gp_result_t gp_path_create( gp_canvas_t * _canvas, gp_path_t ** _path )
     }
 #endif
 
+    const gp_graphics_t * graphics = _canvas->graphics;
     const gp_state_t * state = GP_GET_STATE( _canvas );
 
-    gp_result_t result = __path_create( _path, _canvas->malloc, _canvas->realloc, _canvas->free, _canvas->ud, state->curve_quality, state->ellipse_quality );
+    gp_result_t result = __path_create( _path, graphics->malloc, graphics->realloc, graphics->free, graphics->ud, state->curve_quality, state->ellipse_quality );
 
     return result;
 }
