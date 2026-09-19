@@ -322,14 +322,7 @@ gp_result_t gp_canvas_destroy( gp_canvas_t * _canvas )
 //////////////////////////////////////////////////////////////////////////
 static void __canvas_reset_recording( gp_canvas_t * _canvas )
 {
-    const gp_graphics_t * graphics = _canvas->graphics;
-    gp_arena_clear( &_canvas->recording_arena, graphics );
-    if( _canvas->render_orders != GP_NULLPTR )
-    {
-        (*graphics->free)(_canvas->render_orders, graphics->ud);
-        _canvas->render_orders = GP_NULLPTR;
-    }
-    _canvas->render_order_capacity = 0;
+    gp_arena_reset( &_canvas->recording_arena );
     _canvas->states = GP_NULLPTR;
     _canvas->lines = GP_NULLPTR;
     _canvas->rects = GP_NULLPTR;

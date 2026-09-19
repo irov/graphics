@@ -128,11 +128,26 @@ static gp_result_t test_canvas_memory( void )
     CHECK( stats.recording_used > GP_CANVAS_RECORDING_MEMORY_SIZE );
     CHECK( stats.render_order_capacity >= 2001U );
     gp_size_t grown_bytes = memory.bytes;
+    gp_size_t grown_recording_capacity = stats.recording_capacity;
+    gp_size_t grown_render_order_capacity = stats.render_order_capacity;
     CALL( gp_canvas_clear, (canvases[0]) );
-    CHECK( memory.bytes < grown_bytes );
+    CHECK( memory.bytes == grown_bytes );
     CALL( gp_canvas_get_memory_stats, (canvases[0], &stats) );
-    CHECK( stats.recording_used == 0 && stats.recording_capacity == 0 && stats.render_order_capacity == 0 );
+    CHECK( stats.recording_used == 0 );
+    CHECK( stats.recording_capacity == grown_recording_capacity );
+    CHECK( stats.render_order_capacity == grown_render_order_capacity );
     CHECK( stats.recording_peak > GP_CANVAS_RECORDING_MEMORY_SIZE );
+
+    CALL( gp_set_penumbra, (canvases[0], 0.f) );
+    CALL( gp_begin_fill, (canvases[0]) );
+    CALL( gp_rect, (canvases[0], 0.f, 0.f, 10.f, 10.f) );
+    for( gp_uint32_t index = 0; index != 2000; ++index )
+    {
+        CALL( gp_rect, (canvases[0], (float)index, 0.f, 1.f, 1.f) );
+    }
+    CALL( test_mesh, (canvases[0], 2001U * 4U, 2001U * 6U) );
+    CHECK( memory.bytes == grown_bytes );
+    CALL( gp_canvas_clear, (canvases[0]) );
     CALL( test_mesh, (canvases[1], 4, 6) );
 
     for( gp_size_t index = 0; index != 100; ++index )
@@ -303,7 +318,7 @@ static gp_result_t test_failure_run( gp_size_t _fail_at, gp_size_t * _calls )
                 }
                 CALL( gp_flush, (canvas, &mesh) );
                 CALL( gp_canvas_get_memory_stats, (canvas, &stats) );
-                CHECK( stats.recording_capacity == 0 && stats.render_order_capacity == 0 && stats.scratch_used == 0 );
+                CHECK( stats.recording_used == 0 && stats.render_order_count == 0 && stats.scratch_used == 0 );
             }
             CALL( gp_canvas_destroy, (canvas) );
         }

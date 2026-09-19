@@ -132,6 +132,14 @@ void gp_arena_clear( gp_arena_t * _arena, const gp_graphics_t * _graphics )
     _arena->offset = 0;
 }
 //////////////////////////////////////////////////////////////////////////
+void gp_arena_reset( gp_arena_t * _arena )
+{
+    gp_arena_block_t * block = _arena->blocks;
+
+    _arena->current = block;
+    _arena->offset = block == GP_NULLPTR ? 0 : block->begin;
+}
+//////////////////////////////////////////////////////////////////////////
 void * gp_canvas_recording_allocate( gp_canvas_t * _canvas, gp_size_t _size )
 {
     const gp_graphics_t * graphics = _canvas->graphics;

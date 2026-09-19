@@ -64,12 +64,13 @@ textured rectangles. Bounds and UV records each begin with four floats in
 expands these logical rectangles into vertices and indices during rendering.
 
 `gp_flush` writes the currently recorded canvas commands into caller-owned mesh
-buffers, then frees recording blocks and the render-order array. The logical
-canvas state and state stack are preserved, so recording may continue after a
-renderer-state boundary without clearing or recreating the canvas. Output mesh
-memory remains entirely owned and lifetime-managed by the caller.
-`gp_canvas_clear` also frees recording blocks and render orders, and restores
-the default canvas state. Shared scratch blocks remain cached until
+buffers, then drops the recorded commands. The logical canvas state and state
+stack are preserved, so recording may continue after a renderer-state boundary
+without clearing or recreating the canvas. Output mesh memory remains entirely
+owned and lifetime-managed by the caller. `gp_canvas_clear` also drops the
+recorded commands and restores the default canvas state. Recording blocks, the
+render-order array and shared scratch blocks stay cached and are reused by the
+next recording; they are released by `gp_canvas_destroy` and
 `gp_graphics_destroy`.
 
 ## Rounded polygons

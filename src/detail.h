@@ -48,6 +48,7 @@ gp_result_t gp_mesh_writer_index( gp_mesh_writer_t * _writer, gp_uint32_t _index
 
 void * gp_canvas_recording_allocate( gp_canvas_t * _canvas, gp_size_t _size );
 void gp_arena_clear( gp_arena_t * _arena, const gp_graphics_t * _graphics );
+void gp_arena_reset( gp_arena_t * _arena );
 const gp_state_t * gp_canvas_copy_state( gp_canvas_t * _canvas );
 void gp_state_apply_stroke_scale( gp_state_t * _state );
 void * gp_canvas_scratch_reallocate( gp_canvas_t * _canvas, void * _pointer, gp_size_t _size );
