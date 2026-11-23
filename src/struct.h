@@ -64,6 +64,7 @@ typedef struct gp_linef_t
 typedef struct gp_state_t
 {
     gp_uint32_t flags;
+    gp_uint32_t fill_key;
 
     gp_line_cap_t line_cap;
     gp_line_join_t line_join;

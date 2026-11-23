@@ -145,6 +145,7 @@ typedef struct gp_render_batch_t
     gp_uint32_t index_offset;
     gp_uint32_t index_count;
     gp_bounds_t bounds;
+    gp_uint32_t fill_key;
 } gp_render_batch_t;
 
 typedef struct gp_canvas_memory_stats_t
@@ -259,6 +260,9 @@ gp_result_t gp_get_rect_quality( const gp_canvas_t * _canvas, gp_uint8_t * _qual
 
 gp_result_t gp_begin_fill( gp_canvas_t * _canvas );
 gp_result_t gp_end_fill( gp_canvas_t * _canvas );
+/* Nonzero keys render filled primitives as coverage with a white base color and isolate their batches.
+ * The caller applies its paint to the resulting mesh. The key is part of the canvas state. */
+gp_result_t gp_set_fill_key( gp_canvas_t * _canvas, gp_uint32_t _key );
 
 gp_result_t gp_push_state( gp_canvas_t * _canvas );
 gp_result_t gp_pop_state( gp_canvas_t * _canvas );

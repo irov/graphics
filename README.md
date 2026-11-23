@@ -15,9 +15,31 @@ stream in `gp_mesh_t`, including batches, is optional: leave its buffer null
 when the caller does not need that result. A non-null buffer uses its own byte
 offset and stride.
 
+`gp_set_fill_key` selects a caller-defined fill for draws recorded inside
+`gp_begin_fill` and `gp_end_fill`. A nonzero key is included in each matching
+mesh batch. The fill base color is white so that the caller can apply its
+paint to the mesh and retain coverage and modulation. The key follows
+`gp_push_state` and `gp_pop_state`. Key zero selects the regular fill.
+
 Bulk point APIs use `const void *`, point count, and byte stride. The first two
 values of every point must be `float x` and `float y`; no public vector type is
 required.
+
+## Colors
+
+Finite RGBA components saturate to the inclusive range `[0, 1]` before storage,
+interpolation, or modulation. This includes path styles, strided color data,
+and the mesh modulation color. A setter returns `GP_FAILURE` for NaN or either
+infinity before replacing the color. Borrowed colors and mesh modulation are
+validated during rendering. A failed render can have partially written output.
+
+Packed vertex colors use ARGB bytes. A saturated component `c` is multiplied
+by `255.5f` and truncated. For example, `0` gives 0, `0.5` gives 127,
+`128.f / 255.f` gives 128, and `1` gives 255. The packer also saturates
+computed values and maps a computed NaN to 0.
+
+Gradient stop positions use the inclusive interval `[0, 1]` in
+nondecreasing order.
 
 ## Canvas memory
 

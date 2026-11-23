@@ -5,7 +5,6 @@
 #include "effects.h"
 #include "struct.h"
 
-#include <float.h>
 #include <string.h>
 
 //////////////////////////////////////////////////////////////////////////
@@ -28,18 +27,6 @@ typedef struct gp_primitive_style_t
     gp_color_t color;
     gp_color_t outline_color;
 } gp_primitive_style_t;
-//////////////////////////////////////////////////////////////////////////
-#if defined(GP_DEBUG)
-static gp_bool_t __primitive_finite( float _value )
-{
-    if( _value != _value || _value < -FLT_MAX || _value > FLT_MAX )
-    {
-        return GP_FALSE;
-    }
-
-    return GP_TRUE;
-}
-#endif
 //////////////////////////////////////////////////////////////////////////
 static gp_result_t __primitive_validate_layout( const gp_path_layout_t * _layout, gp_size_t _point_stride )
 {
@@ -74,7 +61,7 @@ static gp_result_t __primitive_validate_layout( const gp_path_layout_t * _layout
     return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
-static void __primitive_get_style( const gp_canvas_t * _canvas, const void * _points, gp_size_t _point_stride, gp_size_t _index, const gp_path_layout_t * _layout, gp_primitive_style_t * const _style )
+static gp_result_t __primitive_get_style( const gp_canvas_t * _canvas, const void * _points, gp_size_t _point_stride, gp_size_t _index, const gp_path_layout_t * _layout, gp_primitive_style_t * const _style )
 {
     const gp_state_t * state = GP_GET_STATE( _canvas );
     _style->width = state->thickness;
@@ -83,46 +70,34 @@ static void __primitive_get_style( const gp_canvas_t * _canvas, const void * _po
 
     if( _layout == GP_NULLPTR )
     {
-        return;
+        return GP_SUCCESSFUL;
     }
 
     const gp_uint8_t * point_bytes = (const gp_uint8_t *)_points + _index * _point_stride;
     if( _layout->width_offset != GP_PATH_ATTRIBUTE_NONE )
     {
         memcpy( &_style->width, point_bytes + _layout->width_offset, sizeof( float ) );
+
+#if defined(GP_DEBUG)
+        if( GP_MATH_ISFINITE( _style->width ) == 0 || _style->width <= 0.f )
+        {
+            return GP_FAILURE;
+        }
+#endif
     }
     if( _layout->color_offset != GP_PATH_ATTRIBUTE_NONE )
     {
         memcpy( &_style->color, point_bytes + _layout->color_offset, sizeof( gp_color_t ) );
+        GP_CALL( gp_color_normalize, (&_style->color) );
     }
     if( _layout->outline_color_offset != GP_PATH_ATTRIBUTE_NONE )
     {
         memcpy( &_style->outline_color, point_bytes + _layout->outline_color_offset, sizeof( gp_color_t ) );
-    }
-}
-//////////////////////////////////////////////////////////////////////////
-#if defined(GP_DEBUG)
-static gp_result_t __primitive_validate_style( const gp_primitive_style_t * _style )
-{
-    if( __primitive_finite( _style->width ) == GP_FALSE || _style->width <= 0.f ||
-        __primitive_finite( _style->color.r ) == GP_FALSE || __primitive_finite( _style->color.g ) == GP_FALSE ||
-        __primitive_finite( _style->color.b ) == GP_FALSE || __primitive_finite( _style->color.a ) == GP_FALSE ||
-        _style->color.r < 0.f || _style->color.r > 1.f || _style->color.g < 0.f || _style->color.g > 1.f ||
-        _style->color.b < 0.f || _style->color.b > 1.f || _style->color.a < 0.f || _style->color.a > 1.f )
-    {
-        return GP_FAILURE;
+        GP_CALL( gp_color_normalize, (&_style->outline_color) );
     }
 
-    if( __primitive_finite( _style->outline_color.r ) == GP_FALSE || __primitive_finite( _style->outline_color.g ) == GP_FALSE ||
-        __primitive_finite( _style->outline_color.b ) == GP_FALSE || __primitive_finite( _style->outline_color.a ) == GP_FALSE ||
-        _style->outline_color.r < 0.f || _style->outline_color.r > 1.f || _style->outline_color.g < 0.f || _style->outline_color.g > 1.f ||
-        _style->outline_color.b < 0.f || _style->outline_color.b > 1.f || _style->outline_color.a < 0.f || _style->outline_color.a > 1.f )
-    {
-        return GP_FAILURE;
-    }
     return GP_SUCCESSFUL;
 }
-#endif
 //////////////////////////////////////////////////////////////////////////
 static gp_result_t __primitive_apply_style( gp_path_t * _path, const gp_path_layout_t * _layout, const gp_primitive_style_t * _style )
 {
@@ -293,15 +268,6 @@ static gp_result_t __polyline( gp_canvas_t * _canvas, const void * _points, gp_s
 #endif
 
     GP_CALL( __primitive_validate_layout, (_layout, _point_stride) );
-
-#if defined(GP_DEBUG)
-    for( gp_size_t index = 0; index != _point_count; ++index )
-    {
-        gp_primitive_style_t style;
-        __primitive_get_style( _canvas, _points, _point_stride, index, _layout, &style );
-        GP_CALL( __primitive_validate_style, (&style) );
-    }
-#endif
 
     gp_path_t * path;
     GP_CALL( gp_path_create_scratch_internal, (_canvas, &path) );
@@ -562,15 +528,6 @@ static gp_result_t __rounded_polyline( gp_canvas_t * _canvas, const void * _poin
 
     GP_CALL( __primitive_validate_layout, (_layout, _point_stride) );
 
-#if defined(GP_DEBUG)
-    for( gp_size_t index = 0; index != _point_count; ++index )
-    {
-        gp_primitive_style_t style;
-        __primitive_get_style( _canvas, _points, _point_stride, index, _layout, &style );
-        GP_CALL( __primitive_validate_style, (&style) );
-    }
-#endif
-
     if( _radius <= 0.0001f )
     {
         gp_result_t result = gp_polyline( _canvas, _points, _point_count, _point_stride, _layout, _closed );
@@ -588,7 +545,7 @@ static gp_result_t __rounded_polyline( gp_canvas_t * _canvas, const void * _poin
     if( _closed == GP_FALSE )
     {
         gp_primitive_style_t first_style;
-        __primitive_get_style( _canvas, _points, _point_stride, 0, _layout, &first_style );
+        GP_CALL( __primitive_get_style, (_canvas, _points, _point_stride, 0, _layout, &first_style) );
         GP_CALL( __primitive_apply_style, (path, _layout, &first_style) );
         GP_CALL( gp_path_move_to, (path, first_x, first_y) );
     }
@@ -633,9 +590,9 @@ static gp_result_t __rounded_polyline( gp_canvas_t * _canvas, const void * _poin
         gp_primitive_style_t next_style;
         gp_primitive_style_t entry_style;
         gp_primitive_style_t exit_style;
-        __primitive_get_style( _canvas, _points, _point_stride, previous_index, _layout, &previous_style );
-        __primitive_get_style( _canvas, _points, _point_stride, index, _layout, &point_style );
-        __primitive_get_style( _canvas, _points, _point_stride, next_index, _layout, &next_style );
+        GP_CALL( __primitive_get_style, (_canvas, _points, _point_stride, previous_index, _layout, &previous_style) );
+        GP_CALL( __primitive_get_style, (_canvas, _points, _point_stride, index, _layout, &point_style) );
+        GP_CALL( __primitive_get_style, (_canvas, _points, _point_stride, next_index, _layout, &next_style) );
         __primitive_lerp_style( &entry_style, &previous_style, &point_style, (incoming_length - distance) / incoming_length );
         __primitive_lerp_style( &exit_style, &point_style, &next_style, distance / outgoing_length );
 
@@ -663,7 +620,7 @@ static gp_result_t __rounded_polyline( gp_canvas_t * _canvas, const void * _poin
         float last_y;
         __primitive_get_point( _points, _point_stride, _point_count - 1, &last_x, &last_y );
         gp_primitive_style_t last_style;
-        __primitive_get_style( _canvas, _points, _point_stride, _point_count - 1, _layout, &last_style );
+        GP_CALL( __primitive_get_style, (_canvas, _points, _point_stride, _point_count - 1, _layout, &last_style) );
         GP_CALL( __primitive_apply_style, (path, _layout, &last_style) );
         GP_CALL( gp_path_line_to, (path, last_x, last_y) );
     }

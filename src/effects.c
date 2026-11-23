@@ -541,16 +541,24 @@ static gp_result_t __set_fill_gradient( gp_canvas_t * _canvas, gp_fill_type_e _t
 //////////////////////////////////////////////////////////////////////////
 gp_result_t gp_set_fill_color( gp_canvas_t * _canvas, float _r, float _g, float _b, float _a )
 {
-    gp_color_t color = {_r, _g, _b, _a};
 #if defined(GP_DEBUG)
-    if( _canvas == GP_NULLPTR || __color_valid( &color ) == GP_FALSE )
+    if( _canvas == GP_NULLPTR )
     {
         return GP_FAILURE;
     }
 #endif
 
+    gp_color_t color = {_r, _g, _b, _a};
+    GP_CALL( gp_color_normalize, (&color) );
+
     gp_state_t * state = GP_GET_STATE( _canvas );
     gp_fill_t * fill = &state->fill;
+
+    if( fill->type == GP_FILL_TYPE_SOLID && gp_color_equal( &state->color, &color ) == GP_TRUE )
+    {
+        return GP_SUCCESSFUL;
+    }
+
     memset( fill, 0, sizeof( *fill ) );
     fill->type = GP_FILL_TYPE_SOLID;
     fill->spread = GP_FILL_SPREAD_CLAMP;
@@ -602,14 +610,16 @@ gp_result_t gp_clear_fill_stops( gp_canvas_t * _canvas )
 //////////////////////////////////////////////////////////////////////////
 gp_result_t gp_add_fill_stop( gp_canvas_t * _canvas, float _offset, float _r, float _g, float _b, float _a )
 {
-    gp_color_t color = {_r, _g, _b, _a};
 #if defined(GP_DEBUG)
     if( _canvas == GP_NULLPTR || __float_valid( _offset ) == GP_FALSE ||
-        _offset < 0.f || _offset > 1.f || __color_valid( &color ) == GP_FALSE )
+        _offset < 0.f || _offset > 1.f )
     {
         return GP_FAILURE;
     }
 #endif
+
+    gp_color_t color = {_r, _g, _b, _a};
+    GP_CALL( gp_color_normalize, (&color) );
 
     gp_fill_t * fill = &GP_GET_STATE( _canvas )->fill;
 #if defined(GP_DEBUG)
@@ -634,16 +644,23 @@ gp_result_t gp_add_fill_stop( gp_canvas_t * _canvas, float _offset, float _r, fl
 //////////////////////////////////////////////////////////////////////////
 gp_result_t gp_set_border( gp_canvas_t * _canvas, float _width, float _r, float _g, float _b, float _a )
 {
-    gp_color_t color = {_r, _g, _b, _a};
 #if defined(GP_DEBUG)
-    if( _canvas == GP_NULLPTR || __float_valid( _width ) == GP_FALSE || _width < 0.f ||
-        __color_valid( &color ) == GP_FALSE )
+    if( _canvas == GP_NULLPTR || __float_valid( _width ) == GP_FALSE || _width < 0.f )
     {
         return GP_FAILURE;
     }
 #endif
 
+    gp_color_t color = {_r, _g, _b, _a};
+    GP_CALL( gp_color_normalize, (&color) );
+
     gp_state_t * state = GP_GET_STATE( _canvas );
+
+    if( state->border_width == _width && gp_color_equal( &state->border_color, &color ) == GP_TRUE )
+    {
+        return GP_SUCCESSFUL;
+    }
+
     state->border_width = _width;
     state->border_color = color;
     _canvas->state_invalidate = GP_TRUE;
@@ -666,18 +683,27 @@ gp_result_t gp_set_feather( gp_canvas_t * _canvas, float _feather )
 //////////////////////////////////////////////////////////////////////////
 gp_result_t gp_set_shadow( gp_canvas_t * _canvas, float _offset_x, float _offset_y, float _spread, float _blur, float _r, float _g, float _b, float _a )
 {
-    gp_color_t color = {_r, _g, _b, _a};
 #if defined(GP_DEBUG)
     if( _canvas == GP_NULLPTR || __float_valid( _offset_x ) == GP_FALSE ||
         __float_valid( _offset_y ) == GP_FALSE || __float_valid( _spread ) == GP_FALSE ||
-        __float_valid( _blur ) == GP_FALSE || _spread < 0.f || _blur < 0.f ||
-        __color_valid( &color ) == GP_FALSE )
+        __float_valid( _blur ) == GP_FALSE || _spread < 0.f || _blur < 0.f )
     {
         return GP_FAILURE;
     }
 #endif
 
+    gp_color_t color = {_r, _g, _b, _a};
+    GP_CALL( gp_color_normalize, (&color) );
+
     gp_state_t * state = GP_GET_STATE( _canvas );
+
+    if( state->shadow.offset_x == _offset_x && state->shadow.offset_y == _offset_y &&
+        state->shadow.spread == _spread && state->shadow.blur == _blur &&
+        gp_color_equal( &state->shadow.color, &color ) == GP_TRUE )
+    {
+        return GP_SUCCESSFUL;
+    }
+
     state->shadow.offset_x = _offset_x;
     state->shadow.offset_y = _offset_y;
     state->shadow.spread = _spread;
@@ -1079,9 +1105,9 @@ gp_result_t gp_end_quads( gp_canvas_t * _canvas )
     return result;
 }
 //////////////////////////////////////////////////////////////////////////
-static gp_result_t __multicolor_rect_vertex( gp_canvas_t * _canvas, float _x, float _y, float _u, float _v, float _r, float _g, float _b, float _a )
+static gp_result_t __multicolor_rect_vertex( gp_canvas_t * _canvas, float _x, float _y, float _u, float _v, const gp_color_t * _color )
 {
-    gp_result_t color_result = gp_set_color( _canvas, _r, _g, _b, _a );
+    gp_result_t color_result = gp_set_color( _canvas, _color->r, _color->g, _color->b, _color->a );
     if( color_result != GP_SUCCESSFUL )
     {
         return GP_FAILURE;
@@ -1131,6 +1157,18 @@ gp_result_t gp_multicolor_rect( gp_canvas_t * _canvas, float _x, float _y, float
     }
 #endif
 
+    gp_color_t colors[] = {
+        {_top_left_r, _top_left_g, _top_left_b, _top_left_a},
+        {_top_right_r, _top_right_g, _top_right_b, _top_right_a},
+        {_bottom_right_r, _bottom_right_g, _bottom_right_b, _bottom_right_a},
+        {_bottom_left_r, _bottom_left_g, _bottom_left_b, _bottom_left_a}
+    };
+
+    for( gp_uint32_t index = 0; index != 4U; ++index )
+    {
+        GP_CALL( gp_color_normalize, (colors + index) );
+    }
+
     gp_result_t push_result = gp_push_state( _canvas );
     if( push_result != GP_SUCCESSFUL )
     {
@@ -1146,21 +1184,18 @@ gp_result_t gp_multicolor_rect( gp_canvas_t * _canvas, float _x, float _y, float
         return GP_FAILURE;
     }
 
-    gp_result_t result = __multicolor_rect_vertex( _canvas, _x, _y, 0.f, 0.f, _top_left_r, _top_left_g, _top_left_b, _top_left_a );
+    gp_result_t result = GP_SUCCESSFUL;
+    const float u[] = {0.f, 1.f, 1.f, 0.f};
+    const float v[] = {0.f, 0.f, 1.f, 1.f};
 
-    if( result == GP_SUCCESSFUL )
+    for( gp_uint32_t index = 0; index != 4U; ++index )
     {
-        result = __multicolor_rect_vertex( _canvas, _x + _width, _y, 1.f, 0.f, _top_right_r, _top_right_g, _top_right_b, _top_right_a );
-    }
+        result = __multicolor_rect_vertex( _canvas, _x + u[index] * _width, _y + v[index] * _height, u[index], v[index], colors + index );
 
-    if( result == GP_SUCCESSFUL )
-    {
-        result = __multicolor_rect_vertex( _canvas, _x + _width, _y + _height, 1.f, 1.f, _bottom_right_r, _bottom_right_g, _bottom_right_b, _bottom_right_a );
-    }
-
-    if( result == GP_SUCCESSFUL )
-    {
-        result = __multicolor_rect_vertex( _canvas, _x, _y + _height, 0.f, 1.f, _bottom_left_r, _bottom_left_g, _bottom_left_b, _bottom_left_a );
+        if( result == GP_FAILURE )
+        {
+            break;
+        }
     }
 
     gp_result_t end_result = gp_end_quads( _canvas );

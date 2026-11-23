@@ -11,20 +11,22 @@ static const void * __geometry_element( const void * _buffer, gp_size_t _offset,
     return element;
 }
 //////////////////////////////////////////////////////////////////////////
-static gp_color_t __source_color_float( const gp_state_t * _state, const void * _buffer, gp_size_t _offset, gp_size_t _stride, gp_uint32_t _index )
+static gp_result_t __source_color( const gp_state_t * _state, const void * _buffer, gp_size_t _offset, gp_size_t _stride, gp_uint32_t _index, gp_color_t * _color )
 {
-    gp_color_t color = _state->color;
-
-    if( _buffer != GP_NULLPTR )
+    if( _buffer == GP_NULLPTR )
     {
-        const float * source = (const float *)__geometry_element( _buffer, _offset, _stride, _index );
-        color.r *= source[0];
-        color.g *= source[1];
-        color.b *= source[2];
-        color.a *= source[3];
+        *_color = _state->color;
+
+        return GP_SUCCESSFUL;
     }
 
-    return color;
+    const float * source = (const float *)__geometry_element( _buffer, _offset, _stride, _index );
+    gp_color_t color = {source[0], source[1], source[2], source[3]};
+    GP_CALL( gp_color_normalize, (&color) );
+
+    gp_color_mul( _color, &color, &_state->color );
+
+    return GP_SUCCESSFUL;
 }
 //////////////////////////////////////////////////////////////////////////
 gp_result_t gp_geometry_write( gp_mesh_writer_t * _writer, const gp_geometry_t * _geometry )
@@ -34,7 +36,8 @@ gp_result_t gp_geometry_write( gp_mesh_writer_t * _writer, const gp_geometry_t *
         const float * position = (const float *)__geometry_element( _geometry->positions_buffer, _geometry->positions_offset, _geometry->positions_stride, vertex );
         float x = _geometry->translation_x + _geometry->axis_x_x * position[0] + _geometry->axis_y_x * position[1];
         float y = _geometry->translation_y + _geometry->axis_x_y * position[0] + _geometry->axis_y_y * position[1];
-        gp_color_t color = __source_color_float( _geometry->state, _geometry->colors_buffer, _geometry->colors_offset, _geometry->colors_stride, vertex );
+        gp_color_t color;
+        GP_CALL( __source_color, (_geometry->state, _geometry->colors_buffer, _geometry->colors_offset, _geometry->colors_stride, vertex, &color) );
         gp_color_mul( &color, &color, &_writer->mesh->color );
         gp_argb_t argb = gp_color_argb( &color );
         GP_CALL( gp_mesh_writer_position, (_writer, vertex, x, y) );
@@ -80,7 +83,8 @@ gp_result_t gp_textured_rects_write( gp_mesh_writer_t * _writer, const gp_textur
         float y1 = y0 + bounds[3];
         float positions[8] = {x0, y0, x1, y0, x1, y1, x0, y1};
         float coordinates[8] = {uv[0], uv[1], uv[0] + uv[2], uv[1], uv[0] + uv[2], uv[1] + uv[3], uv[0], uv[1] + uv[3]};
-        gp_color_t color = __source_color_float( _rects->state, _rects->colors_buffer, _rects->colors_offset, _rects->colors_stride, rect );
+        gp_color_t color;
+        GP_CALL( __source_color, (_rects->state, _rects->colors_buffer, _rects->colors_offset, _rects->colors_stride, rect, &color) );
         gp_color_mul( &color, &color, &_writer->mesh->color );
         gp_argb_t argb = gp_color_argb( &color );
         gp_uint32_t vertex_offset = rect * 4U;

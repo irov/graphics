@@ -1,5 +1,7 @@
 #include "graphics/graphics.h"
 
+#include "../src/detail.h"
+
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -1765,13 +1767,6 @@ static gp_result_t test_invalid_path_layout( void )
     {
         return GP_FAILURE;
     }
-    points[0].width = 2.f;
-    points[0].color.r = 2.f;
-    if( gp_polyline( canvas, points, 2, sizeof( points[0] ), &layout, GP_FALSE ) != GP_FAILURE )
-    {
-        return GP_FAILURE;
-    }
-
     gp_path_marker_t invalid_marker = {GP_PATH_MARKER_CIRCLE, NAN, 2.f, 0.f};
     if( gp_set_path_markers( canvas, &invalid_marker, GP_NULLPTR ) != GP_FAILURE ||
         gp_set_path_trim( canvas, NAN, 1.f ) != GP_FAILURE ||
@@ -1802,6 +1797,227 @@ static gp_result_t test_invalid_path_layout( void )
     return gp_canvas_destroy( canvas );
 }
 #endif
+//////////////////////////////////////////////////////////////////////////
+static gp_result_t test_color_state( gp_canvas_t * _canvas )
+{
+    const float high = 1.0000001f;
+    const float low = -0.0001f;
+    const gp_color_t expected = {1.f, 0.f, 0.5f, 1.f};
+    GP_CALL( gp_set_color, (_canvas, high, low, 0.5f, 1.5f) );
+    GP_CALL( gp_set_outline_color, (_canvas, high, low, 0.5f, 1.5f) );
+    GP_CALL( gp_set_fill_color, (_canvas, high, low, 0.5f, 1.5f) );
+    GP_CALL( gp_set_border, (_canvas, 1.f, high, low, 0.5f, 1.5f) );
+    GP_CALL( gp_set_shadow, (_canvas, 1.f, 0.f, 0.f, 1.f, high, low, 0.5f, 1.5f) );
+    GP_CALL( gp_rect, (_canvas, 0.f, 0.f, 5.f, 5.f) );
+    GP_CALL( gp_set_color, (_canvas, 1.f, -2.f, 0.5f, 2.f) );
+    GP_CALL( gp_set_outline_color, (_canvas, 2.f, -2.f, 0.5f, 2.f) );
+    GP_CALL( gp_set_fill_color, (_canvas, 2.f, -2.f, 0.5f, 2.f) );
+    GP_CALL( gp_set_border, (_canvas, 1.f, 2.f, -2.f, 0.5f, 2.f) );
+    GP_CALL( gp_set_shadow, (_canvas, 1.f, 0.f, 0.f, 1.f, 2.f, -2.f, 0.5f, 2.f) );
+
+    const gp_state_t * state = GP_GET_STATE( _canvas );
+    if( _canvas->state_invalidate != GP_FALSE ||
+        gp_color_equal( &state->color, &expected ) == GP_FALSE ||
+        gp_color_equal( &state->outline_color, &expected ) == GP_FALSE ||
+        gp_color_equal( &state->fill.color, &expected ) == GP_FALSE ||
+        gp_color_equal( &state->border_color, &expected ) == GP_FALSE ||
+        gp_color_equal( &state->shadow.color, &expected ) == GP_FALSE ||
+        gp_set_color( _canvas, NAN, 0.f, 0.f, 1.f ) != GP_FAILURE ||
+        gp_set_outline_color( _canvas, INFINITY, 0.f, 0.f, 1.f ) != GP_FAILURE ||
+        gp_set_fill_color( _canvas, -INFINITY, 0.f, 0.f, 1.f ) != GP_FAILURE ||
+        gp_set_border( _canvas, 1.f, 1.f, 0.f, NAN, 0.f ) != GP_FAILURE ||
+        gp_set_shadow( _canvas, 1.f, 0.f, 0.f, 1.f, 0.f, 0.f, 1.f, NAN ) != GP_FAILURE )
+    {
+        return GP_FAILURE;
+    }
+
+    GP_CALL( gp_set_fill_linear, (_canvas, 0.f, 0.f, 5.f, 0.f, GP_FILL_SPREAD_CLAMP) );
+    GP_CALL( gp_add_fill_stop, (_canvas, 0.f, high, low, 0.5f, 1.5f) );
+    if( gp_color_equal( &state->fill.stops[0].color, &expected ) == GP_FALSE ||
+        gp_add_fill_stop( _canvas, 1.f, 0.f, 0.f, INFINITY, 1.f ) != GP_FAILURE ||
+        state->fill.stop_count != 1 )
+    {
+        return GP_FAILURE;
+    }
+
+    const gp_color_t packed = {-2.f, 0.5f, 128.f / 255.f, 1.5f};
+    const gp_color_t invalid = {NAN, -INFINITY, INFINITY, 1.f};
+
+    if( gp_color_argb( &packed ) != 0xff007f80U || gp_color_argb( &invalid ) != 0xff0000ffU )
+    {
+        return GP_FAILURE;
+    }
+
+    return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
+static gp_result_t test_color_paths( gp_canvas_t * _canvas )
+{
+    gp_path_t * path;
+    GP_CALL( gp_path_create, (_canvas, &path) );
+
+    gp_path_style_t style = {GP_PATH_STYLE_COLOR | GP_PATH_STYLE_OUTLINE_COLOR, 0.f, {1.5f, -2.f, 0.f, 1.f}, {0.f, 1.5f, -2.f, 1.f}};
+    GP_CALL( gp_path_set_style, (path, &style) );
+    style.outline_color.a = NAN;
+    if( gp_path_set_style( path, &style ) != GP_FAILURE )
+    {
+        return GP_FAILURE;
+    }
+
+    test_path_point_t points[] = {
+        {0.f, 0.f, 1.f, {1.5f, -2.f, 0.f, 1.f}},
+        {4.f, 0.f, 1.f, {1.5f, -2.f, 0.f, 1.f}},
+        {4.f, 4.f, 1.f, {1.5f, -2.f, 0.f, 1.f}}
+    };
+    gp_path_layout_t layout = {offsetof( test_path_point_t, width ), offsetof( test_path_point_t, color ), GP_PATH_ATTRIBUTE_NONE};
+    GP_CALL( gp_path_polyline, (path, points, 3, sizeof( points[0] ), &layout, GP_FALSE) );
+    GP_CALL( gp_path_catmull_rom, (path, points, 3, sizeof( points[0] ), &layout, GP_FALSE) );
+    GP_CALL( gp_polyline, (_canvas, points, 3, sizeof( points[0] ), &layout, GP_FALSE) );
+    GP_CALL( gp_rounded_polyline, (_canvas, points, 3, sizeof( points[0] ), &layout, 0.5f, GP_FALSE) );
+
+    points[1].color.a = INFINITY;
+    if( gp_path_polyline( path, points, 3, sizeof( points[0] ), &layout, GP_FALSE ) != GP_FAILURE ||
+        gp_path_catmull_rom( path, points, 3, sizeof( points[0] ), &layout, GP_FALSE ) != GP_FAILURE ||
+        gp_polyline( _canvas, points, 3, sizeof( points[0] ), &layout, GP_FALSE ) != GP_FAILURE ||
+        gp_rounded_polyline( _canvas, points, 3, sizeof( points[0] ), &layout, 0.5f, GP_FALSE ) != GP_FAILURE )
+    {
+        return GP_FAILURE;
+    }
+
+    return gp_path_destroy( path );
+}
+//////////////////////////////////////////////////////////////////////////
+static gp_result_t test_color_geometry( gp_canvas_t * _canvas )
+{
+    GP_CALL( gp_multicolor_rect, (_canvas, 0.f, 0.f, 4.f, 4.f, 1.5f, -2.f, 0.f, 1.f, 1.5f, -2.f, 0.f, 1.f,
+        1.5f, -2.f, 0.f, 1.f, 1.5f, -2.f, 0.f, 1.f) );
+    GP_CALL( gp_grid, (_canvas, 0.f, 0.f, 4.f, 4.f, 0.f, 0.f, 1.f, 0.f, 0.f, 1.f, 1.f, 2, 1.f, 1.f,
+        -2.f, 1.5f, 0.f, 1.f, -2.f, 0.f, 1.5f, 1.f) );
+    GP_CALL( gp_grid_bounded, (_canvas, 0.f, 0.f, 4.f, 4.f, 0.f, 0.f, 4.f, 4.f, 0.f, 0.f, 1.f, 0.f, 0.f, 1.f, 1.f, 2, 1.f, 1.f,
+        -2.f, 1.5f, 0.f, 1.f, -2.f, 0.f, 1.5f, 1.f) );
+    if( gp_multicolor_rect( _canvas, 0.f, 0.f, 4.f, 4.f, 1.f, 0.f, 0.f, 1.f, 1.f, 0.f, 0.f, 1.f,
+        1.f, 0.f, 0.f, 1.f, 1.f, 0.f, 0.f, -INFINITY ) != GP_FAILURE ||
+        gp_grid( _canvas, 0.f, 0.f, 4.f, 4.f, 0.f, 0.f, 1.f, 0.f, 0.f, 1.f, 1.f, 2, 1.f, 1.f,
+            0.f, 1.f, 0.f, NAN, 0.f, 0.f, 1.f, 1.f ) != GP_FAILURE )
+    {
+        return GP_FAILURE;
+    }
+
+    GP_CALL( gp_canvas_clear, (_canvas) );
+    GP_CALL( gp_set_color, (_canvas, 0.5f, 1.f, 1.f, 1.f) );
+    const float positions[][2] = {{0.f, 0.f}, {4.f, 0.f}, {0.f, 4.f}};
+    const gp_uint32_t indices[] = {0, 1, 2};
+    const float rect[] = {0.f, 0.f, 4.f, 4.f};
+    const float uv[] = {0.f, 0.f, 1.f, 1.f};
+    gp_color_t colors[] = {{1.5f, -2.f, 0.5f, 1.f}, {1.5f, -2.f, 0.5f, 1.f}, {1.5f, -2.f, 0.5f, 1.f}};
+    GP_CALL( gp_geometry, (_canvas, 3, positions, 0, sizeof( positions[0] ), colors, 0, sizeof( colors[0] ),
+        GP_NULLPTR, 0, 0, 3, indices, 0, sizeof( indices[0] ), 0.f, 0.f, 1.f, 0.f, 0.f, 1.f) );
+    GP_CALL( gp_textured_rects, (_canvas, 1, rect, 0, sizeof( rect ), uv, 0, sizeof( uv ), colors, 0, sizeof( colors[0] ),
+        0.f, 0.f, 1.f, 0.f, 0.f, 1.f) );
+
+    gp_mesh_t mesh;
+    GP_CALL( gp_calculate_mesh_size, (_canvas, &mesh) );
+    gp_argb_t output[7];
+    if( mesh.vertex_count != sizeof( output ) / sizeof( output[0] ) )
+    {
+        return GP_FAILURE;
+    }
+
+    mesh.colors_buffer = output;
+    mesh.colors_offset = 0;
+    mesh.colors_stride = sizeof( output[0] );
+    mesh.color.r = 2.f;
+    mesh.color.g = -2.f;
+    GP_CALL( gp_render, (_canvas, &mesh) );
+
+    for( gp_uint32_t index = 0; index != mesh.vertex_count; ++index )
+    {
+        if( output[index] != 0xff7f007fU )
+        {
+            return GP_FAILURE;
+        }
+    }
+
+    mesh.color.a = -INFINITY;
+    if( gp_render( _canvas, &mesh ) != GP_FAILURE )
+    {
+        return GP_FAILURE;
+    }
+
+    mesh.color.a = 1.f;
+    colors[0].a = NAN;
+    if( gp_render( _canvas, &mesh ) != GP_FAILURE )
+    {
+        return GP_FAILURE;
+    }
+
+    return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
+static gp_result_t test_saturated_colors( void )
+{
+    gp_canvas_t * canvas;
+    GP_CALL( gp_canvas_create, (test_graphics, &canvas) );
+    GP_CALL( test_color_state, (canvas) );
+    GP_CALL( gp_canvas_clear, (canvas) );
+    GP_CALL( test_color_paths, (canvas) );
+    GP_CALL( gp_canvas_clear, (canvas) );
+    GP_CALL( test_color_geometry, (canvas) );
+
+    return gp_canvas_destroy( canvas );
+}
+//////////////////////////////////////////////////////////////////////////
+static gp_result_t test_external_fill( void )
+{
+    gp_canvas_t * canvas;
+    GP_CALL( gp_canvas_create, (test_graphics, &canvas) );
+    GP_CALL( gp_set_penumbra, (canvas, 0.f) );
+    GP_CALL( gp_set_color, (canvas, 1.f, 0.f, 0.f, 1.f) );
+    GP_CALL( gp_begin_fill, (canvas) );
+    GP_CALL( gp_rect, (canvas, 0.f, 0.f, 4.f, 4.f) );
+    GP_CALL( gp_set_fill_key, (canvas, 1) );
+    GP_CALL( gp_rect, (canvas, 4.f, 0.f, 4.f, 4.f) );
+    GP_CALL( gp_push_state, (canvas) );
+    GP_CALL( gp_set_fill_key, (canvas, 2) );
+    GP_CALL( gp_rect, (canvas, 8.f, 0.f, 4.f, 4.f) );
+    GP_CALL( gp_pop_state, (canvas) );
+    GP_CALL( gp_rect, (canvas, 12.f, 0.f, 4.f, 4.f) );
+    GP_CALL( gp_end_fill, (canvas) );
+    GP_CALL( gp_rect, (canvas, 16.f, 0.f, 4.f, 4.f) );
+
+    gp_mesh_t mesh;
+    GP_CALL( gp_calculate_mesh_size, (canvas, &mesh) );
+
+    gp_render_batch_t batches[5];
+    gp_argb_t colors[24];
+    if( mesh.batch_count != sizeof( batches ) / sizeof( batches[0] ) ||
+        mesh.vertex_count != sizeof( colors ) / sizeof( colors[0] ) )
+    {
+        return GP_FAILURE;
+    }
+
+    mesh.batches_buffer = batches;
+    mesh.batches_offset = 0;
+    mesh.batches_stride = sizeof( batches[0] );
+    mesh.colors_buffer = colors;
+    mesh.colors_offset = 0;
+    mesh.colors_stride = sizeof( colors[0] );
+    GP_CALL( gp_render, (canvas, &mesh) );
+
+    const gp_uint32_t keys[] = {0, 1, 2, 1, 0};
+    for( gp_uint32_t index = 0; index != mesh.batch_count; ++index )
+    {
+        const gp_render_batch_t * batch = batches + index;
+        gp_argb_t color = keys[index] == 0 ? 0xffff0000U : 0xffffffffU;
+
+        if( batch->fill_key != keys[index] || colors[batch->vertex_offset] != color )
+        {
+            return GP_FAILURE;
+        }
+    }
+
+    return gp_canvas_destroy( canvas );
+}
 //////////////////////////////////////////////////////////////////////////
 int main( int argc, char ** argv )
 {
@@ -1850,6 +2066,18 @@ int main( int argc, char ** argv )
     if( test_state_restore() == GP_FAILURE )
     {
         fprintf( stderr, "test_state_restore failed\n" );
+        return EXIT_FAILURE;
+    }
+
+    if( test_saturated_colors() == GP_FAILURE )
+    {
+        fprintf( stderr, "test_saturated_colors failed\n" );
+        return EXIT_FAILURE;
+    }
+
+    if( test_external_fill() == GP_FAILURE )
+    {
+        fprintf( stderr, "test_external_fill failed\n" );
         return EXIT_FAILURE;
     }
 

@@ -190,6 +190,32 @@ gp_result_t gp_path_clear( gp_path_t * _path )
     return GP_SUCCESSFUL;
 }
 
+static gp_result_t __path_normalize_style( gp_path_style_t * _style )
+{
+#if defined(GP_DEBUG)
+    gp_uint32_t valid_attributes = GP_PATH_STYLE_WIDTH | GP_PATH_STYLE_COLOR | GP_PATH_STYLE_OUTLINE_COLOR;
+    if( (_style->attributes & ~valid_attributes) != 0 ||
+        ((_style->attributes & GP_PATH_STYLE_WIDTH) != 0 &&
+            (_style->width <= 0.f || GP_MATH_ISFINITE( _style->width ) == 0)) )
+    {
+        return GP_FAILURE;
+    }
+
+#endif
+
+    if( (_style->attributes & GP_PATH_STYLE_COLOR) != 0 )
+    {
+        GP_CALL( gp_color_normalize, (&_style->color) );
+    }
+
+    if( (_style->attributes & GP_PATH_STYLE_OUTLINE_COLOR) != 0 )
+    {
+        GP_CALL( gp_color_normalize, (&_style->outline_color) );
+    }
+
+    return GP_SUCCESSFUL;
+}
+
 gp_result_t gp_path_set_style( gp_path_t * _path, const gp_path_style_t * _style )
 {
 #if defined(GP_DEBUG)
@@ -197,45 +223,19 @@ gp_result_t gp_path_set_style( gp_path_t * _path, const gp_path_style_t * _style
     {
         return GP_FAILURE;
     }
-
-    if( _style != GP_NULLPTR )
-    {
-        gp_uint32_t valid_attributes = GP_PATH_STYLE_WIDTH | GP_PATH_STYLE_COLOR | GP_PATH_STYLE_OUTLINE_COLOR;
-        if( (_style->attributes & ~valid_attributes) != 0 ||
-            ((_style->attributes & GP_PATH_STYLE_WIDTH) != 0 &&
-                (_style->width <= 0.f || GP_MATH_ISFINITE( _style->width ) == 0)) )
-        {
-            return GP_FAILURE;
-        }
-
-        if( (_style->attributes & GP_PATH_STYLE_COLOR) != 0 &&
-            (GP_MATH_ISFINITE( _style->color.r ) == 0 || GP_MATH_ISFINITE( _style->color.g ) == 0 ||
-                GP_MATH_ISFINITE( _style->color.b ) == 0 || GP_MATH_ISFINITE( _style->color.a ) == 0 ||
-                _style->color.r < 0.f || _style->color.r > 1.f || _style->color.g < 0.f || _style->color.g > 1.f ||
-                _style->color.b < 0.f || _style->color.b > 1.f || _style->color.a < 0.f || _style->color.a > 1.f) )
-        {
-            return GP_FAILURE;
-        }
-
-        if( (_style->attributes & GP_PATH_STYLE_OUTLINE_COLOR) != 0 &&
-            (GP_MATH_ISFINITE( _style->outline_color.r ) == 0 || GP_MATH_ISFINITE( _style->outline_color.g ) == 0 ||
-                GP_MATH_ISFINITE( _style->outline_color.b ) == 0 || GP_MATH_ISFINITE( _style->outline_color.a ) == 0 ||
-                _style->outline_color.r < 0.f || _style->outline_color.r > 1.f || _style->outline_color.g < 0.f || _style->outline_color.g > 1.f ||
-                _style->outline_color.b < 0.f || _style->outline_color.b > 1.f || _style->outline_color.a < 0.f || _style->outline_color.a > 1.f) )
-        {
-            return GP_FAILURE;
-        }
-    }
 #endif
 
     if( _style == GP_NULLPTR )
     {
         memset( &_path->current_style, 0, sizeof( _path->current_style ) );
+
+        return GP_SUCCESSFUL;
     }
-    else
-    {
-        _path->current_style = *_style;
-    }
+
+    gp_path_style_t style = *_style;
+    GP_CALL( __path_normalize_style, (&style) );
+
+    _path->current_style = style;
 
     return GP_SUCCESSFUL;
 }
@@ -524,7 +524,7 @@ static gp_result_t __path_validate_layout( const gp_path_layout_t * _layout, gp_
     return GP_SUCCESSFUL;
 }
 
-static void __path_read_point( const void * _points, gp_size_t _stride, gp_size_t _index, float * _x, float * _y, const gp_path_layout_t * _layout, gp_path_style_t * _style )
+static gp_result_t __path_read_point( const void * _points, gp_size_t _stride, gp_size_t _index, float * _x, float * _y, const gp_path_layout_t * _layout, gp_path_style_t * _style )
 {
     const gp_uint8_t * bytes = (const gp_uint8_t *)_points + _stride * _index;
     memcpy( _x, bytes, sizeof( float ) );
@@ -533,7 +533,7 @@ static void __path_read_point( const void * _points, gp_size_t _stride, gp_size_
 
     if( _layout == GP_NULLPTR )
     {
-        return;
+        return GP_SUCCESSFUL;
     }
 
     if( _layout->width_offset != GP_PATH_ATTRIBUTE_NONE )
@@ -551,6 +551,8 @@ static void __path_read_point( const void * _points, gp_size_t _stride, gp_size_
         _style->attributes |= GP_PATH_STYLE_OUTLINE_COLOR;
         memcpy( &_style->outline_color, bytes + _layout->outline_color_offset, sizeof( gp_color_t ) );
     }
+
+    return __path_normalize_style( _style );
 }
 
 gp_result_t gp_path_polyline( gp_path_t * _path, const void * _points, gp_size_t _point_count, gp_size_t _point_stride, const gp_path_layout_t * _layout, gp_bool_t _closed )
@@ -566,31 +568,32 @@ gp_result_t gp_path_polyline( gp_path_t * _path, const void * _points, gp_size_t
     GP_CALL( __path_validate_layout, (_layout, _point_stride) );
 
     gp_path_style_t saved_style = _path->current_style;
-    for( gp_size_t index = 0; index != _point_count; ++index )
+    gp_result_t result = GP_SUCCESSFUL;
+
+    for( gp_size_t index = 0; index != _point_count && result == GP_SUCCESSFUL; ++index )
     {
         float x;
         float y;
         gp_path_style_t style;
-        __path_read_point( _points, _point_stride, index, &x, &y, _layout, &style );
-        GP_CALL( gp_path_set_style, (_path, &style) );
-        if( index == 0 )
+        result = __path_read_point( _points, _point_stride, index, &x, &y, _layout, &style );
+
+        if( result == GP_FAILURE )
         {
-            GP_CALL( gp_path_move_to, (_path, x, y) );
+            break;
         }
-        else
-        {
-            GP_CALL( gp_path_line_to, (_path, x, y) );
-        }
+
+        _path->current_style = style;
+        result = index == 0 ? gp_path_move_to( _path, x, y ) : gp_path_line_to( _path, x, y );
     }
 
-    if( _closed == GP_TRUE )
+    if( result == GP_SUCCESSFUL && _closed == GP_TRUE )
     {
-        GP_CALL( gp_path_close, (_path) );
+        result = gp_path_close( _path );
     }
 
     _path->current_style = saved_style;
 
-    return GP_SUCCESSFUL;
+    return result;
 }
 
 static void __path_extrapolate( gp_vec2f_t * _result, const gp_vec2f_t * _endpoint, const gp_vec2f_t * _neighbor )
@@ -649,7 +652,15 @@ gp_result_t gp_path_catmull_rom( gp_path_t * _path, const void * _points, gp_siz
 
     for( gp_size_t index = 0; index != _point_count; ++index )
     {
-        __path_read_point( _points, _point_stride, index, &positions[index].x, &positions[index].y, _layout, styles + index );
+        gp_result_t result = __path_read_point( _points, _point_stride, index, &positions[index].x, &positions[index].y, _layout, styles + index );
+
+        if( result == GP_FAILURE )
+        {
+            (*_path->free)(styles, _path->ud);
+            (*_path->free)(positions, _path->ud);
+
+            return GP_FAILURE;
+        }
 #if defined(GP_DEBUG)
         if( index != 0 && __path_same_point( positions + index - 1, positions + index ) == GP_TRUE )
         {
@@ -669,11 +680,11 @@ gp_result_t gp_path_catmull_rom( gp_path_t * _path, const void * _points, gp_siz
 #endif
 
     gp_path_style_t saved_style = _path->current_style;
-    GP_CALL( gp_path_set_style, (_path, styles) );
-    GP_CALL( gp_path_move_to, (_path, positions[0].x, positions[0].y) );
+    _path->current_style = styles[0];
+    gp_result_t result = gp_path_move_to( _path, positions[0].x, positions[0].y );
 
     gp_size_t segment_count = _closed == GP_TRUE ? _point_count : _point_count - 1;
-    for( gp_size_t segment = 0; segment != segment_count; ++segment )
+    for( gp_size_t segment = 0; segment != segment_count && result == GP_SUCCESSFUL; ++segment )
     {
         gp_size_t i1 = segment;
         gp_size_t i2 = (segment + 1) % _point_count;
@@ -707,20 +718,20 @@ gp_result_t gp_path_catmull_rom( gp_path_t * _path, const void * _points, gp_siz
         gp_vec2f_t c0;
         gp_vec2f_t c1;
         __path_catmull_controls( &p0, positions + i1, positions + i2, &p3, &c0, &c1 );
-        GP_CALL( gp_path_set_style, (_path, styles + i2) );
-        GP_CALL( gp_path_bezier_curve_to, (_path, c0.x, c0.y, c1.x, c1.y, positions[i2].x, positions[i2].y) );
+        _path->current_style = styles[i2];
+        result = gp_path_bezier_curve_to( _path, c0.x, c0.y, c1.x, c1.y, positions[i2].x, positions[i2].y );
     }
 
-    if( _closed == GP_TRUE )
+    if( result == GP_SUCCESSFUL && _closed == GP_TRUE )
     {
-        GP_CALL( gp_path_close, (_path) );
+        result = gp_path_close( _path );
     }
 
     _path->current_style = saved_style;
     (*_path->free)(styles, _path->ud);
     (*_path->free)(positions, _path->ud);
 
-    return GP_SUCCESSFUL;
+    return result;
 }
 
 static gp_result_t __path_flat_reserve( const gp_path_t * _path, gp_flat_path_t * _flat, gp_uint32_t _required )

@@ -166,6 +166,7 @@ static void __canvas_default_state_setup( gp_canvas_t * _canvas )
     _canvas->state_cook[0].outline_color.g = 1.f;
     _canvas->state_cook[0].outline_color.b = 1.f;
     _canvas->state_cook[0].outline_color.a = 1.f;
+    _canvas->state_cook[0].fill_key = 0;
     _canvas->state_cook[0].fill.type = GP_FILL_TYPE_SOLID;
     _canvas->state_cook[0].fill.spread = GP_FILL_SPREAD_CLAMP;
     _canvas->state_cook[0].fill.from_x = 0.f;
@@ -501,32 +502,17 @@ gp_result_t gp_get_outline_width( const gp_canvas_t * _canvas, float * _width )
 //////////////////////////////////////////////////////////////////////////
 gp_result_t gp_set_outline_color( gp_canvas_t * _canvas, float _r, float _g, float _b, float _a )
 {
-#if defined(GP_DEBUG)
-    if( GP_MATH_ISFINITE( _r ) == 0 || GP_MATH_ISFINITE( _g ) == 0 ||
-        GP_MATH_ISFINITE( _b ) == 0 || GP_MATH_ISFINITE( _a ) == 0 ||
-        _r > 1.f || _r < 0.f ||
-        _g > 1.f || _g < 0.f ||
-        _b > 1.f || _b < 0.f ||
-        _a > 1.f || _a < 0.f )
-    {
-        return GP_FAILURE;
-    }
-#endif
+    gp_color_t color = {_r, _g, _b, _a};
+    GP_CALL( gp_color_normalize, (&color) );
 
     gp_state_t * state = GP_GET_STATE( _canvas );
 
-    if( state->outline_color.r == _r &&
-        state->outline_color.g == _g &&
-        state->outline_color.b == _b &&
-        state->outline_color.a == _a )
+    if( gp_color_equal( &state->outline_color, &color ) == GP_TRUE )
     {
         return GP_SUCCESSFUL;
     }
 
-    state->outline_color.r = _r;
-    state->outline_color.g = _g;
-    state->outline_color.b = _b;
-    state->outline_color.a = _a;
+    state->outline_color = color;
 
     _canvas->state_invalidate = GP_TRUE;
 
@@ -828,32 +814,17 @@ gp_result_t gp_get_uv_mode( const gp_canvas_t * _canvas, gp_uv_mode_t * _mode )
 }
 gp_result_t gp_set_color( gp_canvas_t * _canvas, float _r, float _g, float _b, float _a )
 {
-#if defined(GP_DEBUG)
-    if( GP_MATH_ISFINITE( _r ) == 0 || GP_MATH_ISFINITE( _g ) == 0 ||
-        GP_MATH_ISFINITE( _b ) == 0 || GP_MATH_ISFINITE( _a ) == 0 ||
-        _r > 1.f || _r < 0.f ||
-        _g > 1.f || _g < 0.f ||
-        _b > 1.f || _b < 0.f ||
-        _a > 1.f || _a < 0.f )
-    {
-        return GP_FAILURE;
-    }
-#endif
+    gp_color_t color = {_r, _g, _b, _a};
+    GP_CALL( gp_color_normalize, (&color) );
 
     gp_state_t * state = GP_GET_STATE( _canvas );
 
-    if( state->color.r == _r &&
-        state->color.g == _g &&
-        state->color.b == _b &&
-        state->color.a == _a )
+    if( gp_color_equal( &state->color, &color ) == GP_TRUE )
     {
         return GP_SUCCESSFUL;
     }
 
-    state->color.r = _r;
-    state->color.g = _g;
-    state->color.b = _b;
-    state->color.a = _a;
+    state->color = color;
     if( state->fill.type == GP_FILL_TYPE_SOLID )
     {
         state->fill.color = state->color;
@@ -1047,6 +1018,28 @@ gp_result_t gp_end_fill( gp_canvas_t * _canvas )
 
     state->flags &= ~GP_STATE_FLAG_FILL;
 
+    _canvas->state_invalidate = GP_TRUE;
+
+    return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
+gp_result_t gp_set_fill_key( gp_canvas_t * _canvas, gp_uint32_t _key )
+{
+#if defined(GP_DEBUG)
+    if( _canvas == GP_NULLPTR )
+    {
+        return GP_FAILURE;
+    }
+#endif
+
+    gp_state_t * state = GP_GET_STATE( _canvas );
+
+    if( state->fill_key == _key )
+    {
+        return GP_SUCCESSFUL;
+    }
+
+    state->fill_key = _key;
     _canvas->state_invalidate = GP_TRUE;
 
     return GP_SUCCESSFUL;
@@ -1606,7 +1599,7 @@ static gp_state_t * __copy_path_state( gp_canvas_t * _canvas, const gp_path_t * 
         state->outline_color = _style->outline_color;
     }
 
-    gp_state_apply_stroke_scale( state );
+    gp_state_prepare_render( state );
 
     GP_LIST_PUSHBACK( gp_state_t, _canvas->states, state );
 
@@ -2100,14 +2093,16 @@ static gp_result_t __render_order_indices32( const gp_canvas_t * _canvas, const 
         return GP_FAILURE;
     }
 
-    gp_mesh_t mesh = *_size;
-    mesh.positions_buffer = GP_NULLPTR;
-    mesh.colors_buffer = GP_NULLPTR;
-    mesh.uv_buffer = GP_NULLPTR;
+    gp_mesh_t mesh = {0};
+    mesh.vertex_count = _size->vertex_count;
+    mesh.index_count = _size->index_count;
+    mesh.color.r = 1.f;
+    mesh.color.g = 1.f;
+    mesh.color.b = 1.f;
+    mesh.color.a = 1.f;
     mesh.indices_buffer = indices;
     mesh.indices_offset = 0;
     mesh.indices_stride = sizeof( gp_uint32_t );
-    mesh.batches_buffer = GP_NULLPTR;
 
     gp_uint32_t vertex_iterator = 0;
     gp_uint32_t index_iterator = 0;
@@ -2139,6 +2134,7 @@ static gp_result_t __calculate_mesh_size( const gp_canvas_t * _canvas, gp_mesh_t
     _mesh->batch_count = 0;
 
     gp_uint32_t batch_vertex_count = 0;
+    gp_uint32_t batch_fill_key = 0;
     gp_bool_t has_batch = GP_FALSE;
     for( gp_uint32_t order_index = 0; order_index != _canvas->render_order_count; ++order_index )
     {
@@ -2150,12 +2146,15 @@ static gp_result_t __calculate_mesh_size( const gp_canvas_t * _canvas, gp_mesh_t
             continue;
         }
 
+        gp_uint32_t fill_key = order->state == GP_NULLPTR ? 0 : order->state->fill_key;
+
         if( primitive_mesh.vertex_count <= UINT16_MAX )
         {
-            if( has_batch == GP_FALSE || batch_vertex_count + primitive_mesh.vertex_count > UINT16_MAX )
+            if( has_batch == GP_FALSE || batch_fill_key != fill_key || batch_vertex_count + primitive_mesh.vertex_count > UINT16_MAX )
             {
                 ++_mesh->batch_count;
                 batch_vertex_count = primitive_mesh.vertex_count;
+                batch_fill_key = fill_key;
                 has_batch = GP_TRUE;
             }
             else
@@ -2168,10 +2167,11 @@ static gp_result_t __calculate_mesh_size( const gp_canvas_t * _canvas, gp_mesh_t
             continue;
         }
 
-        if( has_batch == GP_FALSE )
+        if( has_batch == GP_FALSE || batch_fill_key != fill_key )
         {
             ++_mesh->batch_count;
             batch_vertex_count = 0;
+            batch_fill_key = fill_key;
             has_batch = GP_TRUE;
         }
 
@@ -2531,7 +2531,7 @@ static gp_result_t __render( const gp_canvas_t * _canvas, const gp_mesh_t * _mes
     gp_uint32_t batch_index = 0;
     gp_uint32_t global_vertex_iterator = 0;
     gp_uint32_t global_index_iterator = 0;
-    gp_render_batch_t batch;
+    gp_render_batch_t batch = {0};
     gp_bool_t has_batch = GP_FALSE;
 
     for( gp_uint32_t order_index = 0; order_index != _canvas->render_order_count; ++order_index )
@@ -2544,21 +2544,28 @@ static gp_result_t __render( const gp_canvas_t * _canvas, const gp_mesh_t * _mes
             continue;
         }
 
-        if( primitive_size.vertex_count > UINT16_MAX )
+        gp_uint32_t fill_key = order->state == GP_NULLPTR ? 0 : order->state->fill_key;
+        gp_bool_t split_order = primitive_size.vertex_count > UINT16_MAX ? GP_TRUE : GP_FALSE;
+
+        if( has_batch == GP_FALSE || batch.fill_key != fill_key ||
+            (split_order == GP_FALSE && batch.vertex_count + primitive_size.vertex_count > UINT16_MAX) )
         {
-            if( has_batch == GP_FALSE )
+            if( has_batch == GP_TRUE )
             {
-                batch.vertex_offset = global_vertex_iterator;
-                batch.vertex_count = 0;
-                batch.index_offset = global_index_iterator;
-                batch.index_count = 0;
-                batch.bounds.minimum_x = 0.f;
-                batch.bounds.minimum_y = 0.f;
-                batch.bounds.maximum_x = 0.f;
-                batch.bounds.maximum_y = 0.f;
-                has_batch = GP_TRUE;
+                GP_CALL( __finalize_batch, (_mesh, batch_index++, &batch) );
+                global_vertex_iterator += batch.vertex_count;
+                global_index_iterator += batch.index_count;
             }
 
+            memset( &batch, 0, sizeof( batch ) );
+            batch.vertex_offset = global_vertex_iterator;
+            batch.index_offset = global_index_iterator;
+            batch.fill_key = fill_key;
+            has_batch = GP_TRUE;
+        }
+
+        if( split_order == GP_TRUE )
+        {
             gp_vec2f_t * positions = _mesh->positions_buffer == GP_NULLPTR ? GP_NULLPTR :
                 GP_REALLOC( canvas, GP_NULLPTR, gp_vec2f_t, primitive_size.vertex_count );
             gp_argb_t * colors = _mesh->colors_buffer == GP_NULLPTR ? GP_NULLPTR :
@@ -2680,26 +2687,6 @@ static gp_result_t __render( const gp_canvas_t * _canvas, const gp_mesh_t * _mes
             continue;
         }
 
-        if( has_batch == GP_FALSE || batch.vertex_count + primitive_size.vertex_count > UINT16_MAX )
-        {
-            if( has_batch == GP_TRUE )
-            {
-                GP_CALL( __finalize_batch, (_mesh, batch_index++, &batch) );
-                global_vertex_iterator += batch.vertex_count;
-                global_index_iterator += batch.index_count;
-            }
-
-            batch.vertex_offset = global_vertex_iterator;
-            batch.vertex_count = 0;
-            batch.index_offset = global_index_iterator;
-            batch.index_count = 0;
-            batch.bounds.minimum_x = 0.f;
-            batch.bounds.minimum_y = 0.f;
-            batch.bounds.maximum_x = 0.f;
-            batch.bounds.maximum_y = 0.f;
-            has_batch = GP_TRUE;
-        }
-
         gp_mesh_t window = *_mesh;
         window.vertex_count = UINT16_MAX;
         window.index_count = _mesh->index_count - batch.index_offset;
@@ -2744,13 +2731,16 @@ static gp_result_t __render( const gp_canvas_t * _canvas, const gp_mesh_t * _mes
 //////////////////////////////////////////////////////////////////////////
 gp_result_t gp_render( const gp_canvas_t * _canvas, const gp_mesh_t * _mesh )
 {
-    if( _canvas == GP_NULLPTR )
+    if( _canvas == GP_NULLPTR || _mesh == GP_NULLPTR )
     {
         return GP_FAILURE;
     }
 
+    gp_mesh_t mesh = *_mesh;
+    GP_CALL( gp_color_normalize, (&mesh.color) );
+
     gp_size_t scratch_mark = gp_canvas_scratch_mark( _canvas );
-    gp_result_t result = __render( _canvas, _mesh );
+    gp_result_t result = __render( _canvas, &mesh );
     gp_canvas_scratch_reset( (gp_canvas_t *)_canvas, scratch_mark );
 
     return result;

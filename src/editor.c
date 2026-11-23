@@ -589,6 +589,9 @@ static gp_result_t __grid( gp_canvas_t * _canvas, float _x, float _y, float _wid
     payload.major_color.b = _major_b;
     payload.major_color.a = _major_a;
 
+    GP_CALL( gp_color_normalize, (&payload.minor_color) );
+    GP_CALL( gp_color_normalize, (&payload.major_color) );
+
     float inverse_determinant = 1.f / determinant;
     float corners[4][2] = {{_x, _y}, {_x + _width, _y}, {_x + _width, _y + _height}, {_x, _y + _height}};
     float minimum_u = FLT_MAX;

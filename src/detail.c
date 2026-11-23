@@ -162,7 +162,7 @@ const gp_state_t * gp_canvas_copy_state( gp_canvas_t * _canvas )
     }
 
     *state = *GP_GET_STATE( _canvas );
-    gp_state_apply_stroke_scale( state );
+    gp_state_prepare_render( state );
     state->next = GP_NULLPTR;
     state->prev = GP_NULLPTR;
     GP_LIST_PUSHBACK( gp_state_t, _canvas->states, state );
@@ -170,8 +170,21 @@ const gp_state_t * gp_canvas_copy_state( gp_canvas_t * _canvas )
     return state;
 }
 //////////////////////////////////////////////////////////////////////////
-void gp_state_apply_stroke_scale( gp_state_t * _state )
+void gp_state_prepare_render( gp_state_t * _state )
 {
+    if( (_state->flags & GP_STATE_FLAG_FILL) == 0 )
+    {
+        _state->fill_key = 0;
+    }
+
+    if( _state->fill_key != 0 )
+    {
+        const gp_color_t white = {1.f, 1.f, 1.f, 1.f};
+        _state->color = white;
+        _state->fill.type = GP_FILL_TYPE_SOLID;
+        _state->fill.color = white;
+    }
+
     if( _state->stroke_scale == GP_STROKE_SCALE_WORLD )
     {
         return;
@@ -316,6 +329,42 @@ void gp_canvas_scratch_reset( gp_canvas_t * _canvas, gp_size_t _mark )
 }
 
 //////////////////////////////////////////////////////////////////////////
+static float __saturate_color_component( float _value )
+{
+    if( !(_value > 0.f) )
+    {
+        return 0.f;
+    }
+
+    if( _value >= 1.f )
+    {
+        return 1.f;
+    }
+
+    return _value;
+}
+//////////////////////////////////////////////////////////////////////////
+gp_result_t gp_color_normalize( gp_color_t * _color )
+{
+    if( GP_MATH_ISFINITE( _color->r ) == 0 || GP_MATH_ISFINITE( _color->g ) == 0 ||
+        GP_MATH_ISFINITE( _color->b ) == 0 || GP_MATH_ISFINITE( _color->a ) == 0 )
+    {
+        return GP_FAILURE;
+    }
+
+    _color->r = __saturate_color_component( _color->r );
+    _color->g = __saturate_color_component( _color->g );
+    _color->b = __saturate_color_component( _color->b );
+    _color->a = __saturate_color_component( _color->a );
+
+    return GP_SUCCESSFUL;
+}
+//////////////////////////////////////////////////////////////////////////
+gp_bool_t gp_color_equal( const gp_color_t * _left, const gp_color_t * _right )
+{
+    return _left->r == _right->r && _left->g == _right->g && _left->b == _right->b && _left->a == _right->a ? GP_TRUE : GP_FALSE;
+}
+//////////////////////////////////////////////////////////////////////////
 void gp_color_mul( gp_color_t * _c, const gp_color_t * _c0, const gp_color_t * _c1 )
 {
     _c->r = _c0->r * _c1->r;
@@ -328,10 +377,10 @@ gp_uint32_t gp_color_argb( const gp_color_t * _c )
 {
     const float rgba_255 = 255.5f;
 
-    gp_uint8_t r8 = (gp_uint8_t)(GP_COLOR_R( _c ) * rgba_255);
-    gp_uint8_t g8 = (gp_uint8_t)(GP_COLOR_G( _c ) * rgba_255);
-    gp_uint8_t b8 = (gp_uint8_t)(GP_COLOR_B( _c ) * rgba_255);
-    gp_uint8_t a8 = (gp_uint8_t)(GP_COLOR_A( _c ) * rgba_255);
+    gp_uint8_t r8 = (gp_uint8_t)(__saturate_color_component( GP_COLOR_R( _c ) ) * rgba_255);
+    gp_uint8_t g8 = (gp_uint8_t)(__saturate_color_component( GP_COLOR_G( _c ) ) * rgba_255);
+    gp_uint8_t b8 = (gp_uint8_t)(__saturate_color_component( GP_COLOR_B( _c ) ) * rgba_255);
+    gp_uint8_t a8 = (gp_uint8_t)(__saturate_color_component( GP_COLOR_A( _c ) ) * rgba_255);
 
     gp_uint32_t argb = ((gp_uint32_t)a8 << 24) | ((gp_uint32_t)r8 << 16) |
         ((gp_uint32_t)g8 << 8) | (gp_uint32_t)b8;

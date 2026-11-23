@@ -27,6 +27,8 @@ static const float gp_constant_half_pi = 1.5707963267948966192313216916398f;
 static const float gp_constant_one_and_a_half_pi = 4.7123889803846898576939650749193f;
 static const float gp_constant_two_pi = 6.283185307179586476925286766559f;
 
+gp_result_t gp_color_normalize( gp_color_t * _color );
+gp_bool_t gp_color_equal( const gp_color_t * _left, const gp_color_t * _right );
 void gp_color_mul( gp_color_t * _c, const gp_color_t * _c0, const gp_color_t * _c1 );
 gp_uint32_t gp_color_argb( const gp_color_t * _c );
 
@@ -50,7 +52,7 @@ void * gp_canvas_recording_allocate( gp_canvas_t * _canvas, gp_size_t _size );
 void gp_arena_clear( gp_arena_t * _arena, const gp_graphics_t * _graphics );
 void gp_arena_reset( gp_arena_t * _arena );
 const gp_state_t * gp_canvas_copy_state( gp_canvas_t * _canvas );
-void gp_state_apply_stroke_scale( gp_state_t * _state );
+void gp_state_prepare_render( gp_state_t * _state );
 void * gp_canvas_scratch_reallocate( gp_canvas_t * _canvas, void * _pointer, gp_size_t _size );
 void * gp_canvas_scratch_reallocate_array( gp_canvas_t * _canvas, void * _pointer, gp_size_t _element_size, gp_size_t _count );
 void gp_canvas_scratch_free( gp_canvas_t * _canvas, void * _pointer );

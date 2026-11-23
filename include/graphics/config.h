@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <stddef.h>
 
-#define GP_API_VERSION 5U
+#define GP_API_VERSION 6U
 
 typedef enum gp_result_e
 {
